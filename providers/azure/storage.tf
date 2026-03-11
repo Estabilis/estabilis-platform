@@ -43,18 +43,6 @@ resource "azurerm_storage_container" "mimir_blocks" {
   container_access_type = "private"
 }
 
-resource "azurerm_storage_container" "mimir_alertmanager" {
-  name                  = "mimir-alertmanager"
-  storage_account_id    = azurerm_storage_account.observability.id
-  container_access_type = "private"
-}
-
-resource "azurerm_storage_container" "mimir_ruler" {
-  name                  = "mimir-ruler"
-  storage_account_id    = azurerm_storage_account.observability.id
-  container_access_type = "private"
-}
-
 # ---------------------------------------------------------------------------
 # Backup containers — CloudNativePG and Velero
 # ---------------------------------------------------------------------------
