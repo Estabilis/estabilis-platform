@@ -1,0 +1,19 @@
+# Azure-specific values for ExternalDNS
+# Loaded in addition to values.yaml when provider=azure
+
+provider: azure
+
+azure:
+  resourceGroup: ""           # injected via ArgoCD helm.parameters
+  tenantId: ""                # injected via ArgoCD helm.parameters
+  useManagedIdentityExtension: true
+  userAssignedIdentityID: ""  # injected via ArgoCD helm.parameters
+
+serviceAccount:
+  create: true
+  annotations:
+    azure.workload.identity/use: "true"
+    azure.workload.identity/client-id: ""  # injected via ArgoCD helm.parameters
+
+podLabels:
+  azure.workload.identity/use: "true"

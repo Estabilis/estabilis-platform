@@ -1,0 +1,5 @@
+apiVersion: v2
+name: platform-root
+description: Estabilis Platform - App of Apps
+version: 0.1.0
+type: application

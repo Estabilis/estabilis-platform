@@ -1,0 +1,41 @@
+# Default values for all Estabilis Platform clients
+# These can be overridden per-client in their config repo
+
+# Observability defaults
+observability:
+  logs:
+    retentionDays: 30
+  metrics:
+    retentionDays: 90
+    scrapeInterval: 30s
+
+# Replica counts for platform components (alpha defaults)
+replicas:
+  certManager: 1
+  kyverno: 1
+  externalSecrets: 1
+  externalDns: 1
+  lokiSingleBinary: 1
+  mimirIngester: 1
+  mimirDistributor: 1
+  mimirQuerier: 1
+  grafana: 1
+
+# Resource defaults
+resources:
+  defaultCpuRequest: 100m
+  defaultMemoryRequest: 128Mi
+  defaultCpuLimit: 500m
+  defaultMemoryLimit: 512Mi
+
+# Policy enforcement mode: Audit or Enforce
+policyMode: Audit
+
+# Namespace defaults
+namespaces:
+  certManager: cert-manager
+  kyverno: kyverno
+  externalSecrets: external-secrets
+  externalDns: external-dns
+  grafana: grafana
+  argocd: argocd

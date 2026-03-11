@@ -1,0 +1,159 @@
+alloy:
+  configMap:
+    content: |
+      // Discover Kubernetes pods for log collection
+      discovery.kubernetes "pods" {
+        role = "pod"
+      }
+
+      // Collect logs from discovered pods
+      loki.source.kubernetes "pod_logs" {
+        targets    = discovery.kubernetes.pods.targets
+        forward_to = [loki.write.default.receiver]
+      }
+
+      // Forward logs to Loki
+      loki.write "default" {
+        endpoint {
+          url = "http://grafana-loki-gateway.grafana.svc.cluster.local/loki/api/v1/push"
+        }
+      }
+
+      // Scrape metrics from Kubernetes pods
+      discovery.kubernetes "metric_pods" {
+        role = "pod"
+      }
+
+      discovery.relabel "metric_pods" {
+        targets = discovery.kubernetes.metric_pods.targets
+
+        rule {
+          source_labels = ["__meta_kubernetes_pod_annotation_prometheus_io_scrape"]
+          regex         = "true"
+          action        = "keep"
+        }
+
+        rule {
+          source_labels = ["__meta_kubernetes_pod_annotation_prometheus_io_port"]
+          target_label  = "__address__"
+          regex         = "(.+)"
+          replacement   = "${1}:$0"
+          action        = "replace"
+        }
+      }
+
+      prometheus.scrape "pod_metrics" {
+        targets    = discovery.relabel.metric_pods.output
+        forward_to = [prometheus.remote_write.mimir.receiver]
+      }
+
+      // =====================================================================
+      // Platform component scrape jobs
+      // =====================================================================
+
+      // --- ArgoCD ---
+      prometheus.scrape "argocd_app_controller" {
+        targets = [{
+          __address__ = "argocd-metrics.argocd.svc.cluster.local:8082",
+        }]
+        forward_to = [prometheus.relabel.argocd_app_controller.receiver]
+      }
+
+      prometheus.relabel "argocd_app_controller" {
+        rule {
+          target_label = "job"
+          replacement  = "argocd-application-controller"
+        }
+        forward_to = [prometheus.remote_write.mimir.receiver]
+      }
+
+      prometheus.scrape "argocd_server" {
+        targets = [{
+          __address__ = "argocd-server-metrics.argocd.svc.cluster.local:8083",
+        }]
+        forward_to = [prometheus.relabel.argocd_server.receiver]
+      }
+
+      prometheus.relabel "argocd_server" {
+        rule {
+          target_label = "job"
+          replacement  = "argocd-server"
+        }
+        forward_to = [prometheus.remote_write.mimir.receiver]
+      }
+
+      prometheus.scrape "argocd_repo_server" {
+        targets = [{
+          __address__ = "argocd-repo-server.argocd.svc.cluster.local:8084",
+        }]
+        forward_to = [prometheus.relabel.argocd_repo_server.receiver]
+      }
+
+      prometheus.relabel "argocd_repo_server" {
+        rule {
+          target_label = "job"
+          replacement  = "argocd-repo-server"
+        }
+        forward_to = [prometheus.remote_write.mimir.receiver]
+      }
+
+      // --- cert-manager ---
+      prometheus.scrape "cert_manager" {
+        targets = [{
+          __address__ = "cert-manager.cert-manager.svc.cluster.local:9402",
+        }]
+        forward_to = [prometheus.relabel.cert_manager.receiver]
+      }
+
+      prometheus.relabel "cert_manager" {
+        rule {
+          target_label = "job"
+          replacement  = "cert-manager"
+        }
+        forward_to = [prometheus.remote_write.mimir.receiver]
+      }
+
+      // --- Kyverno ---
+      prometheus.scrape "kyverno" {
+        targets = [{
+          __address__ = "kyverno-svc-metrics.kyverno.svc.cluster.local:8000",
+        }]
+        forward_to = [prometheus.relabel.kyverno.receiver]
+      }
+
+      prometheus.relabel "kyverno" {
+        rule {
+          target_label = "job"
+          replacement  = "kyverno"
+        }
+        forward_to = [prometheus.remote_write.mimir.receiver]
+      }
+
+      // --- External Secrets Operator ---
+      prometheus.scrape "external_secrets" {
+        targets = [{
+          __address__ = "external-secrets-metrics.external-secrets.svc.cluster.local:8080",
+        }]
+        forward_to = [prometheus.relabel.external_secrets.receiver]
+      }
+
+      prometheus.relabel "external_secrets" {
+        rule {
+          target_label = "job"
+          replacement  = "external-secrets"
+        }
+        forward_to = [prometheus.remote_write.mimir.receiver]
+      }
+
+      // Forward metrics to Mimir
+      prometheus.remote_write "mimir" {
+        endpoint {
+          url = "http://grafana-mimir-nginx.grafana.svc.cluster.local/api/v1/push"
+        }
+      }
+
+controller:
+  type: daemonset
+
+serviceAccount:
+  create: true

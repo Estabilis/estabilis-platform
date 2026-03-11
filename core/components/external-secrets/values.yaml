@@ -1,0 +1,10 @@
+replicaCount: 1
+
+serviceAccount:
+  create: true
+
+webhook:
+  replicaCount: 1
+
+certController:
+  replicaCount: 1

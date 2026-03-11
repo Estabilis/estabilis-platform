@@ -1,0 +1,17 @@
+installCRDs: true
+
+replicaCount: 1
+
+serviceAccount:
+  create: true
+
+prometheus:
+  enabled: true
+  servicemonitor:
+    enabled: false
+
+webhook:
+  replicaCount: 1
+
+cainjector:
+  replicaCount: 1

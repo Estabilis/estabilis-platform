@@ -1,0 +1,9 @@
+txtOwnerId: ""  # injected via ArgoCD helm.parameters (global.clusterName)
+
+policy: upsert-only
+
+sources:
+  - service
+  - ingress
+
+domainFilters: []  # injected via ArgoCD helm.parameters

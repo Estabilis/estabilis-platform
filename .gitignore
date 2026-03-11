@@ -1,0 +1,30 @@
+# Secrets
+secrets.env
+*.pem
+*.key
+.env
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*backup
+*.tfstate.backup
+*.tfplan
+*.tfvars
+.terraform.lock.hcl
+
+# Kubernetes
+kubeconfig
+
+# IDE
+.idea/
+
+# Not part of upstream
+justfile
+CLAUDE.md
+bootstrap/secrets.env.example
+example-downstream/
+prompt-v0-alpha.md
+prompt-agents.md
+PROMPT-*.md
+pyproject.toml

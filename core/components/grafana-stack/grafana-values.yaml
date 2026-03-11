@@ -1,0 +1,38 @@
+datasources:
+  datasources.yaml:
+    apiVersion: 1
+    datasources:
+      - name: Mimir
+        type: prometheus
+        access: proxy
+        url: http://grafana-mimir-nginx.grafana.svc.cluster.local/prometheus
+        isDefault: true
+        jsonData:
+          timeInterval: 30s
+      - name: Loki
+        type: loki
+        access: proxy
+        url: http://grafana-loki-gateway.grafana.svc.cluster.local
+        jsonData:
+          maxLines: 1000
+
+sidecar:
+  dashboards:
+    enabled: true
+    searchNamespace: ALL
+    label: grafana_dashboard
+    labelValue: "1"
+    folderAnnotation: grafana_folder
+    provider:
+      foldersFromFilesStructure: true
+
+persistence:
+  enabled: true
+  size: 5Gi
+
+adminUser: admin
+# Admin password should be provided via external secret
+# adminPassword: set-via-external-secret
+
+serviceAccount:
+  create: true

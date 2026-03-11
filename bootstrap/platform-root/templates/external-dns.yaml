@@ -1,0 +1,42 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: external-dns
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "5"
+spec:
+  project: platform
+  sources:
+    - repoURL: https://kubernetes-sigs.github.io/external-dns
+      chart: external-dns
+      targetRevision: "1.15.2"
+      helm:
+        valueFiles:
+          - $values/core/components/external-dns/values.yaml
+          - $values/core/components/external-dns/values-azure.yaml
+        parameters:
+          - name: azure.resourceGroup
+            value: "{{ .Values.global.resourceGroup }}"
+          - name: azure.tenantId
+            value: "{{ .Values.global.tenantId }}"
+          - name: azure.userAssignedIdentityID
+            value: "{{ .Values.identity.externalDns.clientId }}"
+          - name: serviceAccount.annotations.azure\.workload\.identity/client-id
+            value: "{{ .Values.identity.externalDns.clientId }}"
+          - name: domainFilters[0]
+            value: "{{ .Values.global.domain }}"
+          - name: txtOwnerId
+            value: "{{ .Values.global.clusterName }}"
+    - repoURL: {{ .Values.platformRepoUrl }}
+      targetRevision: {{ .Values.platformVersion }}
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: external-dns
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

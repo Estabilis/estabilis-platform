@@ -1,0 +1,43 @@
+# Azure-specific overrides for the Estabilis Platform
+
+# Cloud provider
+provider: azure
+
+# Storage configuration
+storage:
+  type: azure-blob
+  azure:
+    # These values should be provided per-client, not hardcoded
+    accountName: ""
+    resourceGroup: ""
+    subscriptionId: ""
+    tenantId: ""
+
+# Identity configuration
+identity:
+  type: workload-identity
+  azure:
+    useManagedIdentity: true
+    userAssignedIdentityID: ""
+
+# DNS configuration
+dns:
+  provider: azure
+  azure:
+    resourceGroup: ""
+    subscriptionId: ""
+    tenantId: ""
+
+# Certificate management
+certificates:
+  issuer: letsencrypt
+  azure:
+    # Use Azure DNS for ACME DNS01 challenges
+    dnsZoneResourceGroup: ""
+    hostedZoneName: ""
+
+# Container registry
+containerRegistry:
+  type: acr
+  azure:
+    registryName: ""

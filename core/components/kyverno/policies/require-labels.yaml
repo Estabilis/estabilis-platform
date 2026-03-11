@@ -1,0 +1,36 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-labels
+  annotations:
+    policies.kyverno.io/title: Require Labels
+    policies.kyverno.io/description: >-
+      Requires all Deployments, StatefulSets, DaemonSets, Jobs, and CronJobs
+      to have the standard Estabilis platform labels for identification and
+      ownership tracking.
+spec:
+  validationFailureAction: Audit
+  background: true
+  rules:
+    - name: require-labels
+      match:
+        any:
+          - resources:
+              kinds:
+                - Deployment
+                - StatefulSet
+                - DaemonSet
+                - Job
+                - CronJob
+      validate:
+        message: >-
+          The following labels are required: app, team,
+          estabilis.io/owner, estabilis.io/service, estabilis.io/tier.
+        pattern:
+          metadata:
+            labels:
+              app: "?*"
+              team: "?*"
+              estabilis.io/owner: "?*"
+              estabilis.io/service: "?*"
+              estabilis.io/tier: "?*"

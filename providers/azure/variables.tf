@@ -1,0 +1,186 @@
+variable "name_prefix" {
+  description = "Prefix used for all resource names. Override per client."
+  type        = string
+  default     = "estabilis"
+}
+
+variable "location" {
+  description = "Azure region for all resources."
+  type        = string
+  default     = "eastus2"
+}
+
+variable "domain" {
+  description = "Primary domain name for the platform (e.g. estabilis.io)."
+  type        = string
+}
+
+variable "environment" {
+  description = "Deployment environment identifier."
+  type        = string
+  default     = "homolog"
+
+  validation {
+    condition     = contains(["dev", "homolog", "staging", "production"], var.environment)
+    error_message = "Environment must be one of: dev, homolog, staging, production."
+  }
+}
+
+variable "kubernetes_version" {
+  description = "Kubernetes version for the AKS cluster."
+  type        = string
+  default     = "1.34"
+}
+
+variable "platform_repo_url" {
+  description = "Git repository URL for the platform manifests."
+  type        = string
+}
+
+variable "platform_version" {
+  description = "Version of the platform chart / manifests to deploy."
+  type        = string
+  default     = "0.1.0-alpha"
+}
+
+variable "config_repo_url" {
+  description = "Git repository URL for environment-specific configuration. Leave empty to skip."
+  type        = string
+  default     = ""
+}
+
+variable "tenant_id" {
+  description = "Azure AD tenant ID. Can also be set via ARM_TENANT_ID environment variable."
+  type        = string
+  sensitive   = true
+}
+
+variable "subscription_id" {
+  description = "Azure subscription ID. Can also be set via ARM_SUBSCRIPTION_ID environment variable."
+  type        = string
+  sensitive   = true
+}
+
+# ---------------------------------------------------------------------------
+# AKS – System node pool
+# ---------------------------------------------------------------------------
+
+variable "system_vm_size" {
+  description = "VM size for the system node pool."
+  type        = string
+  default     = "Standard_D2s_v3"
+}
+
+variable "system_node_count" {
+  description = "Number of nodes in the system node pool."
+  type        = number
+  default     = 2
+}
+
+variable "system_os_disk_size_gb" {
+  description = "OS disk size (GB) for system nodes."
+  type        = number
+  default     = 50
+}
+
+# ---------------------------------------------------------------------------
+# AKS – Workload node pool
+# ---------------------------------------------------------------------------
+
+variable "workload_vm_size" {
+  description = "VM size for the workload node pool."
+  type        = string
+  default     = "Standard_D2s_v3"
+}
+
+variable "workload_node_count" {
+  description = "Number of nodes in the workload node pool."
+  type        = number
+  default     = 1
+}
+
+variable "workload_os_disk_size_gb" {
+  description = "OS disk size (GB) for workload nodes."
+  type        = number
+  default     = 50
+}
+
+variable "workload_priority" {
+  description = "Priority for the workload node pool: Regular or Spot."
+  type        = string
+  default     = "Regular"
+
+  validation {
+    condition     = contains(["Regular", "Spot"], var.workload_priority)
+    error_message = "workload_priority must be Regular or Spot."
+  }
+}
+
+# ---------------------------------------------------------------------------
+# AKS – Network
+# ---------------------------------------------------------------------------
+
+variable "vnet_address_space" {
+  description = "Address space for the virtual network."
+  type        = string
+  default     = "10.0.0.0/16"
+}
+
+variable "subnet_nodes_prefix" {
+  description = "Address prefix for the AKS nodes subnet."
+  type        = string
+  default     = "10.0.1.0/24"
+}
+
+variable "subnet_pods_prefix" {
+  description = "Address prefix for the AKS pods subnet."
+  type        = string
+  default     = "10.0.2.0/23"
+}
+
+variable "service_cidr" {
+  description = "CIDR for Kubernetes services."
+  type        = string
+  default     = "172.16.0.0/16"
+}
+
+variable "dns_service_ip" {
+  description = "IP address for Kubernetes DNS service."
+  type        = string
+  default     = "172.16.0.10"
+}
+
+variable "pod_cidr" {
+  description = "CIDR for Kubernetes pods (overlay)."
+  type        = string
+  default     = "10.244.0.0/16"
+}
+
+variable "authorized_ip_ranges" {
+  description = "List of authorized IP ranges for AKS API server access. Empty list makes API server private."
+  type        = list(string)
+  default     = []
+}
+
+# ---------------------------------------------------------------------------
+# ArgoCD
+# ---------------------------------------------------------------------------
+
+variable "argocd_chart_version" {
+  description = "Helm chart version for ArgoCD."
+  type        = string
+  default     = "7.8.13"
+}
+
+# ---------------------------------------------------------------------------
+# Tags
+# ---------------------------------------------------------------------------
+
+variable "tags" {
+  description = "Default tags applied to every resource."
+  type        = map(string)
+  default = {
+    project    = "estabilis"
+    managed-by = "terraform"
+  }
+}
