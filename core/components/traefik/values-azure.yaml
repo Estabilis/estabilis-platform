@@ -1,0 +1,6 @@
+# Azure-specific Traefik values
+# Loaded in addition to values.yaml when provider=azure
+
+service:
+  annotations:
+    service.beta.kubernetes.io/azure-load-balancer-health-probe-request-path: /ping

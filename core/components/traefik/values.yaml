@@ -32,8 +32,6 @@ affinity:
 
 service:
   type: LoadBalancer
-  annotations:
-    service.beta.kubernetes.io/azure-load-balancer-health-probe-request-path: /ping
 
 providers:
   kubernetesCRD:
