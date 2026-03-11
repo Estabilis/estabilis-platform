@@ -54,3 +54,19 @@ resource "azurerm_storage_container" "mimir_ruler" {
   storage_account_id    = azurerm_storage_account.observability.id
   container_access_type = "private"
 }
+
+# ---------------------------------------------------------------------------
+# Backup containers — CloudNativePG and Velero
+# ---------------------------------------------------------------------------
+
+resource "azurerm_storage_container" "cnpg_backup" {
+  name                  = "cnpg-backup"
+  storage_account_id    = azurerm_storage_account.observability.id
+  container_access_type = "private"
+}
+
+resource "azurerm_storage_container" "velero_backup" {
+  name                  = "velero-backup"
+  storage_account_id    = azurerm_storage_account.observability.id
+  container_access_type = "private"
+}

@@ -104,3 +104,55 @@ resource "azurerm_role_assignment" "mimir_storage_contributor" {
   role_definition_name = "Storage Blob Data Contributor"
   principal_id         = azurerm_user_assigned_identity.mimir.principal_id
 }
+
+# ========================== cloudnativepg ==================================
+
+resource "azurerm_user_assigned_identity" "cnpg" {
+  name                = "mi-${var.name_prefix}-cnpg"
+  location            = azurerm_resource_group.platform.location
+  resource_group_name = azurerm_resource_group.platform.name
+  tags                = var.tags
+}
+
+resource "azurerm_federated_identity_credential" "cnpg" {
+  name      = "fic-${var.name_prefix}-cnpg"
+  parent_id = azurerm_user_assigned_identity.cnpg.id
+  audience  = ["api://AzureADTokenExchange"]
+  issuer    = local.aks_oidc_issuer_url
+  subject   = "system:serviceaccount:cnpg-system:cnpg-controller-manager"
+}
+
+resource "azurerm_role_assignment" "cnpg_storage_contributor" {
+  scope                = azurerm_storage_account.observability.id
+  role_definition_name = "Storage Blob Data Contributor"
+  principal_id         = azurerm_user_assigned_identity.cnpg.principal_id
+}
+
+# ========================== velero ========================================
+
+resource "azurerm_user_assigned_identity" "velero" {
+  name                = "mi-${var.name_prefix}-velero"
+  location            = azurerm_resource_group.platform.location
+  resource_group_name = azurerm_resource_group.platform.name
+  tags                = var.tags
+}
+
+resource "azurerm_federated_identity_credential" "velero" {
+  name      = "fic-${var.name_prefix}-velero"
+  parent_id = azurerm_user_assigned_identity.velero.id
+  audience  = ["api://AzureADTokenExchange"]
+  issuer    = local.aks_oidc_issuer_url
+  subject   = "system:serviceaccount:velero:velero"
+}
+
+resource "azurerm_role_assignment" "velero_storage_contributor" {
+  scope                = azurerm_storage_account.observability.id
+  role_definition_name = "Storage Blob Data Contributor"
+  principal_id         = azurerm_user_assigned_identity.velero.principal_id
+}
+
+resource "azurerm_role_assignment" "velero_rg_reader" {
+  scope                = azurerm_resource_group.platform.id
+  role_definition_name = "Reader"
+  principal_id         = azurerm_user_assigned_identity.velero.principal_id
+}

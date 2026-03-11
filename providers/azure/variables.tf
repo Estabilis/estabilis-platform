@@ -168,6 +168,28 @@ variable "argocd_chart_version" {
 }
 
 # ---------------------------------------------------------------------------
+# Backup
+# ---------------------------------------------------------------------------
+
+variable "cnpg_backup_retention_days" {
+  description = "Retention period in days for CloudNativePG base backups."
+  type        = number
+  default     = 7
+}
+
+variable "velero_backup_retention_hours" {
+  description = "Retention period in hours for Velero backups."
+  type        = number
+  default     = 720
+}
+
+variable "velero_backup_schedule" {
+  description = "Cron schedule for Velero full cluster backups."
+  type        = string
+  default     = "0 2 * * *"
+}
+
+# ---------------------------------------------------------------------------
 # Tags
 # ---------------------------------------------------------------------------
 

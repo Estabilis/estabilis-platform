@@ -25,6 +25,8 @@ resource "kubectl_manifest" "argocd_project_platform" {
         "https://traefik.github.io/charts",
         "https://aquasecurity.github.io/helm-charts",
         "https://opencost.github.io/opencost-helm-chart",
+        "https://cloudnative-pg.github.io/charts",
+        "https://vmware-tanzu.github.io/helm-charts",
       ]
       destinations = [
         { server = "https://kubernetes.default.svc", namespace = "argocd" },
@@ -37,6 +39,8 @@ resource "kubectl_manifest" "argocd_project_platform" {
         { server = "https://kubernetes.default.svc", namespace = "traefik" },
         { server = "https://kubernetes.default.svc", namespace = "trivy-system" },
         { server = "https://kubernetes.default.svc", namespace = "opencost" },
+        { server = "https://kubernetes.default.svc", namespace = "cnpg-system" },
+        { server = "https://kubernetes.default.svc", namespace = "velero" },
       ]
       clusterResourceWhitelist = [
         { group = "*", kind = "Namespace" },
@@ -121,6 +125,34 @@ resource "kubectl_manifest" "platform_root" {
             {
               name  = "identity.mimir.clientId"
               value = azurerm_user_assigned_identity.mimir.client_id
+            },
+            {
+              name  = "identity.cnpg.clientId"
+              value = azurerm_user_assigned_identity.cnpg.client_id
+            },
+            {
+              name  = "identity.velero.clientId"
+              value = azurerm_user_assigned_identity.velero.client_id
+            },
+            {
+              name  = "global.cnpgBackupContainerName"
+              value = azurerm_storage_container.cnpg_backup.name
+            },
+            {
+              name  = "global.veleroBackupContainerName"
+              value = azurerm_storage_container.velero_backup.name
+            },
+            {
+              name  = "global.veleroBackupSchedule"
+              value = var.velero_backup_schedule
+            },
+            {
+              name  = "global.veleroBackupRetentionHours"
+              value = tostring(var.velero_backup_retention_hours)
+            },
+            {
+              name  = "global.cnpgBackupRetentionDays"
+              value = tostring(var.cnpg_backup_retention_days)
             },
             {
               name  = "platformRepoUrl"
