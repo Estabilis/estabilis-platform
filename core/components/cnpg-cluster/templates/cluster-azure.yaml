@@ -41,10 +41,10 @@ spec:
   # Backup to Azure Blob Storage via WAL archiving
   backup:
     barmanObjectStore:
-      destinationPath: "https://STORAGE_ACCOUNT.blob.core.windows.net/cnpg-backup"
+      destinationPath: "https://{{ .Values.global.storageAccountName }}.blob.core.windows.net/cnpg-backup"
       azureCredentials:
         inheritFromAzureAD: true
-    retentionPolicy: "7d"
+    retentionPolicy: "{{ .Values.global.cnpgBackupRetentionDays }}d"
 
   tolerations:
     - key: "estabilis.io/workload-type"
@@ -82,3 +82,13 @@ spec:
   backupOwnerReference: self
   cluster:
     name: platform-postgres
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: platform-postgres
+  namespace: cnpg-system
+  annotations:
+    azure.workload.identity/client-id: "{{ .Values.identity.cnpg.clientId }}"
+  labels:
+    azure.workload.identity/use: "true"

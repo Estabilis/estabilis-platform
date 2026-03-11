@@ -135,6 +135,10 @@ resource "kubectl_manifest" "platform_root" {
               value = azurerm_user_assigned_identity.velero.client_id
             },
             {
+              name  = "global.subscriptionId"
+              value = var.subscription_id
+            },
+            {
               name  = "global.cnpgBackupContainerName"
               value = azurerm_storage_container.cnpg_backup.name
             },

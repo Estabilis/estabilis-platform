@@ -1,5 +1,13 @@
 # Azure-specific Velero values
 
+configuration:
+  backupStorageLocation:
+    - name: default
+      provider: azure
+  volumeSnapshotLocation:
+    - name: default
+      provider: azure
+
 tolerations:
   - key: "kubernetes.azure.com/scalesetpriority"
     operator: "Equal"

@@ -1,0 +1,6 @@
+global:
+  storageAccountName: ""
+  cnpgBackupRetentionDays: 7
+identity:
+  cnpg:
+    clientId: ""

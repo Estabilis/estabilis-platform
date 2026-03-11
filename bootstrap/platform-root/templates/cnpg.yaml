@@ -38,12 +38,23 @@ metadata:
     argocd.argoproj.io/sync-wave: "4"
 spec:
   project: platform
-  source:
-    repoURL: {{ .Values.platformRepoUrl }}
-    targetRevision: {{ .Values.platformVersion }}
-    path: core/components/cnpg-cluster
-    directory:
-      include: "cluster-{{ .Values.global.provider }}.yaml"
+  sources:
+    - repoURL: {{ .Values.platformRepoUrl }}
+      targetRevision: {{ .Values.platformVersion }}
+      path: core/components/cnpg-cluster
+      helm:
+        valueFiles:
+          - $values/core/components/cnpg-cluster/values.yaml
+        parameters:
+          - name: global.storageAccountName
+            value: "{{ .Values.global.storageAccountName }}"
+          - name: global.cnpgBackupRetentionDays
+            value: "{{ .Values.global.cnpgBackupRetentionDays }}"
+          - name: identity.cnpg.clientId
+            value: "{{ .Values.identity.cnpg.clientId }}"
+    - repoURL: {{ .Values.platformRepoUrl }}
+      targetRevision: {{ .Values.platformVersion }}
+      ref: values
   destination:
     server: https://kubernetes.default.svc
     namespace: cnpg-system

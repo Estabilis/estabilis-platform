@@ -4,18 +4,16 @@
 configuration:
   backupStorageLocation:
     - name: default
-      provider: azure
-      bucket: velero-backup
+      bucket: ""
       config:
-        resourceGroup: ""        # injected via ArgoCD helm.parameters
-        storageAccount: ""       # injected via ArgoCD helm.parameters
-        subscriptionId: ""       # injected via ArgoCD helm.parameters
+        resourceGroup: ""
+        storageAccount: ""
+        subscriptionId: ""
 
   volumeSnapshotLocation:
     - name: default
-      provider: azure
       config:
-        resourceGroup: ""        # injected via ArgoCD helm.parameters
+        resourceGroup: ""
 
 credentials:
   useSecret: false

@@ -40,7 +40,9 @@ database:
 env:
   GF_DATABASE_SSL_MODE: require
 
-envFromSecret: grafana-db-credentials
+extraEnvFrom:
+  - secretRef:
+      name: grafana-db-credentials
 
 adminUser: admin
 # Admin password should be provided via external secret

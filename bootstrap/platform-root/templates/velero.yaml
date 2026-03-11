@@ -23,6 +23,8 @@ spec:
             value: "{{ .Values.global.storageAccountName }}"
           - name: configuration.backupStorageLocation[0].config.resourceGroup
             value: "{{ .Values.global.resourceGroup }}"
+          - name: configuration.backupStorageLocation[0].config.subscriptionId
+            value: "{{ .Values.global.subscriptionId }}"
           - name: configuration.volumeSnapshotLocation[0].config.resourceGroup
             value: "{{ .Values.global.resourceGroup }}"
           - name: serviceAccount.server.annotations.azure\.workload\.identity/client-id
