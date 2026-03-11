@@ -10,7 +10,7 @@ spec:
   sources:
     - repoURL: https://grafana.github.io/helm-charts
       chart: loki
-      targetRevision: "6.37.0"
+      targetRevision: "6.54.0"
       helm:
         valueFiles:
           - $values/core/components/grafana-stack/loki-values.yaml
@@ -53,7 +53,7 @@ spec:
   sources:
     - repoURL: https://grafana.github.io/helm-charts
       chart: mimir-distributed
-      targetRevision: "6.0.5"
+      targetRevision: "6.1.0"
       helm:
         valueFiles:
           - $values/core/components/grafana-stack/mimir-values.yaml
@@ -98,7 +98,7 @@ spec:
   sources:
     - repoURL: https://grafana.github.io/helm-charts
       chart: alloy
-      targetRevision: "0.9.0"
+      targetRevision: "1.6.2"
       helm:
         valueFiles:
           - $values/core/components/grafana-stack/alloy-values.yaml
@@ -127,7 +127,7 @@ spec:
   sources:
     - repoURL: https://grafana.github.io/helm-charts
       chart: grafana
-      targetRevision: "8.0.0"
+      targetRevision: "10.5.15"
       helm:
         valueFiles:
           - $values/core/components/grafana-stack/grafana-values.yaml

@@ -164,7 +164,7 @@ variable "authorized_ip_ranges" {
 variable "argocd_chart_version" {
   description = "Helm chart version for ArgoCD."
   type        = string
-  default     = "7.8.13"
+  default     = "9.4.7"
 }
 
 # ---------------------------------------------------------------------------
