@@ -15,6 +15,15 @@ datasources:
         url: http://grafana-loki-gateway.grafana.svc.cluster.local
         jsonData:
           maxLines: 1000
+      - name: Tempo
+        type: tempo
+        access: proxy
+        url: http://grafana-tempo.grafana.svc.cluster.local:3100
+        jsonData:
+          tracesToLogsV2:
+            datasourceUid: Loki
+          tracesToMetrics:
+            datasourceUid: Mimir
 
 sidecar:
   dashboards:
@@ -72,6 +81,9 @@ affinity:
 
 serviceAccount:
   create: true
+
+plugins:
+  - grafana-opencost-app
 
 testFramework:
   enabled: false

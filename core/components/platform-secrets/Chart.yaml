@@ -1,0 +1,5 @@
+apiVersion: v2
+name: platform-secrets
+description: ExternalSecrets for platform PostgreSQL databases
+version: 0.1.0
+type: application

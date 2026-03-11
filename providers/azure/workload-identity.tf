@@ -125,13 +125,36 @@ resource "azurerm_federated_identity_credential" "cnpg" {
   parent_id = azurerm_user_assigned_identity.cnpg.id
   audience  = ["api://AzureADTokenExchange"]
   issuer    = local.aks_oidc_issuer_url
-  subject   = "system:serviceaccount:cnpg-system:cnpg-controller-manager"
+  subject   = "system:serviceaccount:cnpg-system:platform-postgres"
 }
 
 resource "azurerm_role_assignment" "cnpg_storage_contributor" {
   scope                = azurerm_storage_container.cnpg_backup.resource_manager_id
   role_definition_name = "Storage Blob Data Contributor"
   principal_id         = azurerm_user_assigned_identity.cnpg.principal_id
+}
+
+# ========================== cert-manager ==================================
+
+resource "azurerm_user_assigned_identity" "cert_manager" {
+  name                = "mi-${var.name_prefix}-cert-manager"
+  location            = azurerm_resource_group.platform.location
+  resource_group_name = azurerm_resource_group.platform.name
+  tags                = var.tags
+}
+
+resource "azurerm_federated_identity_credential" "cert_manager" {
+  name      = "fic-${var.name_prefix}-cert-manager"
+  parent_id = azurerm_user_assigned_identity.cert_manager.id
+  audience  = ["api://AzureADTokenExchange"]
+  issuer    = local.aks_oidc_issuer_url
+  subject   = "system:serviceaccount:cert-manager:cert-manager"
+}
+
+resource "azurerm_role_assignment" "cert_manager_dns_contributor" {
+  scope                = azurerm_dns_zone.platform.id
+  role_definition_name = "DNS Zone Contributor"
+  principal_id         = azurerm_user_assigned_identity.cert_manager.principal_id
 }
 
 # ========================== velero ========================================

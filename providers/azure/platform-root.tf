@@ -131,6 +131,14 @@ resource "kubectl_manifest" "platform_root" {
               value = azurerm_user_assigned_identity.cnpg.client_id
             },
             {
+              name  = "identity.certManager.clientId"
+              value = azurerm_user_assigned_identity.cert_manager.client_id
+            },
+            {
+              name  = "global.letsencryptEmail"
+              value = var.letsencrypt_email
+            },
+            {
               name  = "identity.velero.clientId"
               value = azurerm_user_assigned_identity.velero.client_id
             },

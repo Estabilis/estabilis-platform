@@ -1,0 +1,9 @@
+global:
+  letsencryptEmail: ""
+  tenantId: ""
+  subscriptionId: ""
+  resourceGroup: ""
+  domain: ""
+identity:
+  certManager:
+    clientId: ""

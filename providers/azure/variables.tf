@@ -199,6 +199,11 @@ variable "velero_backup_schedule" {
   default     = "0 2 * * *"
 }
 
+variable "letsencrypt_email" {
+  description = "Email address for Let's Encrypt ACME account registration."
+  type        = string
+}
+
 # ---------------------------------------------------------------------------
 # Tags
 # ---------------------------------------------------------------------------

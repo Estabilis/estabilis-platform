@@ -46,3 +46,8 @@ output "dns_zone_name_servers" {
   description = "Name servers for the DNS zone — configure these at your domain registrar"
   value       = azurerm_dns_zone.platform.name_servers
 }
+
+output "cert_manager_client_id" {
+  description = "Client ID of the cert-manager managed identity."
+  value       = azurerm_user_assigned_identity.cert_manager.client_id
+}

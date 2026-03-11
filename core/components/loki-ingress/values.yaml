@@ -1,2 +1,5 @@
 global:
   domain: ""
+
+kvSecrets:
+  lokiIngressAuth: "platform-loki-ingress-auth"

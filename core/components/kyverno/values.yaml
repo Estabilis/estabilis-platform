@@ -9,3 +9,8 @@ cleanupController:
 
 reportsController:
   enabled: true
+
+grafana:
+  enabled: true
+  annotations:
+    grafana_folder: Kyverno

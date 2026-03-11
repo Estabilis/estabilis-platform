@@ -26,3 +26,48 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cert-manager-config
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  project: platform
+  sources:
+    - repoURL: {{ .Values.platformRepoUrl }}
+      targetRevision: {{ .Values.platformVersion }}
+      path: core/components/cert-manager-config
+      helm:
+        valueFiles:
+          - $values/core/components/cert-manager-config/values.yaml
+        parameters:
+          {{- if eq .Values.global.provider "azure" }}
+          - name: global.letsencryptEmail
+            value: "{{ .Values.global.letsencryptEmail }}"
+          - name: global.tenantId
+            value: "{{ .Values.global.tenantId }}"
+          - name: global.subscriptionId
+            value: "{{ .Values.global.subscriptionId }}"
+          - name: global.resourceGroup
+            value: "{{ .Values.global.resourceGroup }}"
+          - name: global.domain
+            value: "{{ .Values.global.domain }}"
+          - name: identity.certManager.clientId
+            value: "{{ .Values.identity.certManager.clientId }}"
+          {{- end }}
+    - repoURL: {{ .Values.platformRepoUrl }}
+      targetRevision: {{ .Values.platformVersion }}
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: cert-manager
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
