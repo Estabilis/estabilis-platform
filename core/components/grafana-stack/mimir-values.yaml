@@ -38,3 +38,27 @@ singleBinary:
   persistence:
     enabled: true
     size: 10Gi
+  tolerations:
+    - key: "estabilis.io/workload-type"
+      operator: "Equal"
+      value: "platform"
+      effect: "NoSchedule"
+    - key: "kubernetes.azure.com/scalesetpriority"
+      operator: "Equal"
+      value: "spot"
+      effect: "NoSchedule"
+  affinity:
+    nodeAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          preference:
+            matchExpressions:
+              - key: "estabilis.io/pool-type"
+                operator: In
+                values: ["spot"]
+        - weight: 10
+          preference:
+            matchExpressions:
+              - key: "estabilis.io/pool-type"
+                operator: In
+                values: ["regular"]

@@ -1,0 +1,22 @@
+# Trivy Operator — continuous vulnerability scanning in-cluster
+# https://github.com/aquasecurity/trivy-operator
+
+trivy:
+  ignoreUnfixed: true
+
+operator:
+  scanJobsConcurrentLimit: 2
+  vulnerabilityScannerEnabled: true
+  configAuditScannerEnabled: true
+  rbacAssessmentScannerEnabled: true
+  infraAssessmentScannerEnabled: false
+
+tolerations:
+  - key: "estabilis.io/workload-type"
+    operator: "Equal"
+    value: "platform"
+    effect: "NoSchedule"
+  - key: "kubernetes.azure.com/scalesetpriority"
+    operator: "Equal"
+    value: "spot"
+    effect: "NoSchedule"

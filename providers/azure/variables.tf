@@ -93,27 +93,22 @@ variable "workload_vm_size" {
   default     = "Standard_D2s_v3"
 }
 
-variable "workload_node_count" {
-  description = "Number of nodes in the workload node pool."
-  type        = number
-  default     = 1
-}
-
 variable "workload_os_disk_size_gb" {
   description = "OS disk size (GB) for workload nodes."
   type        = number
   default     = 50
 }
 
-variable "workload_priority" {
-  description = "Priority for the workload node pool: Regular or Spot."
-  type        = string
-  default     = "Regular"
+variable "workload_spot_max_count" {
+  description = "Maximum nodes in the Spot workload pool."
+  type        = number
+  default     = 3
+}
 
-  validation {
-    condition     = contains(["Regular", "Spot"], var.workload_priority)
-    error_message = "workload_priority must be Regular or Spot."
-  }
+variable "workload_regular_max_count" {
+  description = "Maximum nodes in the Regular (fallback) workload pool."
+  type        = number
+  default     = 2
 }
 
 # ---------------------------------------------------------------------------

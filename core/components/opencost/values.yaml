@@ -1,0 +1,25 @@
+# OpenCost — Kubernetes cost monitoring
+# https://www.opencost.io
+
+opencost:
+  exporter:
+    cloudProviderApiKey: ""
+  prometheus:
+    internal:
+      enabled: false
+    external:
+      enabled: true
+      url: "http://mimir-nginx.grafana.svc.cluster.local/prometheus"
+
+tolerations:
+  - key: "estabilis.io/workload-type"
+    operator: "Equal"
+    value: "platform"
+    effect: "NoSchedule"
+  - key: "kubernetes.azure.com/scalesetpriority"
+    operator: "Equal"
+    value: "spot"
+    effect: "NoSchedule"
+
+ui:
+  enabled: true

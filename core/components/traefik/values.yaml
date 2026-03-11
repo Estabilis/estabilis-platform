@@ -1,0 +1,67 @@
+# Traefik ingress controller
+# https://github.com/traefik/traefik-helm-chart
+
+deployment:
+  replicas: 2
+
+tolerations:
+  - key: "estabilis.io/workload-type"
+    operator: "Equal"
+    value: "platform"
+    effect: "NoSchedule"
+  - key: "kubernetes.azure.com/scalesetpriority"
+    operator: "Equal"
+    value: "spot"
+    effect: "NoSchedule"
+
+affinity:
+  nodeAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        preference:
+          matchExpressions:
+            - key: "estabilis.io/pool-type"
+              operator: In
+              values: ["spot"]
+      - weight: 10
+        preference:
+          matchExpressions:
+            - key: "estabilis.io/pool-type"
+              operator: In
+              values: ["regular"]
+
+service:
+  type: LoadBalancer
+  annotations:
+    service.beta.kubernetes.io/azure-load-balancer-health-probe-request-path: /ping
+
+providers:
+  kubernetesCRD:
+    enabled: true
+    allowCrossNamespace: true
+  kubernetesIngress:
+    enabled: true
+
+logs:
+  general:
+    level: INFO
+  access:
+    enabled: true
+
+metrics:
+  prometheus:
+    entryPoint: metrics
+    addEntryPointsLabels: true
+    addServicesLabels: true
+
+ports:
+  web:
+    port: 8000
+    exposedPort: 80
+  websecure:
+    port: 8443
+    exposedPort: 443
+  metrics:
+    port: 9100
+    expose:
+      default: false

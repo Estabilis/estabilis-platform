@@ -48,31 +48,60 @@ resource "azurerm_kubernetes_cluster" "platform" {
 }
 
 # ---------------------------------------------------------------------------
-# Additional node pool – platform workloads (Spot)
+# Additional node pool – Spot (preferred for platform workloads)
 # ---------------------------------------------------------------------------
 
-resource "azurerm_kubernetes_cluster_node_pool" "platform_wl" {
-  name                        = "platformwl"
+resource "azurerm_kubernetes_cluster_node_pool" "platform_spot" {
+  name                        = "platformsp"
   kubernetes_cluster_id       = azurerm_kubernetes_cluster.platform.id
   vm_size                     = var.workload_vm_size
-  node_count                  = var.workload_node_count
   vnet_subnet_id              = azurerm_subnet.aks_nodes.id
   os_disk_size_gb             = var.workload_os_disk_size_gb
-  temporary_name_for_rotation = "plattmp"
+  temporary_name_for_rotation = "platspttmp"
 
-  # Spot configuration (only when workload_priority = "Spot")
-  priority        = var.workload_priority
-  eviction_policy = var.workload_priority == "Spot" ? "Delete" : null
-  spot_max_price  = var.workload_priority == "Spot" ? -1 : null
+  priority        = "Spot"
+  eviction_policy = "Delete"
+  spot_max_price  = -1
 
-  # Taints & labels so only platform workloads land here
+  auto_scaling_enabled = true
+  min_count            = 0
+  max_count            = var.workload_spot_max_count
+
   node_labels = {
     "estabilis.io/workload-type" = "platform"
+    "estabilis.io/pool-type"     = "spot"
   }
-
   node_taints = [
-    "estabilis.io/workload-type=platform:NoSchedule"
+    "estabilis.io/workload-type=platform:NoSchedule",
+    "kubernetes.azure.com/scalesetpriority=spot:NoSchedule",
   ]
+  tags = var.tags
+}
 
+# ---------------------------------------------------------------------------
+# Additional node pool – Regular (fallback, always has min 1 node)
+# ---------------------------------------------------------------------------
+
+resource "azurerm_kubernetes_cluster_node_pool" "platform_regular" {
+  name                        = "platformrg"
+  kubernetes_cluster_id       = azurerm_kubernetes_cluster.platform.id
+  vm_size                     = var.workload_vm_size
+  vnet_subnet_id              = azurerm_subnet.aks_nodes.id
+  os_disk_size_gb             = var.workload_os_disk_size_gb
+  temporary_name_for_rotation = "platrgtmp"
+
+  priority = "Regular"
+
+  auto_scaling_enabled = true
+  min_count            = 1
+  max_count            = var.workload_regular_max_count
+
+  node_labels = {
+    "estabilis.io/workload-type" = "platform"
+    "estabilis.io/pool-type"     = "regular"
+  }
+  node_taints = [
+    "estabilis.io/workload-type=platform:NoSchedule",
+  ]
   tags = var.tags
 }

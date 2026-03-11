@@ -22,6 +22,9 @@ resource "kubectl_manifest" "argocd_project_platform" {
         "https://charts.external-secrets.io",
         "https://kubernetes-sigs.github.io/external-dns",
         "https://grafana.github.io/helm-charts",
+        "https://traefik.github.io/charts",
+        "https://aquasecurity.github.io/helm-charts",
+        "https://opencost.github.io/opencost-helm-chart",
       ]
       destinations = [
         { server = "https://kubernetes.default.svc", namespace = "argocd" },
@@ -31,6 +34,9 @@ resource "kubectl_manifest" "argocd_project_platform" {
         { server = "https://kubernetes.default.svc", namespace = "external-dns" },
         { server = "https://kubernetes.default.svc", namespace = "grafana" },
         { server = "https://kubernetes.default.svc", namespace = "kube-system" },
+        { server = "https://kubernetes.default.svc", namespace = "traefik" },
+        { server = "https://kubernetes.default.svc", namespace = "trivy-system" },
+        { server = "https://kubernetes.default.svc", namespace = "opencost" },
       ]
       clusterResourceWhitelist = [
         { group = "*", kind = "Namespace" },
