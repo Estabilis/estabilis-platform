@@ -205,6 +205,12 @@ variable "velero_backup_schedule" {
   default     = "0 2 * * *"
 }
 
+variable "loki_allowed_cidrs" {
+  description = "Comma-separated list of CIDRs allowed to push logs to Loki external ingress. Empty string disables IP restriction."
+  type        = string
+  default     = ""
+}
+
 variable "letsencrypt_email" {
   description = "Email address for Let's Encrypt ACME account registration."
   type        = string

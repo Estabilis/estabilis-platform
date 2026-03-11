@@ -167,6 +167,10 @@ resource "kubectl_manifest" "platform_root" {
               value = tostring(var.loki_external_ingress_enabled)
             },
             {
+              name  = "global.lokiAllowedCidrs"
+              value = var.loki_allowed_cidrs
+            },
+            {
               name  = "global.cnpgBackupRetentionDays"
               value = tostring(var.cnpg_backup_retention_days)
             },

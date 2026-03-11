@@ -1,3 +1,19 @@
+{{- if .Values.allowedCidrs }}
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: loki-ingress-ipallowlist
+  namespace: grafana
+spec:
+  ipAllowList:
+    sourceRange:
+      {{- range splitList "," .Values.allowedCidrs }}
+      - {{ trim . | quote }}
+      {{- end }}
+    ipStrategy:
+      depth: 1
+---
+{{- end }}
 apiVersion: traefik.io/v1alpha1
 kind: Middleware
 metadata:
@@ -32,6 +48,9 @@ spec:
     - match: Host(`loki.{{ .Values.global.domain }}`) && PathPrefix(`/loki/api/v1/push`)
       kind: Rule
       middlewares:
+        {{- if .Values.allowedCidrs }}
+        - name: loki-ingress-ipallowlist
+        {{- end }}
         - name: loki-ingress-auth
       services:
         - name: grafana-loki-gateway

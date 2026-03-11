@@ -18,6 +18,8 @@ spec:
         parameters:
           - name: global.domain
             value: "{{ .Values.global.domain }}"
+          - name: allowedCidrs
+            value: "{{ .Values.global.lokiAllowedCidrs }}"
     - repoURL: {{ .Values.platformRepoUrl }}
       targetRevision: {{ .Values.platformVersion }}
       ref: values
