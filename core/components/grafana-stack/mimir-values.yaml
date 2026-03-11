@@ -4,19 +4,73 @@
 minio:
   enabled: false
 
+# --- Disable components that default to enabled in mimir-distributed v6+ ---
+
+# Kafka-based ingest path — requires external Kafka broker, must be disabled
+ingest_storage:
+  enabled: false
+
+# Alertmanager — managed by Grafana Unified Alerting instead
+alertmanager:
+  enabled: false
+
+# Ruler — not needed for v0-alpha
+ruler:
+  enabled: false
+
+# Overrides exporter — extra pod, not needed
+overrides_exporter:
+  enabled: false
+
+# Rollout operator — manages progressive rollouts, not needed in single-binary
+rollout_operator:
+  enabled: false
+
+# Smoke/continuous tests — not needed in production
+smoke_test:
+  enabled: false
+continuous_test:
+  enabled: false
+
+# Meta monitoring — self-monitoring stack, redundant with our Alloy setup
+metaMonitoring:
+  enabled: false
+
+# Zone awareness — requires explicit zone configuration, disable for single-AZ
+ingester:
+  zoneAwareReplication:
+    enabled: false
+store_gateway:
+  zoneAwareReplication:
+    enabled: false
+
+# Caches — memcached pods, not needed for v0-alpha
+chunks_cache:
+  enabled: false
+index_cache:
+  enabled: false
+metadata_cache:
+  enabled: false
+results_cache:
+  enabled: false
+
+# --- Single-binary deployment ---
 singleBinary:
   replicas: 1
   persistence:
     enabled: true
     size: 10Gi
+  resources:
+    requests:
+      cpu: 100m
+      memory: 512Mi
+    limits:
+      cpu: 1000m
+      memory: 2Gi
   tolerations:
     - key: "estabilis.io/workload-type"
       operator: "Equal"
       value: "platform"
-      effect: "NoSchedule"
-    - key: "kubernetes.azure.com/scalesetpriority"
-      operator: "Equal"
-      value: "spot"
       effect: "NoSchedule"
   affinity:
     nodeAffinity:

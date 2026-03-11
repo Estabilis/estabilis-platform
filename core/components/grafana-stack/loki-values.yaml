@@ -4,19 +4,52 @@ loki:
   auth_enabled: false
   commonConfig:
     replication_factor: 1
+  limits_config:
+    retention_period: 720h
+    ingestion_rate_mb: 30
+    per_stream_rate_limit: 10MB
+  compactor:
+    retention_enabled: true
+    delete_request_store: filesystem
 
+# --- Disable components that default to enabled ---
+
+# Canary — health check pod that generates synthetic logs, not needed
+lokiCanary:
+  enabled: false
+
+# Self-monitoring — creates ServiceMonitors expecting Prometheus, conflicts with Mimir
+selfMonitoring:
+  enabled: false
+  grafanaAgent:
+    installOperator: false
+
+# Test framework — not needed
+test:
+  enabled: false
+
+# Caches
+chunksCache:
+  enabled: false
+resultsCache:
+  enabled: false
+
+# --- Single-binary deployment ---
 singleBinary:
   replicas: 1
   persistence:
     size: 10Gi
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 1Gi
   tolerations:
     - key: "estabilis.io/workload-type"
       operator: "Equal"
       value: "platform"
-      effect: "NoSchedule"
-    - key: "kubernetes.azure.com/scalesetpriority"
-      operator: "Equal"
-      value: "spot"
       effect: "NoSchedule"
   affinity:
     nodeAffinity:

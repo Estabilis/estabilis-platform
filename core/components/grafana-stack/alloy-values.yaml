@@ -154,6 +154,13 @@ alloy:
 
 controller:
   type: daemonset
+  resources:
+    requests:
+      cpu: 50m
+      memory: 96Mi
+    limits:
+      cpu: 200m
+      memory: 192Mi
 
 tolerations:
   - key: "estabilis.io/workload-type"
