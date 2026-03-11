@@ -1,6 +1,7 @@
 global:
   storageAccountName: ""
   cnpgBackupRetentionDays: 7
+  cnpgBackupSchedule: "0 2 * * *"
 identity:
   cnpg:
     clientId: ""

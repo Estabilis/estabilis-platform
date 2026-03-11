@@ -187,6 +187,12 @@ variable "cnpg_backup_retention_days" {
   default     = 7
 }
 
+variable "cnpg_backup_schedule" {
+  description = "Cron schedule for CloudNativePG daily backups."
+  type        = string
+  default     = "0 2 * * *"
+}
+
 variable "velero_backup_retention_hours" {
   description = "Retention period in hours for Velero backups."
   type        = number

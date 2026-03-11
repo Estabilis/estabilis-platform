@@ -50,6 +50,8 @@ spec:
             value: "{{ .Values.global.storageAccountName }}"
           - name: global.cnpgBackupRetentionDays
             value: "{{ .Values.global.cnpgBackupRetentionDays }}"
+          - name: global.cnpgBackupSchedule
+            value: "{{ .Values.global.cnpgBackupSchedule }}"
           - name: identity.cnpg.clientId
             value: "{{ .Values.identity.cnpg.clientId }}"
     - repoURL: {{ .Values.platformRepoUrl }}

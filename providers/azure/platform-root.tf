@@ -171,6 +171,10 @@ resource "kubectl_manifest" "platform_root" {
               value = tostring(var.cnpg_backup_retention_days)
             },
             {
+              name  = "global.cnpgBackupSchedule"
+              value = var.cnpg_backup_schedule
+            },
+            {
               name  = "platformRepoUrl"
               value = var.platform_repo_url
             },

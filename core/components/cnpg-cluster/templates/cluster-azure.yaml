@@ -78,7 +78,7 @@ metadata:
   name: platform-postgres-daily
   namespace: cnpg-system
 spec:
-  schedule: "0 2 * * *"
+  schedule: "{{ .Values.global.cnpgBackupSchedule }}"
   backupOwnerReference: self
   cluster:
     name: platform-postgres
