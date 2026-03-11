@@ -155,6 +155,10 @@ resource "kubectl_manifest" "platform_root" {
               value = tostring(var.velero_backup_retention_hours)
             },
             {
+              name  = "global.lokiExternalIngressEnabled"
+              value = tostring(var.loki_external_ingress_enabled)
+            },
+            {
               name  = "global.cnpgBackupRetentionDays"
               value = tostring(var.cnpg_backup_retention_days)
             },

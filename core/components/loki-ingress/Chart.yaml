@@ -1,0 +1,5 @@
+apiVersion: v2
+name: loki-ingress
+description: External ingress for Loki push API with BasicAuth
+version: 0.1.0
+type: application

@@ -168,6 +168,16 @@ variable "argocd_chart_version" {
 }
 
 # ---------------------------------------------------------------------------
+# Observability – External Access
+# ---------------------------------------------------------------------------
+
+variable "loki_external_ingress_enabled" {
+  description = "Expose Loki push API externally via Traefik with BasicAuth. Requires loki-ingress-auth secret in grafana namespace."
+  type        = bool
+  default     = false
+}
+
+# ---------------------------------------------------------------------------
 # Backup
 # ---------------------------------------------------------------------------
 

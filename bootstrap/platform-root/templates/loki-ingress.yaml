@@ -1,0 +1,33 @@
+{{- if eq .Values.global.lokiExternalIngressEnabled "true" }}
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: loki-ingress
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "7"
+spec:
+  project: platform
+  sources:
+    - repoURL: {{ .Values.platformRepoUrl }}
+      targetRevision: {{ .Values.platformVersion }}
+      path: core/components/loki-ingress
+      helm:
+        valueFiles:
+          - $values/core/components/loki-ingress/values.yaml
+        parameters:
+          - name: global.domain
+            value: "{{ .Values.global.domain }}"
+    - repoURL: {{ .Values.platformRepoUrl }}
+      targetRevision: {{ .Values.platformVersion }}
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: grafana
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+{{- end }}
