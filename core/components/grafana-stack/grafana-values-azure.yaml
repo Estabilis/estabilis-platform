@@ -1,0 +1,8 @@
+# Azure-specific Grafana values
+# Loaded in addition to grafana-values.yaml when provider=azure
+
+tolerations:
+  - key: "kubernetes.azure.com/scalesetpriority"
+    operator: "Equal"
+    value: "spot"
+    effect: "NoSchedule"

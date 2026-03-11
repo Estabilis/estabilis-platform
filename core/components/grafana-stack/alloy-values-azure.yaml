@@ -1,0 +1,8 @@
+# Azure-specific Alloy values
+# Loaded in addition to alloy-values.yaml when provider=azure
+
+tolerations:
+  - key: "kubernetes.azure.com/scalesetpriority"
+    operator: "Equal"
+    value: "spot"
+    effect: "NoSchedule"
