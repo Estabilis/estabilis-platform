@@ -3,6 +3,7 @@ datasources:
     apiVersion: 1
     datasources:
       - name: Mimir
+        uid: mimir
         type: prometheus
         access: proxy
         url: http://grafana-mimir-nginx.grafana.svc.cluster.local/prometheus
@@ -10,20 +11,26 @@ datasources:
         jsonData:
           timeInterval: 30s
       - name: Loki
+        uid: loki
         type: loki
         access: proxy
         url: http://grafana-loki-gateway.grafana.svc.cluster.local
         jsonData:
           maxLines: 1000
       - name: Tempo
+        uid: tempo
         type: tempo
         access: proxy
         url: http://grafana-tempo.grafana.svc.cluster.local:3100
         jsonData:
           tracesToLogsV2:
-            datasourceUid: Loki
+            datasourceUid: loki
           tracesToMetrics:
-            datasourceUid: Mimir
+            datasourceUid: mimir
+          serviceMap:
+            datasourceUid: mimir
+          nodeGraph:
+            enabled: true
 
 sidecar:
   dashboards:
