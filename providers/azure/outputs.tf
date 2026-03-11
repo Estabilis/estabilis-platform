@@ -46,23 +46,3 @@ output "dns_zone_name_servers" {
   description = "Name servers for the DNS zone — configure these at your domain registrar"
   value       = azurerm_dns_zone.platform.name_servers
 }
-
-output "cnpg_client_id" {
-  description = "Client ID of the CloudNativePG managed identity."
-  value       = azurerm_user_assigned_identity.cnpg.client_id
-}
-
-output "velero_client_id" {
-  description = "Client ID of the Velero managed identity."
-  value       = azurerm_user_assigned_identity.velero.client_id
-}
-
-output "cnpg_backup_container_name" {
-  description = "Azure Blob Storage container name for CloudNativePG backups."
-  value       = azurerm_storage_container.cnpg_backup.name
-}
-
-output "velero_backup_container_name" {
-  description = "Azure Blob Storage container name for Velero backups."
-  value       = azurerm_storage_container.velero_backup.name
-}
