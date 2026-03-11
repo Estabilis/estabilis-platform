@@ -8,8 +8,7 @@ metadata:
   annotations:
     grafana_folder: Traefik
 data:
-  traefik.json: |
-    {{ .Files.Get "files/traefik.json" | nindent 4 }}
+  traefik.json: {{ .Files.Get "files/traefik.json" | indent 4 | trim }}
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -21,8 +20,7 @@ metadata:
   annotations:
     grafana_folder: Cert-Manager
 data:
-  cert-manager.json: |
-    {{ .Files.Get "files/cert-manager.json" | nindent 4 }}
+  cert-manager.json: {{ .Files.Get "files/cert-manager.json" | indent 4 | trim }}
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -34,5 +32,4 @@ metadata:
   annotations:
     grafana_folder: Velero
 data:
-  velero.json: |
-    {{ .Files.Get "files/velero.json" | nindent 4 }}
+  velero.json: {{ .Files.Get "files/velero.json" | indent 4 | trim }}

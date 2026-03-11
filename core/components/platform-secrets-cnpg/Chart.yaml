@@ -1,0 +1,5 @@
+apiVersion: v2
+name: platform-secrets-cnpg
+description: ExternalSecrets for platform PostgreSQL databases (cnpg-system)
+version: 0.1.0
+type: application

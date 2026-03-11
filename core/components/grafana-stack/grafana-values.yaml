@@ -17,6 +17,20 @@ datasources:
         url: http://grafana-loki-gateway.grafana.svc.cluster.local
         jsonData:
           maxLines: 1000
+      - name: Tempo
+        uid: tempo
+        type: tempo
+        access: proxy
+        url: http://grafana-tempo.grafana.svc.cluster.local:3100
+        jsonData:
+          tracesToLogsV2:
+            datasourceUid: loki
+          tracesToMetrics:
+            datasourceUid: mimir
+          serviceMap:
+            datasourceUid: mimir
+          nodeGraph:
+            enabled: true
 
 sidecar:
   dashboards:

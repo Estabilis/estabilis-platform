@@ -1,0 +1,5 @@
+apiVersion: v2
+name: platform-secrets-grafana
+description: ExternalSecrets for Grafana database credentials
+version: 0.1.0
+type: application

@@ -1,0 +1,7 @@
+# Azure-specific Tempo values
+
+tolerations:
+  - key: "kubernetes.azure.com/scalesetpriority"
+    operator: "Equal"
+    value: "spot"
+    effect: "NoSchedule"
