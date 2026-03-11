@@ -167,10 +167,6 @@ tolerations:
     operator: "Equal"
     value: "platform"
     effect: "NoSchedule"
-  - key: "kubernetes.azure.com/scalesetpriority"
-    operator: "Equal"
-    value: "spot"
-    effect: "NoSchedule"
 
 serviceAccount:
   create: true

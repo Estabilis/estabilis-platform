@@ -14,6 +14,7 @@ spec:
       helm:
         valueFiles:
           - $values/core/components/trivy-operator/values.yaml
+          - $values/core/components/trivy-operator/values-{{ .Values.global.provider }}.yaml
     - repoURL: {{ .Values.platformRepoUrl }}
       targetRevision: {{ .Values.platformVersion }}
       ref: values

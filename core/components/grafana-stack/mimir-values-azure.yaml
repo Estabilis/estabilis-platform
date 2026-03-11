@@ -13,12 +13,6 @@ mimir:
     blocks_storage:
       azure:
         container_name: mimir-blocks
-    alertmanager_storage:
-      azure:
-        container_name: mimir-alertmanager
-    ruler_storage:
-      azure:
-        container_name: mimir-ruler
 
 serviceAccount:
   create: true

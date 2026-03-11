@@ -14,6 +14,7 @@ spec:
       helm:
         valueFiles:
           - $values/core/components/opencost/values.yaml
+          - $values/core/components/opencost/values-{{ .Values.global.provider }}.yaml
     - repoURL: {{ .Values.platformRepoUrl }}
       targetRevision: {{ .Values.platformVersion }}
       ref: values
