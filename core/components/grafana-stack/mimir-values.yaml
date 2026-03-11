@@ -4,35 +4,6 @@
 minio:
   enabled: false
 
-mimir:
-  structuredConfig:
-    common:
-      storage:
-        backend: azure
-        azure:
-          account_name: ""           # injected via ArgoCD helm.parameters: global.storageAccountName
-          endpoint_suffix: blob.core.windows.net
-          user_assigned_id: ""       # injected via ArgoCD helm.parameters: identity.mimir.clientId
-    blocks_storage:
-      azure:
-        container_name: mimir-blocks
-    alertmanager_storage:
-      azure:
-        container_name: mimir-alertmanager
-    ruler_storage:
-      azure:
-        container_name: mimir-ruler
-
-serviceAccount:
-  create: true
-  annotations:
-    azure.workload.identity/use: "true"
-    azure.workload.identity/client-id: ""  # injected via ArgoCD helm.parameters: identity.mimir.clientId
-
-podLabels:
-  azure.workload.identity/use: "true"
-
-# Single-binary: all components in one deployment
 singleBinary:
   replicas: 1
   persistence:
