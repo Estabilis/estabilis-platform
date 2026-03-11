@@ -1,0 +1,16 @@
+# Azure-specific Velero values
+
+tolerations:
+  - key: "kubernetes.azure.com/scalesetpriority"
+    operator: "Equal"
+    value: "spot"
+    effect: "NoSchedule"
+
+serviceAccount:
+  server:
+    annotations:
+      azure.workload.identity/use: "true"
+      azure.workload.identity/client-id: ""  # injected via ArgoCD helm.parameters
+
+podLabels:
+  azure.workload.identity/use: "true"

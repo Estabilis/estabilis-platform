@@ -1,0 +1,35 @@
+# CloudNativePG Operator
+# https://cloudnative-pg.io
+
+# Single replica for v0-alpha
+replicaCount: 1
+
+tolerations:
+  - key: "estabilis.io/workload-type"
+    operator: "Equal"
+    value: "platform"
+    effect: "NoSchedule"
+
+affinity:
+  nodeAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        preference:
+          matchExpressions:
+            - key: "estabilis.io/pool-type"
+              operator: In
+              values: ["spot"]
+      - weight: 10
+        preference:
+          matchExpressions:
+            - key: "estabilis.io/pool-type"
+              operator: In
+              values: ["regular"]
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 200m
+    memory: 256Mi

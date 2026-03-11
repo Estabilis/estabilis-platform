@@ -1,0 +1,48 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: velero
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "6"
+spec:
+  project: platform
+  sources:
+    - repoURL: https://vmware-tanzu.github.io/helm-charts
+      chart: velero
+      targetRevision: "8.1.0"
+      helm:
+        valueFiles:
+          - $values/core/components/velero/values.yaml
+          - $values/core/components/velero/values-{{ .Values.global.provider }}.yaml
+        parameters:
+          {{- if eq .Values.global.provider "azure" }}
+          - name: configuration.backupStorageLocation[0].bucket
+            value: "{{ .Values.global.veleroBackupContainerName }}"
+          - name: configuration.backupStorageLocation[0].config.storageAccount
+            value: "{{ .Values.global.storageAccountName }}"
+          - name: configuration.backupStorageLocation[0].config.resourceGroup
+            value: "{{ .Values.global.resourceGroup }}"
+          - name: configuration.volumeSnapshotLocation[0].config.resourceGroup
+            value: "{{ .Values.global.resourceGroup }}"
+          - name: serviceAccount.server.annotations.azure\.workload\.identity/client-id
+            value: "{{ .Values.identity.velero.clientId }}"
+          - name: schedules.platform-daily.schedule
+            value: "{{ .Values.global.veleroBackupSchedule }}"
+          - name: schedules.platform-daily.template.ttl
+            value: "{{ .Values.global.veleroBackupRetentionHours }}h0m0s"
+          {{- else if eq .Values.global.provider "aws" }}
+          # AWS — to be implemented
+          {{- end }}
+    - repoURL: {{ .Values.platformRepoUrl }}
+      targetRevision: {{ .Values.platformVersion }}
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: velero
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

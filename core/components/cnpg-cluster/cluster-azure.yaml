@@ -1,0 +1,84 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: platform-postgres
+  namespace: cnpg-system
+spec:
+  instances: 1
+
+  # PostgreSQL version
+  imageName: ghcr.io/cloudnative-pg/postgresql:16.6
+
+  # Storage
+  storage:
+    size: 10Gi
+
+  # Bootstrap — creates the cluster from scratch
+  bootstrap:
+    initdb:
+      database: app
+      owner: app
+
+  # Databases and roles managed declaratively
+  managed:
+    databases:
+      - name: grafana
+        owner: grafana
+      - name: argocd
+        owner: argocd
+    roles:
+      - name: grafana
+        passwordSecret:
+          name: grafana-db-credentials
+        login: true
+        superuser: false
+      - name: argocd
+        passwordSecret:
+          name: argocd-db-credentials
+        login: true
+        superuser: false
+
+  # Backup to Azure Blob Storage via WAL archiving
+  backup:
+    barmanObjectStore:
+      destinationPath: "https://STORAGE_ACCOUNT.blob.core.windows.net/cnpg-backup"
+      azureCredentials:
+        inheritFromAzureAD: true
+    retentionPolicy: "7d"
+
+  tolerations:
+    - key: "estabilis.io/workload-type"
+      operator: "Equal"
+      value: "platform"
+      effect: "NoSchedule"
+    - key: "kubernetes.azure.com/scalesetpriority"
+      operator: "Equal"
+      value: "spot"
+      effect: "NoSchedule"
+
+  affinity:
+    nodeAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          preference:
+            matchExpressions:
+              - key: "estabilis.io/pool-type"
+                operator: In
+                values: ["spot"]
+        - weight: 10
+          preference:
+            matchExpressions:
+              - key: "estabilis.io/pool-type"
+                operator: In
+                values: ["regular"]
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: ScheduledBackup
+metadata:
+  name: platform-postgres-daily
+  namespace: cnpg-system
+spec:
+  schedule: "0 2 * * *"
+  backupOwnerReference: self
+  cluster:
+    name: platform-postgres

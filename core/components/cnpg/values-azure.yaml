@@ -1,0 +1,7 @@
+# Azure-specific CloudNativePG values
+
+tolerations:
+  - key: "kubernetes.azure.com/scalesetpriority"
+    operator: "Equal"
+    value: "spot"
+    effect: "NoSchedule"

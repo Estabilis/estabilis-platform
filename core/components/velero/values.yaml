@@ -1,0 +1,83 @@
+# Velero — Kubernetes backup and restore
+# https://velero.io
+
+configuration:
+  backupStorageLocation:
+    - name: default
+      provider: azure
+      bucket: velero-backup
+      config:
+        resourceGroup: ""        # injected via ArgoCD helm.parameters
+        storageAccount: ""       # injected via ArgoCD helm.parameters
+        subscriptionId: ""       # injected via ArgoCD helm.parameters
+
+  volumeSnapshotLocation:
+    - name: default
+      provider: azure
+      config:
+        resourceGroup: ""        # injected via ArgoCD helm.parameters
+
+credentials:
+  useSecret: false
+
+serviceAccount:
+  server:
+    create: true
+
+initContainers:
+  - name: velero-plugin-for-azure
+    image: velero/velero-plugin-for-microsoft-azure:v1.10.0
+    imagePullPolicy: IfNotPresent
+    volumeMounts:
+      - mountPath: /target
+        name: plugins
+
+schedules:
+  platform-daily:
+    disabled: false
+    schedule: "0 2 * * *"
+    useOwnerReferencesInBackup: false
+    template:
+      ttl: 720h0m0s
+      includedNamespaces:
+        - argocd
+        - cert-manager
+        - cnpg-system
+        - external-dns
+        - external-secrets
+        - grafana
+        - kyverno
+        - opencost
+        - traefik
+        - trivy-system
+        - velero
+
+tolerations:
+  - key: "estabilis.io/workload-type"
+    operator: "Equal"
+    value: "platform"
+    effect: "NoSchedule"
+
+affinity:
+  nodeAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        preference:
+          matchExpressions:
+            - key: "estabilis.io/pool-type"
+              operator: In
+              values: ["spot"]
+      - weight: 10
+        preference:
+          matchExpressions:
+            - key: "estabilis.io/pool-type"
+              operator: In
+              values: ["regular"]
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 128Mi
+  limits:
+    cpu: 200m
+    memory: 512Mi
