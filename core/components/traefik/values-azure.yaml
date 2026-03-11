@@ -4,3 +4,9 @@
 service:
   annotations:
     service.beta.kubernetes.io/azure-load-balancer-health-probe-request-path: /ping
+
+tolerations:
+  - key: "kubernetes.azure.com/scalesetpriority"
+    operator: "Equal"
+    value: "spot"
+    effect: "NoSchedule"

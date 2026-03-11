@@ -32,3 +32,10 @@ serviceAccount:
 
 podLabels:
   azure.workload.identity/use: "true"
+
+singleBinary:
+  tolerations:
+    - key: "kubernetes.azure.com/scalesetpriority"
+      operator: "Equal"
+      value: "spot"
+      effect: "NoSchedule"
