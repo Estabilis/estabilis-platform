@@ -20,3 +20,48 @@ resource "azurerm_key_vault" "platform" {
 
   tags = var.tags
 }
+
+# ---------------------------------------------------------------------------
+# Terraform needs KV access to create secrets during apply.
+# The operator running terraform must have this role OR be added via
+# access policy. We use the current client's object_id.
+# ---------------------------------------------------------------------------
+
+data "azurerm_client_config" "current" {}
+
+resource "azurerm_role_assignment" "terraform_kv_officer" {
+  scope                = azurerm_key_vault.platform.id
+  role_definition_name = "Key Vault Secrets Officer"
+  principal_id         = data.azurerm_client_config.current.object_id
+}
+
+# ---------------------------------------------------------------------------
+# Platform secrets — generated once, stored in Key Vault
+# These are consumed by ExternalSecrets → K8s Secrets → apps
+# ---------------------------------------------------------------------------
+
+resource "random_password" "grafana_db" {
+  length  = 32
+  special = false
+}
+
+resource "random_password" "argocd_db" {
+  length  = 32
+  special = false
+}
+
+resource "azurerm_key_vault_secret" "grafana_db_password" {
+  name         = "platform-grafana-db-password"
+  value        = random_password.grafana_db.result
+  key_vault_id = azurerm_key_vault.platform.id
+
+  depends_on = [azurerm_role_assignment.terraform_kv_officer]
+}
+
+resource "azurerm_key_vault_secret" "argocd_db_password" {
+  name         = "platform-argocd-db-password"
+  value        = random_password.argocd_db.result
+  key_vault_id = azurerm_key_vault.platform.id
+
+  depends_on = [azurerm_role_assignment.terraform_kv_officer]
+}
