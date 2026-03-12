@@ -15,6 +15,10 @@ configuration:
       config:
         resourceGroup: ""
 
+kubectl:
+  image:
+    tag: "1.33"
+
 credentials:
   useSecret: false
 

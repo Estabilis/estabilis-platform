@@ -11,9 +11,9 @@ spec:
     solvers:
       - dns01:
           azureDNS:
-            tenantID: {{ .Values.global.tenantId | quote }}
             subscriptionID: {{ .Values.global.subscriptionId | quote }}
             resourceGroupName: {{ .Values.global.resourceGroup | quote }}
             hostedZoneName: {{ .Values.global.domain | quote }}
+            environment: {{ .Values.azure.environment | quote }}
             managedIdentity:
               clientID: {{ .Values.identity.certManager.clientId | quote }}

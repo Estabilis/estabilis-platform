@@ -47,8 +47,6 @@ spec:
           {{- if eq .Values.global.provider "azure" }}
           - name: global.letsencryptEmail
             value: "{{ .Values.global.letsencryptEmail }}"
-          - name: global.tenantId
-            value: "{{ .Values.global.tenantId }}"
           - name: global.subscriptionId
             value: "{{ .Values.global.subscriptionId }}"
           - name: global.resourceGroup
