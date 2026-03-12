@@ -15,6 +15,13 @@ spec:
         valueFiles:
           - $values/core/components/opencost/values.yaml
           - $values/core/components/opencost/values-{{ .Values.global.provider }}.yaml
+        parameters:
+          {{- if eq .Values.global.provider "azure" }}
+          - name: opencost.exporter.extraEnv.AZURE_SUBSCRIPTION_ID
+            value: "{{ .Values.global.subscriptionId }}"
+          - name: opencost.exporter.extraEnv.AZURE_TENANT_ID
+            value: "{{ .Values.global.tenantId }}"
+          {{- end }}
     - repoURL: {{ .Values.platformRepoUrl }}
       targetRevision: {{ .Values.platformVersion }}
       ref: values

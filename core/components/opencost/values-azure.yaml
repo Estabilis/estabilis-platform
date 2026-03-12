@@ -1,6 +1,13 @@
 # Azure-specific OpenCost values
 # Loaded in addition to values.yaml when provider=azure
 
+opencost:
+  exporter:
+    extraEnv:
+      AZURE_SUBSCRIPTION_ID: ""   # injected via ArgoCD helm.parameters
+      AZURE_TENANT_ID: ""         # injected via ArgoCD helm.parameters
+      AZURE_OFFER_ID: "MS-AZR-0003P"
+
 tolerations:
   - key: "kubernetes.azure.com/scalesetpriority"
     operator: "Equal"
