@@ -17,9 +17,8 @@ configuration:
 
 kubectl:
   image:
-    registry: registry.k8s.io
-    repository: kubectl
-    tag: "v1.32.0"
+    repository: docker.io/bitnami/kubectl
+    tag: "1.32"
 
 credentials:
   useSecret: false
