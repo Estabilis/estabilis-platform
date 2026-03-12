@@ -15,6 +15,7 @@ resource "azurerm_key_vault" "platform" {
   network_acls {
     default_action             = "Deny"
     bypass                     = "AzureServices"
+    ip_rules                   = var.authorized_ip_ranges
     virtual_network_subnet_ids = [azurerm_subnet.aks_nodes.id, azurerm_subnet.aks_pods.id]
   }
 
