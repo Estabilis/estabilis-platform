@@ -62,8 +62,6 @@ spec:
           {{- if eq .Values.global.provider "azure" }}
           - name: mimir.structuredConfig.common.storage.azure.account_name
             value: "{{ .Values.global.storageAccountName }}"
-          - name: mimir.structuredConfig.common.storage.azure.user_assigned_id
-            value: "{{ .Values.identity.mimir.clientId }}"
           - name: serviceAccount.annotations.azure\.workload\.identity/client-id
             value: "{{ .Values.identity.mimir.clientId }}"
           {{- else if eq .Values.global.provider "aws" }}

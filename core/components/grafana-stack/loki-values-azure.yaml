@@ -12,7 +12,6 @@ loki:
       accountName: ""          # injected via ArgoCD helm.parameters: global.storageAccountName
       endpointSuffix: blob.core.windows.net
       useFederatedToken: true
-      useManagedIdentity: true
   compactor:
     delete_request_store: azure
   schemaConfig:

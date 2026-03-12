@@ -11,7 +11,6 @@ stringData:
       "tenantId": {{ .Values.global.tenantId | quote }},
       "subscriptionId": {{ .Values.global.subscriptionId | quote }},
       "resourceGroup": {{ .Values.global.resourceGroup | quote }},
-      "useManagedIdentityExtension": true,
-      "userAssignedIdentityID": {{ .Values.identity.externalDns.clientId | quote }}
+      "useWorkloadIdentityExtension": true
     }
 {{- end }}
