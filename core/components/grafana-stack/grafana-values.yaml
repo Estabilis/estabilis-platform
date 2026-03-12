@@ -45,20 +45,18 @@ sidecar:
 persistence:
   enabled: false
 
-database:
-  type: postgres
-  host: platform-postgres-rw.cnpg-system.svc.cluster.local
-  port: 5432
-  name: grafana
-  user: grafana
-  # password injected via environment variable from external secret
+grafana.ini:
+  database:
+    type: postgres
+    host: platform-postgres-rw.cnpg-system.svc.cluster.local:5432
+    name: grafana
+    user: grafana
+    ssl_mode: require
+    # password injected via GF_DATABASE_PASSWORD env var
 
-env:
-  GF_DATABASE_SSL_MODE: require
-
-extraEnvFrom:
-  - secretRef:
-      name: grafana-db-credentials
+envFromSecrets:
+  - name: grafana-db-credentials
+    optional: false
 
 adminUser: admin
 # Admin password should be provided via external secret
