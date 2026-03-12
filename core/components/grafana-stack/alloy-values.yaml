@@ -15,7 +15,7 @@ alloy:
       // Forward logs to Loki
       loki.write "default" {
         endpoint {
-          url = "http://grafana-loki-gateway.grafana.svc.cluster.local/loki/api/v1/push"
+          url = "http://grafana-loki.grafana.svc.cluster.local:3100/loki/api/v1/push"
         }
       }
 
@@ -113,12 +113,39 @@ alloy:
         forward_to = [prometheus.remote_write.mimir.receiver]
       }
 
-      // --- Kyverno ---
+      // --- Kyverno (all controllers) ---
+      discovery.kubernetes "kyverno" {
+        role = "endpoints"
+        namespaces {
+          names = ["kyverno"]
+        }
+      }
+
+      discovery.relabel "kyverno" {
+        targets = discovery.kubernetes.kyverno.targets
+
+        rule {
+          source_labels = ["__meta_kubernetes_service_name"]
+          action        = "keep"
+          regex         = "kyverno-svc-metrics|kyverno-background-controller-metrics|kyverno-cleanup-controller-metrics|kyverno-reports-controller-metrics"
+        }
+
+        rule {
+          source_labels = ["__meta_kubernetes_service_name"]
+          target_label  = "service"
+        }
+
+        rule {
+          source_labels = ["__meta_kubernetes_namespace"]
+          target_label  = "namespace"
+        }
+      }
+
       prometheus.scrape "kyverno" {
-        targets = [{
-          __address__ = "kyverno-svc-metrics.kyverno.svc.cluster.local:8000",
-        }]
-        forward_to = [prometheus.relabel.kyverno.receiver]
+        targets         = discovery.relabel.kyverno.output
+        forward_to      = [prometheus.relabel.kyverno.receiver]
+        scrape_interval = "30s"
+        job_name        = "kyverno"
       }
 
       prometheus.relabel "kyverno" {
@@ -148,7 +175,7 @@ alloy:
       // Forward metrics to Mimir
       prometheus.remote_write "mimir" {
         endpoint {
-          url = "http://grafana-mimir-nginx.grafana.svc.cluster.local/api/v1/push"
+          url = "http://grafana-mimir-gateway.grafana.svc.cluster.local/api/v1/push"
         }
       }
 
