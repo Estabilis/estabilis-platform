@@ -6,6 +6,10 @@ metadata:
 spec:
   instances: 1
 
+  inheritedMetadata:
+    labels:
+      azure.workload.identity/use: "true"
+
   # PostgreSQL version
   imageName: ghcr.io/cloudnative-pg/postgresql:16.6
 
