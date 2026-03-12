@@ -1,89 +1,177 @@
-# Single-binary mode for v0-alpha (homolog/dev)
-# Scale to distributed in production via downstream override
+# Mimir distributed — minimal for v0-alpha
+# Scale up in production via downstream override
 
+mimir:
+  structuredConfig:
+    # Disable Kafka-based ingest (chart v6 default)
+    ingest_storage:
+      enabled: false
+    ingester:
+      push_grpc_method_enabled: true
+      ring:
+        zone_awareness_enabled: false
+        replication_factor: 1
+    store_gateway:
+      sharding_ring:
+        zone_awareness_enabled: false
+        replication_factor: 1
+    limits:
+      compactor_blocks_retention_period: "2160h"  # 90 days
+
+# Disable embedded minio (we use cloud storage)
 minio:
   enabled: false
 
-# --- Disable components that default to enabled in mimir-distributed v6+ ---
-
-# Kafka-based ingest path — requires external Kafka broker, must be disabled
-ingest_storage:
+# Disable Kafka
+kafka:
   enabled: false
 
-# Alertmanager — managed by Grafana Unified Alerting instead
+# Disable components not needed for v0-alpha
 alertmanager:
   enabled: false
-
-# Ruler — not needed for v0-alpha
 ruler:
   enabled: false
-
-# Overrides exporter — extra pod, not needed
+ruler_querier:
+  enabled: false
+ruler_query_frontend:
+  enabled: false
+ruler_query_scheduler:
+  enabled: false
 overrides_exporter:
   enabled: false
-
-# Rollout operator — manages progressive rollouts, not needed in single-binary
 rollout_operator:
   enabled: false
-
-# Smoke/continuous tests — not needed in production
 smoke_test:
   enabled: false
 continuous_test:
   enabled: false
-
-# Meta monitoring — self-monitoring stack, redundant with our Alloy setup
 metaMonitoring:
   enabled: false
 
-# Zone awareness — requires explicit zone configuration, disable for single-AZ
-ingester:
-  zoneAwareReplication:
-    enabled: false
-store_gateway:
-  zoneAwareReplication:
-    enabled: false
-
-# Caches — memcached pods, not needed for v0-alpha
-chunks_cache:
+# Disable caches (lightweight setup)
+chunks-cache:
   enabled: false
-index_cache:
+index-cache:
   enabled: false
-metadata_cache:
+metadata-cache:
   enabled: false
-results_cache:
+results-cache:
   enabled: false
 
-# --- Single-binary deployment ---
-singleBinary:
+# Minimal replicas — 1 each for v0-alpha
+distributor:
   replicas: 1
-  persistence:
-    enabled: true
-    size: 10Gi
   resources:
     requests:
-      cpu: 100m
-      memory: 512Mi
+      cpu: 50m
+      memory: 128Mi
     limits:
-      cpu: 1000m
-      memory: 2Gi
+      cpu: 200m
+      memory: 256Mi
   tolerations:
     - key: "estabilis.io/workload-type"
       operator: "Equal"
       value: "platform"
       effect: "NoSchedule"
-  affinity:
-    nodeAffinity:
-      preferredDuringSchedulingIgnoredDuringExecution:
-        - weight: 100
-          preference:
-            matchExpressions:
-              - key: "estabilis.io/pool-type"
-                operator: In
-                values: ["spot"]
-        - weight: 10
-          preference:
-            matchExpressions:
-              - key: "estabilis.io/pool-type"
-                operator: In
-                values: ["regular"]
+
+ingester:
+  replicas: 1
+  zoneAwareReplication:
+    enabled: false
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 200m
+      memory: 512Mi
+  tolerations:
+    - key: "estabilis.io/workload-type"
+      operator: "Equal"
+      value: "platform"
+      effect: "NoSchedule"
+
+querier:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+  tolerations:
+    - key: "estabilis.io/workload-type"
+      operator: "Equal"
+      value: "platform"
+      effect: "NoSchedule"
+
+query_frontend:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 100m
+      memory: 128Mi
+  tolerations:
+    - key: "estabilis.io/workload-type"
+      operator: "Equal"
+      value: "platform"
+      effect: "NoSchedule"
+
+query_scheduler:
+  replicas: 1
+  tolerations:
+    - key: "estabilis.io/workload-type"
+      operator: "Equal"
+      value: "platform"
+      effect: "NoSchedule"
+
+compactor:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+  tolerations:
+    - key: "estabilis.io/workload-type"
+      operator: "Equal"
+      value: "platform"
+      effect: "NoSchedule"
+
+store_gateway:
+  replicas: 1
+  zoneAwareReplication:
+    enabled: false
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+  tolerations:
+    - key: "estabilis.io/workload-type"
+      operator: "Equal"
+      value: "platform"
+      effect: "NoSchedule"
+
+gateway:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 25m
+      memory: 32Mi
+    limits:
+      cpu: 100m
+      memory: 64Mi
+  tolerations:
+    - key: "estabilis.io/workload-type"
+      operator: "Equal"
+      value: "platform"
+      effect: "NoSchedule"

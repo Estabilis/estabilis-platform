@@ -44,15 +44,17 @@ spec:
         valueFiles:
           - $values/core/components/cert-manager-config/values.yaml
         parameters:
-          {{- if eq .Values.global.provider "azure" }}
+          - name: global.provider
+            value: "{{ .Values.global.provider }}"
           - name: global.letsencryptEmail
             value: "{{ .Values.global.letsencryptEmail }}"
+          - name: global.domain
+            value: "{{ .Values.global.domain }}"
+          {{- if eq .Values.global.provider "azure" }}
           - name: global.subscriptionId
             value: "{{ .Values.global.subscriptionId }}"
           - name: global.resourceGroup
             value: "{{ .Values.global.resourceGroup }}"
-          - name: global.domain
-            value: "{{ .Values.global.domain }}"
           - name: identity.certManager.clientId
             value: "{{ .Values.identity.certManager.clientId }}"
           {{- end }}

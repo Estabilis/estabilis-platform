@@ -1,10 +1,9 @@
 global:
+  provider: ""
   letsencryptEmail: ""
   subscriptionId: ""
   resourceGroup: ""
   domain: ""
-azure:
-  environment: "AzurePublicCloud"
 identity:
   certManager:
     clientId: ""

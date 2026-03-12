@@ -1,13 +1,8 @@
 # Azure-specific values for ExternalDNS
 # Loaded in addition to values.yaml when provider=azure
 
-provider: azure
-
-azure:
-  resourceGroup: ""           # injected via ArgoCD helm.parameters
-  tenantId: ""                # injected via ArgoCD helm.parameters
-  useManagedIdentityExtension: true
-  userAssignedIdentityID: ""  # injected via ArgoCD helm.parameters
+provider:
+  name: azure
 
 serviceAccount:
   create: true
@@ -17,3 +12,17 @@ serviceAccount:
 
 podLabels:
   azure.workload.identity/use: "true"
+
+secretConfiguration:
+  enabled: true
+  mountPath: /etc/kubernetes
+  subPath: azure.json
+  data:
+    azure.json: |
+      {
+        "tenantId": "",
+        "subscriptionId": "",
+        "resourceGroup": "",
+        "useManagedIdentityExtension": true,
+        "userAssignedIdentityID": ""
+      }

@@ -6,7 +6,7 @@ datasources:
         uid: mimir
         type: prometheus
         access: proxy
-        url: http://grafana-mimir-nginx.grafana.svc.cluster.local/prometheus
+        url: http://grafana-mimir-gateway.grafana.svc.cluster.local/prometheus
         isDefault: true
         jsonData:
           timeInterval: 30s
@@ -14,7 +14,7 @@ datasources:
         uid: loki
         type: loki
         access: proxy
-        url: http://grafana-loki-gateway.grafana.svc.cluster.local
+        url: http://grafana-loki.grafana.svc.cluster.local:3100
         jsonData:
           maxLines: 1000
       - name: Tempo
@@ -88,9 +88,6 @@ affinity:
 
 serviceAccount:
   create: true
-
-plugins:
-  - grafana-opencost-app
 
 testFramework:
   enabled: false

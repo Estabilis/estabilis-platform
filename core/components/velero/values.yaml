@@ -17,7 +17,9 @@ configuration:
 
 kubectl:
   image:
-    tag: "1.33"
+    registry: registry.k8s.io
+    repository: kubectl
+    tag: "v1.32.0"
 
 credentials:
   useSecret: false
