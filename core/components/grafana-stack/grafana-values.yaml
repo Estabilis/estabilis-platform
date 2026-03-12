@@ -58,9 +58,10 @@ envFromSecrets:
   - name: grafana-db-credentials
     optional: false
 
-adminUser: admin
-# Admin password should be provided via external secret
-# adminPassword: set-via-external-secret
+admin:
+  existingSecret: grafana-admin-credentials
+  userKey: admin-user
+  passwordKey: admin-password
 
 tolerations:
   - key: "estabilis.io/workload-type"

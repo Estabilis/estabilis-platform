@@ -10,6 +10,7 @@ resource "azurerm_storage_account" "observability" {
   account_replication_type = "LRS"
   min_tls_version          = "TLS1_2"
 
+  shared_access_key_enabled     = false
   public_network_access_enabled = false
 
   network_rules {

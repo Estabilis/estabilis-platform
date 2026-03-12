@@ -4,9 +4,13 @@ configuration:
   backupStorageLocation:
     - name: default
       provider: azure
+      config:
+        useAAD: "true"
   volumeSnapshotLocation:
     - name: default
       provider: azure
+      config:
+        useAAD: "true"
 
 tolerations:
   - key: "kubernetes.azure.com/scalesetpriority"

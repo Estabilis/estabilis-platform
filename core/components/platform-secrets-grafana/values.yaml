@@ -1,3 +1,4 @@
 # Key Vault secret names — must be created in Key Vault before platform deploy
 kvSecrets:
   grafanaDbPassword: "platform-grafana-db-password"
+  grafanaAdminPassword: "platform-grafana-admin-password"
