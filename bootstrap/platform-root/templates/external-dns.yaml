@@ -24,14 +24,7 @@ spec:
           - name: serviceAccount.annotations.azure\.workload\.identity/client-id
             value: "{{ .Values.identity.externalDns.clientId }}"
           - name: secretConfiguration.data.azure\.json
-            value: |
-              {
-                "tenantId": "{{ .Values.global.tenantId }}",
-                "subscriptionId": "{{ .Values.global.subscriptionId }}",
-                "resourceGroup": "{{ .Values.global.resourceGroup }}",
-                "useManagedIdentityExtension": true,
-                "userAssignedIdentityID": "{{ .Values.identity.externalDns.clientId }}"
-              }
+            value: '{"tenantId":"{{ .Values.global.tenantId }}","subscriptionId":"{{ .Values.global.subscriptionId }}","resourceGroup":"{{ .Values.global.resourceGroup }}","useManagedIdentityExtension":true,"userAssignedIdentityID":"{{ .Values.identity.externalDns.clientId }}"}'
           {{- else if eq .Values.global.provider "aws" }}
           # AWS — to be implemented
           # - name: aws.zoneType

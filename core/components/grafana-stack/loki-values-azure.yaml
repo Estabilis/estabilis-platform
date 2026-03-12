@@ -13,6 +13,8 @@ loki:
       endpointSuffix: blob.core.windows.net
       useFederatedToken: true
       useManagedIdentity: true
+  compactor:
+    delete_request_store: azure
   schemaConfig:
     configs:
       - from: "2024-01-01"

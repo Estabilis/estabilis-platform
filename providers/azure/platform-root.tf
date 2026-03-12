@@ -52,6 +52,7 @@ resource "kubectl_manifest" "argocd_project_platform" {
         { group = "cert-manager.io", kind = "ClusterIssuer" },
         { group = "external-secrets.io", kind = "ClusterSecretStore" },
         { group = "aquasecurity.github.io", kind = "*" },
+        { group = "networking.k8s.io", kind = "IngressClass" },
       ]
     }
   })

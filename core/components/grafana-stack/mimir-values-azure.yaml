@@ -9,17 +9,17 @@ mimir:
         azure:
           account_name: ""           # injected via ArgoCD helm.parameters: global.storageAccountName
           endpoint_suffix: blob.core.windows.net
-          user_assigned_id: ""       # injected via ArgoCD helm.parameters: identity.mimir.clientId
     blocks_storage:
       backend: azure
       azure:
         container_name: mimir-blocks
+
+global:
+  podLabels:
+    azure.workload.identity/use: "true"
 
 serviceAccount:
   create: true
   annotations:
     azure.workload.identity/use: "true"
     azure.workload.identity/client-id: ""  # injected via ArgoCD helm.parameters: identity.mimir.clientId
-
-podLabels:
-  azure.workload.identity/use: "true"
