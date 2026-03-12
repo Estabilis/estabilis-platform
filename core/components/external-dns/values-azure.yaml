@@ -17,12 +17,4 @@ secretConfiguration:
   enabled: true
   mountPath: /etc/kubernetes
   subPath: azure.json
-  data:
-    azure.json: |
-      {
-        "tenantId": "",
-        "subscriptionId": "",
-        "resourceGroup": "",
-        "useManagedIdentityExtension": true,
-        "userAssignedIdentityID": ""
-      }
+  data: {}
