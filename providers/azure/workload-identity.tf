@@ -77,7 +77,7 @@ resource "azurerm_federated_identity_credential" "loki" {
 }
 
 resource "azurerm_role_assignment" "loki_storage_contributor" {
-  scope                = azurerm_storage_container.loki.resource_manager_id
+  scope                = azurerm_storage_container.loki.id
   role_definition_name = "Storage Blob Data Contributor"
   principal_id         = azurerm_user_assigned_identity.loki.principal_id
 }
@@ -100,13 +100,13 @@ resource "azurerm_federated_identity_credential" "mimir" {
 }
 
 resource "azurerm_role_assignment" "mimir_storage_contributor" {
-  scope                = azurerm_storage_container.mimir.resource_manager_id
+  scope                = azurerm_storage_container.mimir.id
   role_definition_name = "Storage Blob Data Contributor"
   principal_id         = azurerm_user_assigned_identity.mimir.principal_id
 }
 
 resource "azurerm_role_assignment" "mimir_storage_contributor_blocks" {
-  scope                = azurerm_storage_container.mimir_blocks.resource_manager_id
+  scope                = azurerm_storage_container.mimir_blocks.id
   role_definition_name = "Storage Blob Data Contributor"
   principal_id         = azurerm_user_assigned_identity.mimir.principal_id
 }
@@ -129,7 +129,7 @@ resource "azurerm_federated_identity_credential" "cnpg" {
 }
 
 resource "azurerm_role_assignment" "cnpg_storage_contributor" {
-  scope                = azurerm_storage_container.cnpg_backup.resource_manager_id
+  scope                = azurerm_storage_container.cnpg_backup.id
   role_definition_name = "Storage Blob Data Contributor"
   principal_id         = azurerm_user_assigned_identity.cnpg.principal_id
 }
@@ -175,7 +175,7 @@ resource "azurerm_federated_identity_credential" "velero" {
 }
 
 resource "azurerm_role_assignment" "velero_storage_contributor" {
-  scope                = azurerm_storage_container.velero_backup.resource_manager_id
+  scope                = azurerm_storage_container.velero_backup.id
   role_definition_name = "Storage Blob Data Contributor"
   principal_id         = azurerm_user_assigned_identity.velero.principal_id
 }
