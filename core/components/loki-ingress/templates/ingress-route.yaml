@@ -59,7 +59,7 @@ spec:
     secretName: loki-external-tls
 ---
 # ExternalSecret for BasicAuth credentials — pull htpasswd from Key Vault
-apiVersion: external-secrets.io/v1beta1
+apiVersion: external-secrets.io/v1
 kind: ExternalSecret
 metadata:
   name: loki-ingress-auth
