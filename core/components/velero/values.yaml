@@ -15,10 +15,7 @@ configuration:
       config:
         resourceGroup: ""
 
-kubectl:
-  image:
-    repository: docker.io/bitnami/kubectl
-    tag: latest
+upgradeCRDs: false
 
 credentials:
   useSecret: false
