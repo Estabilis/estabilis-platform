@@ -1,0 +1,5 @@
+apiVersion: v2
+name: external-dns-config
+description: Azure DNS configuration for ExternalDNS
+version: 0.1.0
+type: application

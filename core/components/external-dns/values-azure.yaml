@@ -13,8 +13,12 @@ serviceAccount:
 podLabels:
   azure.workload.identity/use: "true"
 
-secretConfiguration:
-  enabled: true
-  mountPath: /etc/kubernetes
-  subPath: azure.json
-  data: {}
+extraVolumes:
+  - name: azure-config
+    secret:
+      secretName: external-dns-azure-config
+
+extraVolumeMounts:
+  - name: azure-config
+    mountPath: /etc/kubernetes
+    readOnly: true

@@ -1,0 +1,8 @@
+global:
+  provider: ""
+  tenantId: ""
+  subscriptionId: ""
+  resourceGroup: ""
+identity:
+  externalDns:
+    clientId: ""

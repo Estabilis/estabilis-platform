@@ -73,7 +73,7 @@ resource "azurerm_federated_identity_credential" "loki" {
   parent_id = azurerm_user_assigned_identity.loki.id
   audience  = ["api://AzureADTokenExchange"]
   issuer    = local.aks_oidc_issuer_url
-  subject   = "system:serviceaccount:grafana:loki"
+  subject   = "system:serviceaccount:grafana:grafana-loki"
 }
 
 resource "azurerm_role_assignment" "loki_storage_contributor" {
@@ -96,7 +96,7 @@ resource "azurerm_federated_identity_credential" "mimir" {
   parent_id = azurerm_user_assigned_identity.mimir.id
   audience  = ["api://AzureADTokenExchange"]
   issuer    = local.aks_oidc_issuer_url
-  subject   = "system:serviceaccount:grafana:mimir"
+  subject   = "system:serviceaccount:grafana:grafana-mimir"
 }
 
 resource "azurerm_role_assignment" "mimir_storage_contributor" {
@@ -171,7 +171,7 @@ resource "azurerm_federated_identity_credential" "velero" {
   parent_id = azurerm_user_assigned_identity.velero.id
   audience  = ["api://AzureADTokenExchange"]
   issuer    = local.aks_oidc_issuer_url
-  subject   = "system:serviceaccount:velero:velero"
+  subject   = "system:serviceaccount:velero:velero-server"
 }
 
 resource "azurerm_role_assignment" "velero_storage_contributor" {

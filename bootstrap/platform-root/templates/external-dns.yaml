@@ -1,3 +1,45 @@
+{{- if eq .Values.global.provider "azure" }}
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: external-dns-config
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "4"
+spec:
+  project: platform
+  sources:
+    - repoURL: {{ .Values.platformRepoUrl }}
+      targetRevision: {{ .Values.platformVersion }}
+      path: core/components/external-dns-config
+      helm:
+        valueFiles:
+          - $values/core/components/external-dns-config/values.yaml
+        parameters:
+          - name: global.provider
+            value: "{{ .Values.global.provider }}"
+          - name: global.tenantId
+            value: "{{ .Values.global.tenantId }}"
+          - name: global.subscriptionId
+            value: "{{ .Values.global.subscriptionId }}"
+          - name: global.resourceGroup
+            value: "{{ .Values.global.resourceGroup }}"
+          - name: identity.externalDns.clientId
+            value: "{{ .Values.identity.externalDns.clientId }}"
+    - repoURL: {{ .Values.platformRepoUrl }}
+      targetRevision: {{ .Values.platformVersion }}
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: external-dns
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+---
+{{- end }}
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -23,9 +65,6 @@ spec:
           {{- if eq .Values.global.provider "azure" }}
           - name: serviceAccount.annotations.azure\.workload\.identity/client-id
             value: "{{ .Values.identity.externalDns.clientId }}"
-          - name: secretConfiguration.data.azure\.json
-            value: '{"tenantId":"{{ .Values.global.tenantId }}"\,"subscriptionId":"{{ .Values.global.subscriptionId }}"\,"resourceGroup":"{{ .Values.global.resourceGroup }}"\,"useManagedIdentityExtension":true\,"userAssignedIdentityID":"{{ .Values.identity.externalDns.clientId }}"}'
-            forceString: true
           {{- else if eq .Values.global.provider "aws" }}
           # AWS — to be implemented
           # - name: aws.zoneType

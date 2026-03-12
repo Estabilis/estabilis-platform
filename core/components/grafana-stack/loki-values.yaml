@@ -4,6 +4,11 @@ loki:
   auth_enabled: false
   commonConfig:
     replication_factor: 1
+  rulerConfig:
+    storage:
+      type: local
+      local:
+        directory: /tmp/loki/rules
   limits_config:
     retention_period: 720h
     ingestion_rate_mb: 30
