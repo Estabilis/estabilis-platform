@@ -3,6 +3,8 @@
 
 mimir:
   structuredConfig:
+    usage_stats:
+      enabled: false
     # Disable Kafka-based ingest (chart v6 default)
     ingest_storage:
       enabled: false

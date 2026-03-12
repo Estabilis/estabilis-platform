@@ -30,10 +30,9 @@ serviceAccount:
     azure.workload.identity/use: "true"
     azure.workload.identity/client-id: ""  # injected via ArgoCD helm.parameters: identity.loki.clientId
 
-podLabels:
-  azure.workload.identity/use: "true"
-
 singleBinary:
+  podLabels:
+    azure.workload.identity/use: "true"
   tolerations:
     - key: "kubernetes.azure.com/scalesetpriority"
       operator: "Equal"
