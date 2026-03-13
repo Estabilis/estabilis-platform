@@ -60,8 +60,8 @@ resource "azurerm_subscription_cost_management_export" "daily" {
   name                         = "opencost-daily-${var.name_prefix}"
   subscription_id              = data.azurerm_subscription.current.id
   recurrence_type              = "Daily"
-  recurrence_period_start_date = "2024-01-01T00:00:00Z"
-  recurrence_period_end_date   = "2099-12-31T00:00:00Z"
+  recurrence_period_start_date = "${formatdate("YYYY-MM-DD", plantimestamp())}T00:00:00Z"
+  recurrence_period_end_date   = "${formatdate("YYYY", plantimestamp()) + 10}-${formatdate("MM-DD", plantimestamp())}T00:00:00Z"
 
   export_data_storage_location {
     container_id     = azurerm_storage_container.cost_exports.id
