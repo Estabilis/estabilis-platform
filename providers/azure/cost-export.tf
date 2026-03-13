@@ -61,6 +61,18 @@ resource "azurerm_private_endpoint" "cost_exports_blob" {
 }
 
 # ---------------------------------------------------------------------------
+# Terraform SP needs Owner on the storage account so that Cost Management
+# can create a system-assigned managed identity with StorageBlobDataContributor.
+# See: https://learn.microsoft.com/azure/cost-management-billing/costs/tutorial-improved-exports
+# ---------------------------------------------------------------------------
+
+resource "azurerm_role_assignment" "terraform_cost_exports_owner" {
+  scope                = azurerm_storage_account.cost_exports.id
+  role_definition_name = "Owner"
+  principal_id         = data.azurerm_client_config.current.object_id
+}
+
+# ---------------------------------------------------------------------------
 # Daily Cost Export — ActualCost, MonthToDate
 # ---------------------------------------------------------------------------
 
@@ -81,5 +93,8 @@ resource "azurerm_subscription_cost_management_export" "daily" {
     time_frame = "MonthToDate"
   }
 
-  depends_on = [azurerm_resource_provider_registration.cost_management_exports]
+  depends_on = [
+    azurerm_resource_provider_registration.cost_management_exports,
+    azurerm_role_assignment.terraform_cost_exports_owner,
+  ]
 }
