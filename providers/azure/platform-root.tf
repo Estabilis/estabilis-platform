@@ -149,6 +149,10 @@ resource "kubectl_manifest" "platform_root" {
               value = var.subscription_id
             },
             {
+              name  = "global.azureOfferId"
+              value = local.azure_offer_id
+            },
+            {
               name  = "global.cnpgBackupContainerName"
               value = azurerm_storage_container.cnpg_backup.name
             },

@@ -6,7 +6,7 @@ opencost:
     extraEnv:
       AZURE_SUBSCRIPTION_ID: ""   # injected via ArgoCD helm.parameters
       AZURE_TENANT_ID: ""         # injected via ArgoCD helm.parameters
-      AZURE_OFFER_ID: "MS-AZR-0003P"
+      AZURE_OFFER_ID: ""          # injected via ArgoCD helm.parameters (auto-detected from subscription quotaId)
     extraVolumeMounts:
       - mountPath: /var/secrets
         name: azure-service-key

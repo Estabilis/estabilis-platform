@@ -184,6 +184,31 @@ resource "azurerm_role_assignment" "velero_rg_reader" {
 # OpenCost requires a Service Principal (not Workload Identity) because it
 # uses the legacy Azure ADAL SDK which does not support federated credentials.
 
+data "azurerm_subscription" "current" {
+  subscription_id = var.subscription_id
+}
+
+locals {
+  # Map Azure quotaId prefix to RateCard offer ID
+  azure_offer_id_map = {
+    "PayAsYouGo"          = "MS-AZR-0003P"
+    "EnterpriseAgreement" = "MS-AZR-0017P"
+    "MSDNDev"             = "MS-AZR-0062P"
+    "MSDN"                = "MS-AZR-0063P"
+    "FreeTrial"           = "MS-AZR-0044P"
+    "BizSpark"            = "MS-AZR-0064P"
+    "Sponsorship"         = "MS-AZR-0036P"
+    "CSP"                 = "MS-AZR-0145P"
+    "Internal"            = "MS-AZR-0015P"
+  }
+
+  # Extract prefix before underscore (e.g., "PayAsYouGo_2014-09-01" -> "PayAsYouGo")
+  quota_id_prefix = split("_", data.azurerm_subscription.current.quota_id)[0]
+
+  # Resolve offer ID from quota or fall back to Pay-As-You-Go
+  azure_offer_id = lookup(local.azure_offer_id_map, local.quota_id_prefix, "MS-AZR-0003P")
+}
+
 resource "azuread_application" "opencost" {
   display_name = "sp-${var.name_prefix}-opencost"
 }
