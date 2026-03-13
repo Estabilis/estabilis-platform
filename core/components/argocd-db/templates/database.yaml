@@ -1,0 +1,10 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: argocd-db
+  namespace: cnpg-system
+spec:
+  name: argocd
+  owner: argocd
+  cluster:
+    name: {{ .Values.cnpgClusterName }}

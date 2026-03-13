@@ -23,13 +23,8 @@ spec:
       database: app
       owner: app
 
-  # Databases and roles managed declaratively
+  # Roles managed declaratively (databases are provisioned by each component via kind: Database CRD)
   managed:
-    databases:
-      - name: grafana
-        owner: grafana
-      - name: argocd
-        owner: argocd
     roles:
       - name: grafana
         passwordSecret:

@@ -1,0 +1,5 @@
+apiVersion: v2
+name: argocd-db
+description: CNPG Database for ArgoCD
+version: 0.1.0
+type: application
