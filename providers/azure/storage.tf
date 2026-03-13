@@ -3,22 +3,55 @@
 # ---------------------------------------------------------------------------
 
 resource "azurerm_storage_account" "observability" {
-  name                     = "st${var.name_prefix}obs${random_string.storage_suffix.result}"
-  resource_group_name      = azurerm_resource_group.platform.name
-  location                 = azurerm_resource_group.platform.location
-  account_tier             = "Standard"
-  account_replication_type = "LRS"
-  min_tls_version          = "TLS1_2"
+  name                            = "st${var.name_prefix}obs${random_string.storage_suffix.result}"
+  resource_group_name             = azurerm_resource_group.platform.name
+  location                        = azurerm_resource_group.platform.location
+  account_tier                    = "Standard"
+  account_replication_type        = "LRS"
+  min_tls_version                 = "TLS1_2"
+  shared_access_key_enabled       = false
+  allow_nested_items_to_be_public = false
 
   public_network_access_enabled = false
 
-  network_rules {
-    default_action             = "Deny"
-    bypass                     = ["AzureServices"]
-    virtual_network_subnet_ids = [azurerm_subnet.aks_nodes.id, azurerm_subnet.aks_pods.id]
+  tags = var.tags
+}
+
+# ---------------------------------------------------------------------------
+# Private Endpoint — blob access only via VNet
+# ---------------------------------------------------------------------------
+
+resource "azurerm_private_endpoint" "observability_blob" {
+  name                = "pe-${var.name_prefix}-obs-blob"
+  location            = azurerm_resource_group.platform.location
+  resource_group_name = azurerm_resource_group.platform.name
+  subnet_id           = azurerm_subnet.aks_nodes.id
+  tags                = var.tags
+
+  private_service_connection {
+    name                           = "psc-${var.name_prefix}-obs-blob"
+    private_connection_resource_id = azurerm_storage_account.observability.id
+    subresource_names              = ["blob"]
+    is_manual_connection           = false
   }
 
-  tags = var.tags
+  private_dns_zone_group {
+    name                 = "default"
+    private_dns_zone_ids = [azurerm_private_dns_zone.blob.id]
+  }
+}
+
+resource "azurerm_private_dns_zone" "blob" {
+  name                = "privatelink.blob.core.windows.net"
+  resource_group_name = azurerm_resource_group.platform.name
+  tags                = var.tags
+}
+
+resource "azurerm_private_dns_zone_virtual_network_link" "blob" {
+  name                  = "vnetlink-${var.name_prefix}-blob"
+  resource_group_name   = azurerm_resource_group.platform.name
+  private_dns_zone_name = azurerm_private_dns_zone.blob.name
+  virtual_network_id    = azurerm_virtual_network.platform.id
 }
 
 # ---------------------------------------------------------------------------
