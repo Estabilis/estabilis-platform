@@ -20,7 +20,7 @@ spec:
           - name: configuration.backupStorageLocation[0].bucket
             value: "{{ .Values.global.veleroBackupContainerName }}"
           - name: configuration.backupStorageLocation[0].config.storageAccount
-            value: "{{ .Values.global.storageAccountName }}"
+            value: "{{ .Values.global.veleroStorageAccountName }}"
           - name: configuration.backupStorageLocation[0].config.resourceGroup
             value: "{{ .Values.global.resourceGroup }}"
           - name: configuration.backupStorageLocation[0].config.subscriptionId

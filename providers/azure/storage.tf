@@ -77,17 +77,47 @@ resource "azurerm_storage_container" "mimir_blocks" {
 }
 
 # ---------------------------------------------------------------------------
-# Backup containers — CloudNativePG and Velero
+# Storage Account – CNPG Backup (PostgreSQL WAL archiving + scheduled backups)
 # ---------------------------------------------------------------------------
+
+resource "azurerm_storage_account" "cnpg_backup" {
+  name                            = "st${var.name_prefix}cnpg${random_string.storage_suffix.result}"
+  resource_group_name             = azurerm_resource_group.platform.name
+  location                        = azurerm_resource_group.platform.location
+  account_tier                    = "Standard"
+  account_replication_type        = "LRS"
+  min_tls_version                 = "TLS1_2"
+  shared_access_key_enabled       = false
+  allow_nested_items_to_be_public = false
+
+  tags = var.tags
+}
 
 resource "azurerm_storage_container" "cnpg_backup" {
   name                  = "cnpg-backup"
-  storage_account_id    = azurerm_storage_account.observability.id
+  storage_account_id    = azurerm_storage_account.cnpg_backup.id
   container_access_type = "private"
+}
+
+# ---------------------------------------------------------------------------
+# Storage Account – Velero Backup (Kubernetes disaster recovery)
+# ---------------------------------------------------------------------------
+
+resource "azurerm_storage_account" "velero_backup" {
+  name                            = "st${var.name_prefix}velero${random_string.storage_suffix.result}"
+  resource_group_name             = azurerm_resource_group.platform.name
+  location                        = azurerm_resource_group.platform.location
+  account_tier                    = "Standard"
+  account_replication_type        = "LRS"
+  min_tls_version                 = "TLS1_2"
+  shared_access_key_enabled       = false
+  allow_nested_items_to_be_public = false
+
+  tags = var.tags
 }
 
 resource "azurerm_storage_container" "velero_backup" {
   name                  = "velero-backup"
-  storage_account_id    = azurerm_storage_account.observability.id
+  storage_account_id    = azurerm_storage_account.velero_backup.id
   container_access_type = "private"
 }

@@ -48,7 +48,7 @@ spec:
           - $values/core/components/cnpg-cluster/values.yaml
         parameters:
           - name: global.storageAccountName
-            value: "{{ .Values.global.storageAccountName }}"
+            value: "{{ .Values.global.cnpgStorageAccountName }}"
           - name: global.cnpgBackupRetentionDays
             value: "{{ .Values.global.cnpgBackupRetentionDays }}"
           - name: global.cnpgBackupSchedule

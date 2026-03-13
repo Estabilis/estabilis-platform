@@ -156,8 +156,16 @@ resource "kubectl_manifest" "platform_root" {
               value = local.azure_offer_id
             },
             {
+              name  = "global.cnpgStorageAccountName"
+              value = azurerm_storage_account.cnpg_backup.name
+            },
+            {
               name  = "global.cnpgBackupContainerName"
               value = azurerm_storage_container.cnpg_backup.name
+            },
+            {
+              name  = "global.veleroStorageAccountName"
+              value = azurerm_storage_account.velero_backup.name
             },
             {
               name  = "global.veleroBackupContainerName"
