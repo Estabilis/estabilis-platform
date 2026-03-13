@@ -45,17 +45,16 @@ spec:
         inheritFromAzureAD: true
     retentionPolicy: "{{ .Values.global.cnpgBackupRetentionDays }}d"
 
-  tolerations:
-    - key: "estabilis.io/workload-type"
-      operator: "Equal"
-      value: "platform"
-      effect: "NoSchedule"
-    - key: "kubernetes.azure.com/scalesetpriority"
-      operator: "Equal"
-      value: "spot"
-      effect: "NoSchedule"
-
   affinity:
+    tolerations:
+      - key: "estabilis.io/workload-type"
+        operator: "Equal"
+        value: "platform"
+        effect: "NoSchedule"
+      - key: "kubernetes.azure.com/scalesetpriority"
+        operator: "Equal"
+        value: "spot"
+        effect: "NoSchedule"
     nodeAffinity:
       preferredDuringSchedulingIgnoredDuringExecution:
         - weight: 100
