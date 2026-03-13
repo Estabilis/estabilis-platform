@@ -3,8 +3,6 @@
 # Created first with local state, then state is migrated here.
 # ---------------------------------------------------------------------------
 
-data "azurerm_client_config" "current" {}
-
 resource "azurerm_resource_group" "tfstate" {
   name     = "rg-${var.name_prefix}-tfstate"
   location = var.location
