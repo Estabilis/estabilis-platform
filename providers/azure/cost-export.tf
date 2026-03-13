@@ -12,7 +12,10 @@ resource "azurerm_storage_account" "cost_exports" {
   shared_access_key_enabled       = true # required by OpenCost cloud-integration
   allow_nested_items_to_be_public = false
 
-  public_network_access_enabled = false
+  network_rules {
+    default_action = "Deny"
+    bypass         = ["AzureServices"]
+  }
 
   tags = var.tags
 }
