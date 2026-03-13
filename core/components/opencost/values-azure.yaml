@@ -18,7 +18,7 @@ opencost:
 extraVolumes:
   - name: azure-service-key
     secret:
-      secretName: opencost-azure-service-key
+      secretName: opencost-cloud-service-key
 
 tolerations:
   - key: "kubernetes.azure.com/scalesetpriority"

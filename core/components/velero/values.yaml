@@ -5,15 +5,9 @@ configuration:
   backupStorageLocation:
     - name: default
       bucket: ""
-      config:
-        resourceGroup: ""
-        storageAccount: ""
-        subscriptionId: ""
 
   volumeSnapshotLocation:
     - name: default
-      config:
-        resourceGroup: ""
 
 upgradeCRDs: false
 
@@ -23,14 +17,6 @@ credentials:
 serviceAccount:
   server:
     create: true
-
-initContainers:
-  - name: velero-plugin-for-azure
-    image: velero/velero-plugin-for-microsoft-azure:v1.10.0
-    imagePullPolicy: IfNotPresent
-    volumeMounts:
-      - mountPath: /target
-        name: plugins
 
 schedules:
   platform-daily:
