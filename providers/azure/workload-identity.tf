@@ -194,7 +194,7 @@ resource "azuread_service_principal" "opencost" {
 
 resource "azuread_service_principal_password" "opencost" {
   service_principal_id = azuread_service_principal.opencost.id
-  end_date_relative    = "8760h" # 1 year
+  end_date             = timeadd(plantimestamp(), "8760h") # 1 year
 }
 
 resource "azurerm_role_assignment" "opencost_cost_reader" {
