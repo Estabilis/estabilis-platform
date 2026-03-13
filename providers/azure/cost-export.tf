@@ -18,6 +18,14 @@ resource "azurerm_storage_account" "cost_exports" {
   shared_access_key_enabled       = true # required by OpenCost cloud-integration
   allow_nested_items_to_be_public = false
 
+  # Starts with Allow so Cost Management can create its managed identity
+  # during export creation. After the export is created, the separate
+  # azurerm_storage_account_network_rules resource locks it down to Deny.
+  network_rules {
+    default_action = "Allow"
+    bypass         = ["AzureServices"]
+  }
+
   tags = var.tags
 }
 
