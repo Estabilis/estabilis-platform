@@ -9,7 +9,7 @@ trivy:
   ignoreUnfixed: true
 
 operator:
-  scanJobsConcurrentLimit: 2
+  scanJobsConcurrentLimit: 1
   vulnerabilityScannerEnabled: true
   configAuditScannerEnabled: true
   rbacAssessmentScannerEnabled: true
