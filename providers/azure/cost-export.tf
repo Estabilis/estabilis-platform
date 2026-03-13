@@ -18,16 +18,20 @@ resource "azurerm_storage_account" "cost_exports" {
   shared_access_key_enabled       = true # required by OpenCost cloud-integration
   allow_nested_items_to_be_public = false
 
-  # Cost Management Export is a trusted Azure service that writes billing
-  # data via the Azure backbone. It requires bypass = ["AzureServices"]
-  # rather than public_network_access_enabled = false (which blocks all
-  # public access including trusted services).
-  network_rules {
-    default_action = "Deny"
-    bypass         = ["AzureServices"]
-  }
-
   tags = var.tags
+}
+
+# Firewall rules applied AFTER the cost export is created.
+# Per Microsoft docs, Cost Management creates a system-assigned managed
+# identity with StorageBlobDataContributor during export creation. This
+# identity then works behind the firewall via trusted Azure services bypass.
+# See: https://learn.microsoft.com/azure/cost-management-billing/costs/tutorial-improved-exports
+resource "azurerm_storage_account_network_rules" "cost_exports" {
+  storage_account_id = azurerm_storage_account.cost_exports.id
+  default_action     = "Deny"
+  bypass             = ["AzureServices"]
+
+  depends_on = [azurerm_subscription_cost_management_export.daily]
 }
 
 resource "azurerm_storage_container" "cost_exports" {
