@@ -27,15 +27,21 @@ spec:
   managed:
     roles:
       - name: grafana
+        ensure: present
+        login: true
+        inherit: true
+        superuser: false
+        connectionLimit: -1
         passwordSecret:
           name: grafana-db-credentials
-        login: true
-        superuser: false
       - name: argocd
+        ensure: present
+        login: true
+        inherit: true
+        superuser: false
+        connectionLimit: -1
         passwordSecret:
           name: argocd-db-credentials
-        login: true
-        superuser: false
 
   # Backup to Azure Blob Storage via WAL archiving
   backup:
