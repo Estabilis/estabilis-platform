@@ -29,7 +29,7 @@ mimir:
       local:
         directory: /data/rules
     alertmanager:
-      data_dir: /data/alertmanager
+      data_dir: /tmp/alertmanager
       fallback_config_file: /etc/mimir/alertmanager-fallback-config.yaml
     alertmanager_storage:
       backend: local
