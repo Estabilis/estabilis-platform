@@ -59,7 +59,7 @@ resource "azurerm_subscription_cost_management_export" "daily" {
   recurrence_period_end_date   = "2099-12-31T00:00:00Z"
 
   export_data_storage_location {
-    container_id     = azurerm_storage_container.cost_exports.resource_manager_id
+    container_id     = azurerm_storage_container.cost_exports.id
     root_folder_path = "/cost-exports"
   }
 
