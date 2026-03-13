@@ -1,0 +1,20 @@
+# Prometheus Node Exporter — node-level OS metrics
+# https://github.com/prometheus/node_exporter
+
+tolerations:
+  - key: "estabilis.io/workload-type"
+    operator: "Equal"
+    value: "platform"
+    effect: "NoSchedule"
+  - key: "kubernetes.azure.com/scalesetpriority"
+    operator: "Equal"
+    value: "spot"
+    effect: "NoSchedule"
+
+resources:
+  requests:
+    cpu: 10m
+    memory: 32Mi
+  limits:
+    cpu: 100m
+    memory: 64Mi

@@ -402,6 +402,53 @@ alloy:
         forward_to = [prometheus.remote_write.mimir.receiver]
       }
 
+      // --- Node Exporter ---
+      discovery.kubernetes "node_exporter" {
+        role = "pod"
+        namespaces {
+          names = ["node-exporter"]
+        }
+      }
+
+      discovery.relabel "node_exporter" {
+        targets = discovery.kubernetes.node_exporter.targets
+
+        rule {
+          source_labels = ["__meta_kubernetes_pod_label_app_kubernetes_io_name"]
+          action        = "keep"
+          regex         = "prometheus-node-exporter"
+        }
+
+        rule {
+          source_labels = ["__meta_kubernetes_pod_ip"]
+          target_label  = "__address__"
+          replacement   = "$1:9100"
+        }
+
+        rule {
+          source_labels = ["__meta_kubernetes_pod_node_name"]
+          target_label  = "node"
+        }
+
+        rule {
+          source_labels = ["__meta_kubernetes_namespace"]
+          target_label  = "namespace"
+        }
+      }
+
+      prometheus.scrape "node_exporter" {
+        targets    = discovery.relabel.node_exporter.output
+        forward_to = [prometheus.relabel.node_exporter.receiver]
+      }
+
+      prometheus.relabel "node_exporter" {
+        rule {
+          target_label = "job"
+          replacement  = "node-exporter"
+        }
+        forward_to = [prometheus.remote_write.mimir.receiver]
+      }
+
       // --- CNPG (operator + postgres instances) ---
       discovery.kubernetes "cnpg" {
         role = "pod"

@@ -127,3 +127,55 @@ metadata:
 data:
   cnpg-cluster.json: |
 {{ .Files.Get "files/cnpg-cluster.json" | indent 4 }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-k8s-global
+  namespace: grafana
+  labels:
+    grafana_dashboard: "1"
+  annotations:
+    grafana_folder: Kubernetes
+data:
+  k8s-global.json: |
+{{ .Files.Get "files/k8s-global.json" | indent 4 }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-k8s-namespaces
+  namespace: grafana
+  labels:
+    grafana_dashboard: "1"
+  annotations:
+    grafana_folder: Kubernetes
+data:
+  k8s-namespaces.json: |
+{{ .Files.Get "files/k8s-namespaces.json" | indent 4 }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-k8s-nodes
+  namespace: grafana
+  labels:
+    grafana_dashboard: "1"
+  annotations:
+    grafana_folder: Kubernetes
+data:
+  k8s-nodes.json: |
+{{ .Files.Get "files/k8s-nodes.json" | indent 4 }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-k8s-pods
+  namespace: grafana
+  labels:
+    grafana_dashboard: "1"
+  annotations:
+    grafana_folder: Kubernetes
+data:
+  k8s-pods.json: |
+{{ .Files.Get "files/k8s-pods.json" | indent 4 }}

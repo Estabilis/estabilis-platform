@@ -43,6 +43,7 @@ resource "kubectl_manifest" "argocd_project_platform" {
         { server = "https://kubernetes.default.svc", namespace = "cnpg-system" },
         { server = "https://kubernetes.default.svc", namespace = "velero" },
         { server = "https://kubernetes.default.svc", namespace = "kube-state-metrics" },
+        { server = "https://kubernetes.default.svc", namespace = "node-exporter" },
       ]
       clusterResourceWhitelist = [
         { group = "*", kind = "Namespace" },
