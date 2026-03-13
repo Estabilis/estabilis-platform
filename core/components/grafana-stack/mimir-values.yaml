@@ -36,6 +36,7 @@ mimir:
         path: /data/alertmanager
     limits:
       compactor_blocks_retention_period: "2160h"  # 90 days
+      max_label_names_per_series: 60              # AKS nodes carry ~47 labels via kube_node_labels
 
 # Disable embedded minio (we use cloud storage)
 minio:
