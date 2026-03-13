@@ -57,6 +57,11 @@ spec:
     - repoURL: {{ .Values.platformRepoUrl }}
       targetRevision: {{ .Values.platformVersion }}
       ref: values
+  ignoreDifferences:
+    - group: postgresql.cnpg.io
+      kind: Cluster
+      jsonPointers:
+        - /spec/managed/roles
   destination:
     server: https://kubernetes.default.svc
     namespace: cnpg-system
