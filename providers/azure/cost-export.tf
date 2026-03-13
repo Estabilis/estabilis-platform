@@ -17,7 +17,15 @@ resource "azurerm_storage_account" "cost_exports" {
   min_tls_version                 = "TLS1_2"
   shared_access_key_enabled       = true # required by OpenCost cloud-integration
   allow_nested_items_to_be_public = false
-  public_network_access_enabled   = false
+
+  # Cost Management Export is a trusted Azure service that writes billing
+  # data via the Azure backbone. It requires bypass = ["AzureServices"]
+  # rather than public_network_access_enabled = false (which blocks all
+  # public access including trusted services).
+  network_rules {
+    default_action = "Deny"
+    bypass         = ["AzureServices"]
+  }
 
   tags = var.tags
 }
