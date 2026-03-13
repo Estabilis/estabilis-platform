@@ -348,8 +348,13 @@ alloy:
           replacement  = "opencost"
         }
         rule {
-          action       = "labeldrop"
-          regex        = "instance"
+          source_labels = ["exported_instance"]
+          regex         = "(.+)"
+          target_label  = "instance"
+        }
+        rule {
+          action = "labeldrop"
+          regex  = "exported_instance"
         }
         forward_to = [prometheus.remote_write.mimir.receiver]
       }
@@ -370,6 +375,10 @@ alloy:
         rule {
           target_label = "namespace"
           replacement  = "kube-state-metrics"
+        }
+        rule {
+          action = "labeldrop"
+          regex  = "instance"
         }
         forward_to = [prometheus.remote_write.mimir.receiver]
       }
