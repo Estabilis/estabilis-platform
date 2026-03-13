@@ -2,6 +2,12 @@
 # Cost Management Export – Azure billing data for OpenCost Cloud Costs
 # ---------------------------------------------------------------------------
 
+# The Cost Management Export API requires this resource provider to be
+# registered on the subscription before exports can be created.
+resource "azurerm_resource_provider_registration" "cost_management_exports" {
+  name = "Microsoft.CostManagementExports"
+}
+
 resource "azurerm_storage_account" "cost_exports" {
   name                            = "st${var.name_prefix}costs${random_string.storage_suffix.result}"
   resource_group_name             = azurerm_resource_group.platform.name
@@ -11,11 +17,7 @@ resource "azurerm_storage_account" "cost_exports" {
   min_tls_version                 = "TLS1_2"
   shared_access_key_enabled       = true # required by OpenCost cloud-integration
   allow_nested_items_to_be_public = false
-
-  network_rules {
-    default_action = "Deny"
-    bypass         = ["AzureServices"]
-  }
+  public_network_access_enabled   = false
 
   tags = var.tags
 }
@@ -70,4 +72,6 @@ resource "azurerm_subscription_cost_management_export" "daily" {
     type       = "ActualCost"
     time_frame = "MonthToDate"
   }
+
+  depends_on = [azurerm_resource_provider_registration.cost_management_exports]
 }
