@@ -179,3 +179,26 @@ resource "azurerm_role_assignment" "velero_rg_reader" {
   role_definition_name = "Reader"
   principal_id         = azurerm_user_assigned_identity.velero.principal_id
 }
+
+# ========================== opencost ========================================
+# OpenCost requires a Service Principal (not Workload Identity) because it
+# uses the legacy Azure ADAL SDK which does not support federated credentials.
+
+resource "azuread_application" "opencost" {
+  display_name = "sp-${var.name_prefix}-opencost"
+}
+
+resource "azuread_service_principal" "opencost" {
+  client_id = azuread_application.opencost.client_id
+}
+
+resource "azuread_service_principal_password" "opencost" {
+  service_principal_id = azuread_service_principal.opencost.id
+  end_date_relative    = "8760h" # 1 year
+}
+
+resource "azurerm_role_assignment" "opencost_cost_reader" {
+  scope                = "/subscriptions/${var.subscription_id}"
+  role_definition_name = "Cost Management Reader"
+  principal_id         = azuread_service_principal.opencost.object_id
+}

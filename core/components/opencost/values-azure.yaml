@@ -7,6 +7,15 @@ opencost:
       AZURE_SUBSCRIPTION_ID: ""   # injected via ArgoCD helm.parameters
       AZURE_TENANT_ID: ""         # injected via ArgoCD helm.parameters
       AZURE_OFFER_ID: "MS-AZR-0003P"
+    extraVolumeMounts:
+      - mountPath: /var/secrets
+        name: azure-service-key
+        readOnly: true
+
+extraVolumes:
+  - name: azure-service-key
+    secret:
+      secretName: opencost-azure-service-key
 
 tolerations:
   - key: "kubernetes.azure.com/scalesetpriority"
