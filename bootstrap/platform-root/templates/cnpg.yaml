@@ -49,6 +49,8 @@ spec:
         parameters:
           - name: global.storageAccountName
             value: "{{ .Values.global.cnpgStorageAccountName }}"
+          - name: global.cnpgBackupContainerName
+            value: "{{ .Values.global.cnpgBackupContainerName }}"
           - name: global.cnpgBackupRetentionDays
             value: "{{ .Values.global.cnpgBackupRetentionDays }}"
           - name: global.cnpgBackupSchedule

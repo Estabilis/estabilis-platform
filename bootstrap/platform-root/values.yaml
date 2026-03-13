@@ -1,3 +1,9 @@
 platformRepoUrl: ""
 platformVersion: "0.1.0-alpha"
 configRepoUrl: ""
+
+global:
+  cnpgStorageAccountName: ""
+  cnpgBackupContainerName: "cnpg-backup"
+  veleroStorageAccountName: ""
+  veleroBackupContainerName: "velero-backup"

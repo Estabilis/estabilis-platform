@@ -43,12 +43,12 @@ output "tfstate_storage_account_name" {
 }
 
 output "cnpg_backup_storage_account_name" {
-  description = "Storage account name for CNPG backups."
+  description = "Storage account name for CNPG PostgreSQL backups (WAL archiving + base backups). Injected into ArgoCD as global.cnpgStorageAccountName."
   value       = azurerm_storage_account.cnpg_backup.name
 }
 
 output "velero_backup_storage_account_name" {
-  description = "Storage account name for Velero backups."
+  description = "Storage account name for Velero Kubernetes cluster backups. Injected into ArgoCD as global.veleroStorageAccountName."
   value       = azurerm_storage_account.velero_backup.name
 }
 

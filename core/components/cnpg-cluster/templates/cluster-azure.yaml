@@ -46,7 +46,7 @@ spec:
   # Backup to Azure Blob Storage via WAL archiving
   backup:
     barmanObjectStore:
-      destinationPath: "https://{{ .Values.global.storageAccountName }}.blob.core.windows.net/cnpg-backup"
+      destinationPath: "https://{{ .Values.global.storageAccountName }}.blob.core.windows.net/{{ .Values.global.cnpgBackupContainerName }}"
       azureCredentials:
         inheritFromAzureAD: true
     retentionPolicy: "{{ .Values.global.cnpgBackupRetentionDays }}d"

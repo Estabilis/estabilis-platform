@@ -1,5 +1,6 @@
 global:
   storageAccountName: ""
+  cnpgBackupContainerName: "cnpg-backup"
   cnpgBackupRetentionDays: 7
   cnpgBackupSchedule: "0 2 * * *"
 identity:

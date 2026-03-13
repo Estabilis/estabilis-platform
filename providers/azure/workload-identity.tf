@@ -123,7 +123,7 @@ resource "azurerm_federated_identity_credential" "cnpg" {
 }
 
 resource "azurerm_role_assignment" "cnpg_storage_contributor" {
-  scope                = azurerm_storage_container.cnpg_backup.resource_manager_id
+  scope                = azurerm_storage_container.cnpg_backup.id
   role_definition_name = "Storage Blob Data Contributor"
   principal_id         = azurerm_user_assigned_identity.cnpg.principal_id
 }
@@ -169,7 +169,7 @@ resource "azurerm_federated_identity_credential" "velero" {
 }
 
 resource "azurerm_role_assignment" "velero_storage_contributor" {
-  scope                = azurerm_storage_container.velero_backup.resource_manager_id
+  scope                = azurerm_storage_container.velero_backup.id
   role_definition_name = "Storage Blob Data Contributor"
   principal_id         = azurerm_user_assigned_identity.velero.principal_id
 }
