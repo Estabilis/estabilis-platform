@@ -97,6 +97,22 @@ alloy:
         forward_to = [prometheus.remote_write.mimir.receiver]
       }
 
+      // --- ArgoCD Notifications Controller ---
+      prometheus.scrape "argocd_notifications" {
+        targets = [{
+          __address__ = "argocd-notifications-controller-metrics.argocd.svc.cluster.local:9001",
+        }]
+        forward_to = [prometheus.relabel.argocd_notifications.receiver]
+      }
+
+      prometheus.relabel "argocd_notifications" {
+        rule {
+          target_label = "job"
+          replacement  = "argocd-notifications-controller"
+        }
+        forward_to = [prometheus.remote_write.mimir.receiver]
+      }
+
       // --- cert-manager ---
       prometheus.scrape "cert_manager" {
         targets = [{
@@ -180,6 +196,9 @@ alloy:
 
       // Forward metrics to Mimir
       prometheus.remote_write "mimir" {
+        external_labels = {
+          cluster = "estabilis",
+        }
         endpoint {
           url = "http://grafana-mimir-gateway.grafana.svc.cluster.local/api/v1/push"
         }

@@ -62,3 +62,42 @@ metadata:
 data:
   opencost-namespace.json: |
 {{ .Files.Get "files/opencost-namespace.json" | indent 4 }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-argocd-application
+  namespace: grafana
+  labels:
+    grafana_dashboard: "1"
+  annotations:
+    grafana_folder: ArgoCD
+data:
+  argocd-application.json: |
+{{ .Files.Get "files/argocd-application.json" | indent 4 }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-argocd-notifications
+  namespace: grafana
+  labels:
+    grafana_dashboard: "1"
+  annotations:
+    grafana_folder: ArgoCD
+data:
+  argocd-notifications.json: |
+{{ .Files.Get "files/argocd-notifications.json" | indent 4 }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-argocd-operational
+  namespace: grafana
+  labels:
+    grafana_dashboard: "1"
+  annotations:
+    grafana_folder: ArgoCD
+data:
+  argocd-operational.json: |
+{{ .Files.Get "files/argocd-operational.json" | indent 4 }}
