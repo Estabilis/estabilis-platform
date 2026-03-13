@@ -112,6 +112,27 @@ spec:
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
+  name: alloy-rbac
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "6"
+spec:
+  project: platform
+  source:
+    repoURL: {{ .Values.platformRepoUrl }}
+    targetRevision: {{ .Values.platformVersion }}
+    path: core/components/alloy-rbac
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: grafana
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
   name: grafana-alloy
   namespace: argocd
   annotations:

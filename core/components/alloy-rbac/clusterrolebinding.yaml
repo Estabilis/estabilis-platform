@@ -1,0 +1,15 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: grafana-alloy
+  labels:
+    estabilis.io/managed-by: platform
+    estabilis.io/component: alloy
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: grafana-alloy
+subjects:
+  - kind: ServiceAccount
+    name: grafana-alloy
+    namespace: grafana

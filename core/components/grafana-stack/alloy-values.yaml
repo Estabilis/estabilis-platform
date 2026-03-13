@@ -646,8 +646,4 @@ serviceAccount:
   create: true
 
 rbac:
-  create: true
-  clusterRules:
-    - apiGroups: [""]
-      resources: ["nodes/proxy", "nodes/metrics"]
-      verbs: ["get"]
+  create: false

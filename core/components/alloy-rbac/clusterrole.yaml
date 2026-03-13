@@ -1,0 +1,20 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: grafana-alloy
+  labels:
+    estabilis.io/managed-by: platform
+    estabilis.io/component: alloy
+rules:
+  # Pod discovery + log collection (core Alloy functionality)
+  - apiGroups: [""]
+    resources: ["pods", "pods/log", "namespaces"]
+    verbs: ["get", "list", "watch"]
+  # Node discovery (kubelet + cAdvisor scraping)
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "list", "watch"]
+  # Kubelet/cAdvisor metrics via API server proxy
+  - apiGroups: [""]
+    resources: ["nodes/proxy", "nodes/metrics"]
+    verbs: ["get"]
