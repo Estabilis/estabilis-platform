@@ -131,6 +131,12 @@ alloy:
         }
 
         rule {
+          source_labels = ["__meta_kubernetes_endpoint_port_name"]
+          action        = "keep"
+          regex         = "metrics-port"
+        }
+
+        rule {
           source_labels = ["__meta_kubernetes_service_name"]
           target_label  = "service"
         }
