@@ -281,9 +281,9 @@ alloy:
         forward_to = [prometheus.remote_write.mimir.receiver]
       }
 
-      // --- Kyverno (all controllers) ---
+      // --- Kyverno (all controllers via pod discovery) ---
       discovery.kubernetes "kyverno" {
-        role = "endpoints"
+        role = "pod"
         namespaces {
           names = ["kyverno"]
         }
@@ -293,25 +293,25 @@ alloy:
         targets = discovery.kubernetes.kyverno.targets
 
         rule {
-          source_labels = ["__meta_kubernetes_service_name"]
+          source_labels = ["__meta_kubernetes_pod_label_app_kubernetes_io_part_of"]
           action        = "keep"
-          regex         = "kyverno-admission-controller-metrics|kyverno-background-controller-metrics|kyverno-cleanup-controller-metrics|kyverno-reports-controller-metrics"
+          regex         = "kyverno"
         }
 
         rule {
-          source_labels = ["__meta_kubernetes_endpoint_port_name"]
-          action        = "keep"
-          regex         = "metrics"
-        }
-
-        rule {
-          source_labels = ["__meta_kubernetes_service_name"]
-          target_label  = "service"
+          source_labels = ["__meta_kubernetes_pod_ip"]
+          target_label  = "__address__"
+          replacement   = "$1:8000"
         }
 
         rule {
           source_labels = ["__meta_kubernetes_namespace"]
           target_label  = "namespace"
+        }
+
+        rule {
+          source_labels = ["__meta_kubernetes_pod_label_app_kubernetes_io_component"]
+          target_label  = "component"
         }
       }
 
@@ -319,7 +319,6 @@ alloy:
         targets         = discovery.relabel.kyverno.output
         forward_to      = [prometheus.relabel.kyverno.receiver]
         scrape_interval = "30s"
-        job_name        = "kyverno"
       }
 
       prometheus.relabel "kyverno" {
