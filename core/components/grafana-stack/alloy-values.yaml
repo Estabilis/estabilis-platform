@@ -51,11 +51,38 @@ alloy:
       // Platform component scrape jobs
       // =====================================================================
 
-      // --- ArgoCD ---
+      // --- ArgoCD (pod discovery) ---
+      discovery.kubernetes "argocd" {
+        role = "pod"
+        namespaces {
+          names = ["argocd"]
+        }
+      }
+
+      // Application Controller — metrics on port 8082
+      discovery.relabel "argocd_app_controller" {
+        targets = discovery.kubernetes.argocd.targets
+
+        rule {
+          source_labels = ["__meta_kubernetes_pod_label_app_kubernetes_io_component"]
+          action        = "keep"
+          regex         = "application-controller"
+        }
+
+        rule {
+          source_labels = ["__meta_kubernetes_pod_ip"]
+          target_label  = "__address__"
+          replacement   = "$1:8082"
+        }
+
+        rule {
+          source_labels = ["__meta_kubernetes_namespace"]
+          target_label  = "namespace"
+        }
+      }
+
       prometheus.scrape "argocd_app_controller" {
-        targets = [{
-          __address__ = "argocd-metrics.argocd.svc.cluster.local:8082",
-        }]
+        targets    = discovery.relabel.argocd_app_controller.output
         forward_to = [prometheus.relabel.argocd_app_controller.receiver]
       }
 
@@ -64,17 +91,33 @@ alloy:
           target_label = "job"
           replacement  = "argocd-application-controller"
         }
-        rule {
-          target_label = "namespace"
-          replacement  = "argocd"
-        }
         forward_to = [prometheus.remote_write.mimir.receiver]
       }
 
+      // Server — metrics on port 8083
+      discovery.relabel "argocd_server" {
+        targets = discovery.kubernetes.argocd.targets
+
+        rule {
+          source_labels = ["__meta_kubernetes_pod_label_app_kubernetes_io_component"]
+          action        = "keep"
+          regex         = "server"
+        }
+
+        rule {
+          source_labels = ["__meta_kubernetes_pod_ip"]
+          target_label  = "__address__"
+          replacement   = "$1:8083"
+        }
+
+        rule {
+          source_labels = ["__meta_kubernetes_namespace"]
+          target_label  = "namespace"
+        }
+      }
+
       prometheus.scrape "argocd_server" {
-        targets = [{
-          __address__ = "argocd-server-metrics.argocd.svc.cluster.local:8083",
-        }]
+        targets    = discovery.relabel.argocd_server.output
         forward_to = [prometheus.relabel.argocd_server.receiver]
       }
 
@@ -83,17 +126,33 @@ alloy:
           target_label = "job"
           replacement  = "argocd-server"
         }
-        rule {
-          target_label = "namespace"
-          replacement  = "argocd"
-        }
         forward_to = [prometheus.remote_write.mimir.receiver]
       }
 
+      // Repo Server — metrics on port 8084
+      discovery.relabel "argocd_repo_server" {
+        targets = discovery.kubernetes.argocd.targets
+
+        rule {
+          source_labels = ["__meta_kubernetes_pod_label_app_kubernetes_io_component"]
+          action        = "keep"
+          regex         = "repo-server"
+        }
+
+        rule {
+          source_labels = ["__meta_kubernetes_pod_ip"]
+          target_label  = "__address__"
+          replacement   = "$1:8084"
+        }
+
+        rule {
+          source_labels = ["__meta_kubernetes_namespace"]
+          target_label  = "namespace"
+        }
+      }
+
       prometheus.scrape "argocd_repo_server" {
-        targets = [{
-          __address__ = "argocd-repo-server.argocd.svc.cluster.local:8084",
-        }]
+        targets    = discovery.relabel.argocd_repo_server.output
         forward_to = [prometheus.relabel.argocd_repo_server.receiver]
       }
 
@@ -102,18 +161,33 @@ alloy:
           target_label = "job"
           replacement  = "argocd-repo-server"
         }
-        rule {
-          target_label = "namespace"
-          replacement  = "argocd"
-        }
         forward_to = [prometheus.remote_write.mimir.receiver]
       }
 
-      // --- ArgoCD Notifications Controller ---
+      // Notifications Controller — metrics on port 9001
+      discovery.relabel "argocd_notifications" {
+        targets = discovery.kubernetes.argocd.targets
+
+        rule {
+          source_labels = ["__meta_kubernetes_pod_label_app_kubernetes_io_component"]
+          action        = "keep"
+          regex         = "notifications-controller"
+        }
+
+        rule {
+          source_labels = ["__meta_kubernetes_pod_ip"]
+          target_label  = "__address__"
+          replacement   = "$1:9001"
+        }
+
+        rule {
+          source_labels = ["__meta_kubernetes_namespace"]
+          target_label  = "namespace"
+        }
+      }
+
       prometheus.scrape "argocd_notifications" {
-        targets = [{
-          __address__ = "argocd-notifications-controller-metrics.argocd.svc.cluster.local:9001",
-        }]
+        targets    = discovery.relabel.argocd_notifications.output
         forward_to = [prometheus.relabel.argocd_notifications.receiver]
       }
 
@@ -121,10 +195,6 @@ alloy:
         rule {
           target_label = "job"
           replacement  = "argocd-notifications-controller"
-        }
-        rule {
-          target_label = "namespace"
-          replacement  = "argocd"
         }
         forward_to = [prometheus.remote_write.mimir.receiver]
       }
