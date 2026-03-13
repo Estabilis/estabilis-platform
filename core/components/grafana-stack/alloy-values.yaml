@@ -64,6 +64,10 @@ alloy:
           target_label = "job"
           replacement  = "argocd-application-controller"
         }
+        rule {
+          target_label = "namespace"
+          replacement  = "argocd"
+        }
         forward_to = [prometheus.remote_write.mimir.receiver]
       }
 
@@ -79,6 +83,10 @@ alloy:
           target_label = "job"
           replacement  = "argocd-server"
         }
+        rule {
+          target_label = "namespace"
+          replacement  = "argocd"
+        }
         forward_to = [prometheus.remote_write.mimir.receiver]
       }
 
@@ -93,6 +101,10 @@ alloy:
         rule {
           target_label = "job"
           replacement  = "argocd-repo-server"
+        }
+        rule {
+          target_label = "namespace"
+          replacement  = "argocd"
         }
         forward_to = [prometheus.remote_write.mimir.receiver]
       }
@@ -110,6 +122,10 @@ alloy:
           target_label = "job"
           replacement  = "argocd-notifications-controller"
         }
+        rule {
+          target_label = "namespace"
+          replacement  = "argocd"
+        }
         forward_to = [prometheus.remote_write.mimir.receiver]
       }
 
@@ -125,6 +141,72 @@ alloy:
         rule {
           target_label = "job"
           replacement  = "cert-manager"
+        }
+        rule {
+          target_label = "namespace"
+          replacement  = "cert-manager"
+        }
+        forward_to = [prometheus.remote_write.mimir.receiver]
+      }
+
+      // --- Traefik ---
+      discovery.kubernetes "traefik" {
+        role = "pod"
+        namespaces {
+          names = ["traefik"]
+        }
+      }
+
+      discovery.relabel "traefik" {
+        targets = discovery.kubernetes.traefik.targets
+
+        rule {
+          source_labels = ["__meta_kubernetes_pod_label_app_kubernetes_io_name"]
+          action        = "keep"
+          regex         = "traefik"
+        }
+
+        rule {
+          source_labels = ["__meta_kubernetes_pod_ip"]
+          target_label  = "__address__"
+          replacement   = "$1:9100"
+        }
+
+        rule {
+          source_labels = ["__meta_kubernetes_namespace"]
+          target_label  = "namespace"
+        }
+      }
+
+      prometheus.scrape "traefik" {
+        targets    = discovery.relabel.traefik.output
+        forward_to = [prometheus.relabel.traefik.receiver]
+      }
+
+      prometheus.relabel "traefik" {
+        rule {
+          target_label = "job"
+          replacement  = "traefik"
+        }
+        forward_to = [prometheus.remote_write.mimir.receiver]
+      }
+
+      // --- Velero ---
+      prometheus.scrape "velero" {
+        targets = [{
+          __address__ = "velero.velero.svc.cluster.local:8085",
+        }]
+        forward_to = [prometheus.relabel.velero.receiver]
+      }
+
+      prometheus.relabel "velero" {
+        rule {
+          target_label = "job"
+          replacement  = "velero"
+        }
+        rule {
+          target_label = "namespace"
+          replacement  = "velero"
         }
         forward_to = [prometheus.remote_write.mimir.receiver]
       }
@@ -143,7 +225,7 @@ alloy:
         rule {
           source_labels = ["__meta_kubernetes_service_name"]
           action        = "keep"
-          regex         = "kyverno-svc-metrics|kyverno-background-controller-metrics|kyverno-cleanup-controller-metrics|kyverno-reports-controller-metrics"
+          regex         = "kyverno-svc-metrics|kyverno-admission-controller-metrics|kyverno-background-controller-metrics|kyverno-cleanup-controller-metrics|kyverno-reports-controller-metrics"
         }
 
         rule {
@@ -189,6 +271,10 @@ alloy:
       prometheus.relabel "external_secrets" {
         rule {
           target_label = "job"
+          replacement  = "external-secrets"
+        }
+        rule {
+          target_label = "namespace"
           replacement  = "external-secrets"
         }
         forward_to = [prometheus.remote_write.mimir.receiver]
