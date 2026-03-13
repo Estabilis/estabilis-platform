@@ -114,3 +114,16 @@ metadata:
 data:
   kyverno.json: |
 {{ .Files.Get "files/kyverno.json" | indent 4 }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-cnpg-cluster
+  namespace: grafana
+  labels:
+    grafana_dashboard: "1"
+  annotations:
+    grafana_folder: CloudNativePG
+data:
+  cnpg-cluster.json: |
+{{ .Files.Get "files/cnpg-cluster.json" | indent 4 }}

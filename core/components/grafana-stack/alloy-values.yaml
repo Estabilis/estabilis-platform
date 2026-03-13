@@ -403,6 +403,169 @@ alloy:
         forward_to = [prometheus.remote_write.mimir.receiver]
       }
 
+      // --- CNPG (operator + postgres instances) ---
+      discovery.kubernetes "cnpg" {
+        role = "pod"
+        namespaces {
+          names = ["cnpg-system"]
+        }
+      }
+
+      // CNPG Operator — metrics on port 8080
+      discovery.relabel "cnpg_operator" {
+        targets = discovery.kubernetes.cnpg.targets
+
+        rule {
+          source_labels = ["__meta_kubernetes_pod_label_app_kubernetes_io_name"]
+          action        = "keep"
+          regex         = "cloudnative-pg"
+        }
+
+        rule {
+          source_labels = ["__meta_kubernetes_pod_ip"]
+          target_label  = "__address__"
+          replacement   = "$1:8080"
+        }
+
+        rule {
+          source_labels = ["__meta_kubernetes_namespace"]
+          target_label  = "namespace"
+        }
+      }
+
+      prometheus.scrape "cnpg_operator" {
+        targets    = discovery.relabel.cnpg_operator.output
+        forward_to = [prometheus.relabel.cnpg_operator.receiver]
+      }
+
+      prometheus.relabel "cnpg_operator" {
+        rule {
+          target_label = "job"
+          replacement  = "cnpg-operator"
+        }
+        forward_to = [prometheus.remote_write.mimir.receiver]
+      }
+
+      // CNPG Postgres instances — metrics on port 9187
+      discovery.relabel "cnpg_instances" {
+        targets = discovery.kubernetes.cnpg.targets
+
+        rule {
+          source_labels = ["__meta_kubernetes_pod_label_cnpg_io_cluster"]
+          action        = "keep"
+          regex         = ".+"
+        }
+
+        rule {
+          source_labels = ["__meta_kubernetes_pod_ip"]
+          target_label  = "__address__"
+          replacement   = "$1:9187"
+        }
+
+        rule {
+          source_labels = ["__meta_kubernetes_namespace"]
+          target_label  = "namespace"
+        }
+
+        rule {
+          source_labels = ["__meta_kubernetes_pod_label_cnpg_io_cluster"]
+          target_label  = "cnpg_cluster"
+        }
+
+        rule {
+          source_labels = ["__meta_kubernetes_pod_label_role"]
+          target_label  = "role"
+        }
+      }
+
+      prometheus.scrape "cnpg_instances" {
+        targets    = discovery.relabel.cnpg_instances.output
+        forward_to = [prometheus.relabel.cnpg_instances.receiver]
+      }
+
+      prometheus.relabel "cnpg_instances" {
+        rule {
+          target_label = "job"
+          replacement  = "cnpg-cluster"
+        }
+        forward_to = [prometheus.remote_write.mimir.receiver]
+      }
+
+      // --- Kubelet / cAdvisor ---
+      discovery.kubernetes "nodes" {
+        role = "node"
+      }
+
+      // Kubelet metrics
+      discovery.relabel "kubelet" {
+        targets = discovery.kubernetes.nodes.targets
+
+        rule {
+          target_label = "__address__"
+          replacement  = "kubernetes.default.svc.cluster.local:443"
+        }
+
+        rule {
+          source_labels = ["__meta_kubernetes_node_name"]
+          regex         = "(.+)"
+          target_label  = "__metrics_path__"
+          replacement   = "/api/v1/nodes/$1/proxy/metrics"
+        }
+      }
+
+      prometheus.scrape "kubelet" {
+        targets      = discovery.relabel.kubelet.output
+        scheme       = "https"
+        bearer_token_file = "/var/run/secrets/kubernetes.io/serviceaccount/token"
+        tls_config {
+          insecure_skip_verify = true
+        }
+        forward_to = [prometheus.relabel.kubelet.receiver]
+      }
+
+      prometheus.relabel "kubelet" {
+        rule {
+          target_label = "job"
+          replacement  = "kubelet"
+        }
+        forward_to = [prometheus.remote_write.mimir.receiver]
+      }
+
+      // cAdvisor metrics (container_*)
+      discovery.relabel "cadvisor" {
+        targets = discovery.kubernetes.nodes.targets
+
+        rule {
+          target_label = "__address__"
+          replacement  = "kubernetes.default.svc.cluster.local:443"
+        }
+
+        rule {
+          source_labels = ["__meta_kubernetes_node_name"]
+          regex         = "(.+)"
+          target_label  = "__metrics_path__"
+          replacement   = "/api/v1/nodes/$1/proxy/metrics/cadvisor"
+        }
+      }
+
+      prometheus.scrape "cadvisor" {
+        targets      = discovery.relabel.cadvisor.output
+        scheme       = "https"
+        bearer_token_file = "/var/run/secrets/kubernetes.io/serviceaccount/token"
+        tls_config {
+          insecure_skip_verify = true
+        }
+        forward_to = [prometheus.relabel.cadvisor.receiver]
+      }
+
+      prometheus.relabel "cadvisor" {
+        rule {
+          target_label = "job"
+          replacement  = "cadvisor"
+        }
+        forward_to = [prometheus.remote_write.mimir.receiver]
+      }
+
       // Forward metrics to Mimir
       prometheus.remote_write "mimir" {
         external_labels = {
@@ -431,3 +594,10 @@ tolerations:
 
 serviceAccount:
   create: true
+
+rbac:
+  create: true
+  clusterRules:
+    - apiGroups: [""]
+      resources: ["nodes/proxy", "nodes/metrics"]
+      verbs: ["get"]
