@@ -29,11 +29,11 @@ mimir:
       local:
         directory: /data/rules
     alertmanager:
-      data_dir: /tmp/alertmanager-data
+      data_dir: /data/alertmanager-data
     alertmanager_storage:
       backend: local
       local:
-        path: /tmp/alertmanager-storage
+        path: /data/alertmanager-storage
     limits:
       compactor_blocks_retention_period: "2160h"  # 90 days
       max_label_names_per_series: 60              # AKS nodes carry ~47 labels via kube_node_labels
