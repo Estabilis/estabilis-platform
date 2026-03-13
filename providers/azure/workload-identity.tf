@@ -222,8 +222,27 @@ resource "azuread_service_principal_password" "opencost" {
   end_date             = timeadd(plantimestamp(), "8760h") # 1 year
 }
 
-resource "azurerm_role_assignment" "opencost_cost_reader" {
-  scope                = "/subscriptions/${var.subscription_id}"
-  role_definition_name = "Cost Management Reader"
-  principal_id         = azuread_service_principal.opencost.object_id
+resource "azurerm_role_definition" "opencost" {
+  name        = "OpenCost Reader - ${var.name_prefix}"
+  scope       = "/subscriptions/${var.subscription_id}"
+  description = "Minimal read-only role for OpenCost Azure RateCard pricing integration"
+
+  permissions {
+    actions = [
+      "Microsoft.Compute/virtualMachines/vmSizes/read",
+      "Microsoft.Resources/subscriptions/locations/read",
+      "Microsoft.Resources/providers/read",
+      "Microsoft.ContainerService/containerServices/read",
+      "Microsoft.Commerce/RateCard/read",
+    ]
+    not_actions = []
+  }
+
+  assignable_scopes = ["/subscriptions/${var.subscription_id}"]
+}
+
+resource "azurerm_role_assignment" "opencost_custom_reader" {
+  scope              = "/subscriptions/${var.subscription_id}"
+  role_definition_id = azurerm_role_definition.opencost.role_definition_resource_id
+  principal_id       = azuread_service_principal.opencost.object_id
 }
