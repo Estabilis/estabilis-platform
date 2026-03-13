@@ -23,8 +23,6 @@ mimir:
         replication_factor: 1
     ruler:
       alertmanager_url: http://grafana-mimir-alertmanager-headless.grafana.svc.cluster.local:8080/alertmanager
-      ring:
-        replication_factor: 1
     ruler_storage:
       backend: local
       local:
