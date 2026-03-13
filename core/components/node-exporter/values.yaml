@@ -1,6 +1,10 @@
 # Prometheus Node Exporter — node-level OS metrics
 # https://github.com/prometheus/node_exporter
 
+commonLabels:
+  estabilis.io/managed-by: platform
+  estabilis.io/component: node-exporter
+
 tolerations:
   - key: "estabilis.io/workload-type"
     operator: "Equal"

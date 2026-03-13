@@ -1,6 +1,10 @@
 # Grafana Tempo — distributed tracing backend
 # https://grafana.com/docs/tempo/latest/
 
+commonLabels:
+  estabilis.io/managed-by: platform
+  estabilis.io/component: tempo
+
 tempo:
   retention: 720h
 

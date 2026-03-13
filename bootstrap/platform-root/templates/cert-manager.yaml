@@ -32,6 +32,7 @@ spec:
         - .webhooks[].namespaceSelector
   {{- end }}
   syncPolicy:
+    {{- include "platform-root.managedNamespaceMetadata" . | nindent 4 }}
     automated:
       prune: true
       selfHeal: true
@@ -79,6 +80,7 @@ spec:
     server: https://kubernetes.default.svc
     namespace: cert-manager
   syncPolicy:
+    {{- include "platform-root.managedNamespaceMetadata" . | nindent 4 }}
     automated:
       prune: true
       selfHeal: true

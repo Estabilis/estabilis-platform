@@ -1,6 +1,10 @@
 # Trivy Operator — continuous vulnerability scanning in-cluster
 # https://github.com/aquasecurity/trivy-operator
 
+commonLabels:
+  estabilis.io/managed-by: platform
+  estabilis.io/component: trivy-operator
+
 trivy:
   ignoreUnfixed: true
 

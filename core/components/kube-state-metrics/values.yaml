@@ -1,6 +1,10 @@
 # kube-state-metrics — Kubernetes cluster state metrics
 # https://github.com/kubernetes/kube-state-metrics
 
+commonLabels:
+  estabilis.io/managed-by: platform
+  estabilis.io/component: kube-state-metrics
+
 tolerations:
   - key: "estabilis.io/workload-type"
     operator: "Equal"

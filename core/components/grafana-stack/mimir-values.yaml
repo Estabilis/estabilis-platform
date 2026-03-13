@@ -1,6 +1,10 @@
 # Mimir distributed — minimal for v0-alpha
 # Scale up in production via downstream override
 
+commonLabels:
+  estabilis.io/managed-by: platform
+  estabilis.io/component: mimir
+
 mimir:
   structuredConfig:
     usage_stats:
@@ -17,6 +21,21 @@ mimir:
       sharding_ring:
         zone_awareness_enabled: false
         replication_factor: 1
+    ruler:
+      alertmanager_url: http://grafana-mimir-alertmanager-headless.grafana.svc.cluster.local:8080/alertmanager
+      ring:
+        replication_factor: 1
+    ruler_storage:
+      backend: local
+      local:
+        directory: /data/rules
+    alertmanager:
+      data_dir: /data/alertmanager
+      fallback_config_file: /etc/mimir/alertmanager-fallback-config.yaml
+    alertmanager_storage:
+      backend: local
+      local:
+        path: /data/alertmanager
     limits:
       compactor_blocks_retention_period: "2160h"  # 90 days
 
@@ -28,11 +47,210 @@ minio:
 kafka:
   enabled: false
 
-# Disable components not needed for v0-alpha
+# Alertmanager — receives alerts from ruler, visible in Grafana
 alertmanager:
-  enabled: false
+  enabled: true
+  replicas: 1
+  fallbackConfig: |
+    route:
+      receiver: 'default'
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 4h
+    receivers:
+      - name: 'default'
+  resources:
+    requests:
+      cpu: 25m
+      memory: 32Mi
+    limits:
+      cpu: 100m
+      memory: 64Mi
+  tolerations:
+    - key: "estabilis.io/workload-type"
+      operator: "Equal"
+      value: "platform"
+      effect: "NoSchedule"
+
+# Ruler — evaluates alerting rules against Mimir data
 ruler:
-  enabled: false
+  enabled: true
+  replicas: 1
+  directories:
+    anonymous:
+      platform-alerts.yaml: |
+        groups:
+          - name: node-health
+            interval: 1m
+            rules:
+              - alert: NodeNotReady
+                expr: kube_node_status_condition{condition="Ready",status="true"} == 0
+                for: 5m
+                labels:
+                  severity: critical
+                  component: kubernetes
+                annotations:
+                  summary: "Node {{ $labels.node }} is not ready"
+                  description: "Node has been in NotReady state for more than 5 minutes."
+
+              - alert: NodeHighMemoryUsage
+                expr: (1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) > 0.9
+                for: 10m
+                labels:
+                  severity: warning
+                  component: kubernetes
+                annotations:
+                  summary: "Node {{ $labels.instance }} memory usage above 90%"
+                  description: "Memory usage is {{ $value | humanizePercentage }}."
+
+              - alert: NodeHighCPUUsage
+                expr: (1 - avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m]))) > 0.9
+                for: 10m
+                labels:
+                  severity: warning
+                  component: kubernetes
+                annotations:
+                  summary: "Node {{ $labels.instance }} CPU usage above 90%"
+                  description: "CPU usage is {{ $value | humanizePercentage }}."
+
+              - alert: NodeDiskFillingUp
+                expr: (1 - node_filesystem_avail_bytes{fstype!~"tmpfs|overlay"} / node_filesystem_size_bytes{fstype!~"tmpfs|overlay"}) > 0.85
+                for: 15m
+                labels:
+                  severity: warning
+                  component: kubernetes
+                annotations:
+                  summary: "Node {{ $labels.instance }} disk {{ $labels.mountpoint }} filling up"
+                  description: "Disk usage is {{ $value | humanizePercentage }}."
+
+          - name: pod-health
+            interval: 1m
+            rules:
+              - alert: PodCrashLooping
+                expr: increase(kube_pod_container_status_restarts_total[1h]) > 3
+                for: 5m
+                labels:
+                  severity: warning
+                  component: kubernetes
+                annotations:
+                  summary: "Pod {{ $labels.namespace }}/{{ $labels.pod }} is crash looping"
+                  description: "Container {{ $labels.container }} restarted {{ $value }} times in the last hour."
+
+              - alert: PodNotReady
+                expr: kube_pod_status_ready{condition="true"} == 0
+                for: 15m
+                labels:
+                  severity: warning
+                  component: kubernetes
+                annotations:
+                  summary: "Pod {{ $labels.namespace }}/{{ $labels.pod }} not ready"
+                  description: "Pod has been in non-ready state for more than 15 minutes."
+
+              - alert: PVCFillingUp
+                expr: kubelet_volume_stats_used_bytes / kubelet_volume_stats_capacity_bytes > 0.85
+                for: 15m
+                labels:
+                  severity: warning
+                  component: kubernetes
+                annotations:
+                  summary: "PVC {{ $labels.namespace }}/{{ $labels.persistentvolumeclaim }} filling up"
+                  description: "Volume usage is {{ $value | humanizePercentage }}."
+
+          - name: platform-components
+            interval: 1m
+            rules:
+              - alert: ArgoAppOutOfSync
+                expr: argocd_app_info{sync_status!="Synced"} == 1
+                for: 15m
+                labels:
+                  severity: warning
+                  component: argocd
+                annotations:
+                  summary: "ArgoCD app {{ $labels.name }} is out of sync"
+                  description: "Application has been out of sync for more than 15 minutes."
+
+              - alert: ArgoAppDegraded
+                expr: argocd_app_info{health_status=~"Degraded|Missing"} == 1
+                for: 10m
+                labels:
+                  severity: critical
+                  component: argocd
+                annotations:
+                  summary: "ArgoCD app {{ $labels.name }} is {{ $labels.health_status }}"
+                  description: "Application health is degraded for more than 10 minutes."
+
+              - alert: CertificateExpiringSoon
+                expr: certmanager_certificate_expiration_timestamp_seconds - time() < 7 * 24 * 3600
+                for: 1h
+                labels:
+                  severity: warning
+                  component: cert-manager
+                annotations:
+                  summary: "Certificate {{ $labels.namespace }}/{{ $labels.name }} expiring soon"
+                  description: "Certificate expires in less than 7 days."
+
+              - alert: CertificateExpiryCritical
+                expr: certmanager_certificate_expiration_timestamp_seconds - time() < 24 * 3600
+                for: 10m
+                labels:
+                  severity: critical
+                  component: cert-manager
+                annotations:
+                  summary: "Certificate {{ $labels.namespace }}/{{ $labels.name }} expiring in less than 24h"
+                  description: "Certificate is about to expire. Immediate action required."
+
+              - alert: VeleroBackupFailed
+                expr: increase(velero_backup_failure_total[24h]) > 0
+                for: 1m
+                labels:
+                  severity: critical
+                  component: velero
+                annotations:
+                  summary: "Velero backup failed"
+                  description: "One or more Velero backups have failed in the last 24 hours."
+
+              - alert: VeleroBackupMissing
+                expr: time() - velero_backup_last_successful_timestamp > 48 * 3600
+                for: 1h
+                labels:
+                  severity: warning
+                  component: velero
+                annotations:
+                  summary: "No successful Velero backup in 48h"
+                  description: "Last successful backup was more than 48 hours ago."
+
+              - alert: KyvernoPolicyViolation
+                expr: increase(kyverno_policy_results_total{rule_result="fail"}[1h]) > 0
+                for: 5m
+                labels:
+                  severity: warning
+                  component: kyverno
+                annotations:
+                  summary: "Kyverno policy {{ $labels.policy_name }} violation detected"
+                  description: "Policy violations detected in the last hour."
+
+              - alert: CNPGClusterNotHealthy
+                expr: cnpg_collector_up == 0
+                for: 5m
+                labels:
+                  severity: critical
+                  component: cnpg
+                annotations:
+                  summary: "CNPG cluster metrics collector is down"
+                  description: "CloudNativePG metrics are not being collected."
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+  tolerations:
+    - key: "estabilis.io/workload-type"
+      operator: "Equal"
+      value: "platform"
+      effect: "NoSchedule"
+
 ruler_querier:
   enabled: false
 ruler_query_frontend:

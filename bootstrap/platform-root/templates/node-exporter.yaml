@@ -22,6 +22,7 @@ spec:
     server: https://kubernetes.default.svc
     namespace: node-exporter
   syncPolicy:
+    {{- include "platform-root.managedNamespaceMetadataPrivileged" . | nindent 4 }}
     automated:
       prune: true
       selfHeal: true

@@ -1,6 +1,10 @@
 # Velero — Kubernetes backup and restore
 # https://velero.io
 
+commonLabels:
+  estabilis.io/managed-by: platform
+  estabilis.io/component: velero
+
 configuration:
   backupStorageLocation:
     - name: default

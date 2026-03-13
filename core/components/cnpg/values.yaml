@@ -1,6 +1,10 @@
 # CloudNativePG Operator
 # https://cloudnative-pg.io
 
+commonLabels:
+  estabilis.io/managed-by: platform
+  estabilis.io/component: cnpg
+
 # Single replica for v0-alpha
 replicaCount: 1
 
