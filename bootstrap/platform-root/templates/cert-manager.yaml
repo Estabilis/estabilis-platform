@@ -20,12 +20,26 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: cert-manager
+  {{- if eq .Values.global.provider "azure" }}
+  ignoreDifferences:
+    - group: admissionregistration.k8s.io
+      kind: ValidatingWebhookConfiguration
+      jqPathExpressions:
+        - .webhooks[].namespaceSelector
+    - group: admissionregistration.k8s.io
+      kind: MutatingWebhookConfiguration
+      jqPathExpressions:
+        - .webhooks[].namespaceSelector
+  {{- end }}
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
+      {{- if eq .Values.global.provider "azure" }}
+      - RespectIgnoreDifferences=true
+      {{- end }}
 ---
 apiVersion: argoproj.io/v1alpha1
 kind: Application
