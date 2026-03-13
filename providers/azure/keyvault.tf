@@ -84,9 +84,11 @@ resource "azurerm_key_vault_secret" "opencost_service_key" {
   name = "platform-opencost-service-key"
   value = jsonencode({
     subscriptionId = var.subscription_id
-    appId          = azuread_application.opencost.client_id
-    password       = azuread_service_principal_password.opencost.value
-    tenant         = var.tenant_id
+    serviceKey = {
+      appId    = azuread_application.opencost.client_id
+      password = azuread_service_principal_password.opencost.value
+      tenant   = var.tenant_id
+    }
   })
   key_vault_id = azurerm_key_vault.platform.id
 
