@@ -260,6 +260,46 @@ alloy:
         forward_to = [prometheus.remote_write.mimir.receiver]
       }
 
+      // --- OpenCost ---
+      prometheus.scrape "opencost" {
+        targets = [{
+          __address__ = "opencost.opencost.svc.cluster.local:9003",
+        }]
+        forward_to = [prometheus.relabel.opencost.receiver]
+      }
+
+      prometheus.relabel "opencost" {
+        rule {
+          target_label = "job"
+          replacement  = "opencost"
+        }
+        rule {
+          target_label = "namespace"
+          replacement  = "opencost"
+        }
+        forward_to = [prometheus.remote_write.mimir.receiver]
+      }
+
+      // --- kube-state-metrics ---
+      prometheus.scrape "kube_state_metrics" {
+        targets = [{
+          __address__ = "kube-state-metrics.kube-state-metrics.svc.cluster.local:8080",
+        }]
+        forward_to = [prometheus.relabel.kube_state_metrics.receiver]
+      }
+
+      prometheus.relabel "kube_state_metrics" {
+        rule {
+          target_label = "job"
+          replacement  = "kube-state-metrics"
+        }
+        rule {
+          target_label = "namespace"
+          replacement  = "kube-state-metrics"
+        }
+        forward_to = [prometheus.remote_write.mimir.receiver]
+      }
+
       // --- External Secrets Operator ---
       prometheus.scrape "external_secrets" {
         targets = [{

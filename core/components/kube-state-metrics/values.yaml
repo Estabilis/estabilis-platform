@@ -1,0 +1,32 @@
+# kube-state-metrics — Kubernetes cluster state metrics
+# https://github.com/kubernetes/kube-state-metrics
+
+tolerations:
+  - key: "estabilis.io/workload-type"
+    operator: "Equal"
+    value: "platform"
+    effect: "NoSchedule"
+
+affinity:
+  nodeAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        preference:
+          matchExpressions:
+            - key: "estabilis.io/pool-type"
+              operator: In
+              values: ["spot"]
+      - weight: 10
+        preference:
+          matchExpressions:
+            - key: "estabilis.io/pool-type"
+              operator: In
+              values: ["regular"]
+
+resources:
+  requests:
+    cpu: 10m
+    memory: 64Mi
+  limits:
+    cpu: 100m
+    memory: 128Mi

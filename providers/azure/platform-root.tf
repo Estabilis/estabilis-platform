@@ -27,6 +27,7 @@ resource "kubectl_manifest" "argocd_project_platform" {
         "https://opencost.github.io/opencost-helm-chart",
         "https://cloudnative-pg.github.io/charts",
         "https://vmware-tanzu.github.io/helm-charts",
+        "https://prometheus-community.github.io/helm-charts",
       ]
       destinations = [
         { server = "https://kubernetes.default.svc", namespace = "argocd" },
@@ -41,6 +42,7 @@ resource "kubectl_manifest" "argocd_project_platform" {
         { server = "https://kubernetes.default.svc", namespace = "opencost" },
         { server = "https://kubernetes.default.svc", namespace = "cnpg-system" },
         { server = "https://kubernetes.default.svc", namespace = "velero" },
+        { server = "https://kubernetes.default.svc", namespace = "kube-state-metrics" },
       ]
       clusterResourceWhitelist = [
         { group = "*", kind = "Namespace" },
