@@ -80,6 +80,29 @@ resource "azurerm_key_vault_secret" "argocd_db_password" {
   depends_on = [azurerm_role_assignment.terraform_kv_officer]
 }
 
+resource "azurerm_key_vault_secret" "opencost_cloud_integration" {
+  name = "platform-opencost-cloud-integration"
+  value = jsonencode({
+    azure = {
+      storage = [{
+        subscriptionID = var.subscription_id
+        account        = azurerm_storage_account.cost_exports.name
+        container      = azurerm_storage_container.cost_exports.name
+        path           = "cost-exports"
+        cloud          = "public"
+        authorizer = {
+          accessKey      = azurerm_storage_account.cost_exports.primary_access_key
+          account        = azurerm_storage_account.cost_exports.name
+          authorizerType = "AzureAccessKey"
+        }
+      }]
+    }
+  })
+  key_vault_id = azurerm_key_vault.platform.id
+
+  depends_on = [azurerm_role_assignment.terraform_kv_officer]
+}
+
 resource "azurerm_key_vault_secret" "opencost_service_key" {
   name = "platform-opencost-service-key"
   value = jsonencode({

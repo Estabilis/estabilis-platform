@@ -11,6 +11,9 @@ opencost:
       - mountPath: /var/secrets
         name: azure-service-key
         readOnly: true
+  cloudCost:
+    enabled: true
+  cloudIntegrationSecret: opencost-cloud-integration
 
 extraVolumes:
   - name: azure-service-key

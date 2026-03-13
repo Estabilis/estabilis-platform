@@ -1,2 +1,3 @@
 kvSecrets:
   opencostServiceKey: "platform-opencost-service-key"
+  opencostCloudIntegration: "platform-opencost-cloud-integration"

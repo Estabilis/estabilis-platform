@@ -4,6 +4,8 @@
 opencost:
   exporter:
     cloudProviderApiKey: ""
+  carbonCost:
+    enabled: true
   prometheus:
     internal:
       enabled: false
