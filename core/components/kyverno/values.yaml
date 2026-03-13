@@ -11,9 +11,4 @@ reportsController:
   enabled: true
 
 grafana:
-  enabled: true
-  namespace: grafana
-  labels:
-    grafana_dashboard: "1"
-  annotations:
-    grafana_folder: Kyverno
+  enabled: false

@@ -225,13 +225,13 @@ alloy:
         rule {
           source_labels = ["__meta_kubernetes_service_name"]
           action        = "keep"
-          regex         = "kyverno-svc-metrics|kyverno-admission-controller-metrics|kyverno-background-controller-metrics|kyverno-cleanup-controller-metrics|kyverno-reports-controller-metrics"
+          regex         = "kyverno-admission-controller-metrics|kyverno-background-controller-metrics|kyverno-cleanup-controller-metrics|kyverno-reports-controller-metrics"
         }
 
         rule {
           source_labels = ["__meta_kubernetes_endpoint_port_name"]
           action        = "keep"
-          regex         = "metrics-port"
+          regex         = "metrics"
         }
 
         rule {
