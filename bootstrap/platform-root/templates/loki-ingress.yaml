@@ -15,6 +15,8 @@ spec:
       helm:
         valueFiles:
           - $values/core/components/loki-ingress/values.yaml
+          {{- include "platform-root.overrideValueFile" (dict "component" "loki-ingress" "root" $) | nindent 10 }}
+        {{- include "platform-root.ignoreMissingValueFiles" $ | nindent 8 }}
         parameters:
           - name: global.domain
             value: "{{ .Values.global.domain }}"
@@ -23,6 +25,7 @@ spec:
     - repoURL: {{ .Values.platformRepoUrl }}
       targetRevision: {{ .Values.platformVersion }}
       ref: values
+    {{- include "platform-root.overrideSource" . | nindent 4 }}
   destination:
     server: https://kubernetes.default.svc
     namespace: grafana

@@ -1,6 +1,7 @@
 platformRepoUrl: ""
 platformVersion: "v0.1.2"
 configRepoUrl: ""
+configRepoVersion: ""
 
 global:
   cnpgStorageAccountName: ""

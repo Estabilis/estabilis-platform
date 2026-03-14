@@ -14,21 +14,24 @@ resource "kubectl_manifest" "argocd_project_platform" {
     }
     spec = {
       description = "Estabilis Platform core components"
-      sourceRepos = [
-        var.platform_repo_url,
-        "https://argoproj.github.io/argo-helm",
-        "https://charts.jetstack.io",
-        "https://kyverno.github.io/kyverno",
-        "https://charts.external-secrets.io",
-        "https://kubernetes-sigs.github.io/external-dns",
-        "https://grafana.github.io/helm-charts",
-        "https://traefik.github.io/charts",
-        "https://aquasecurity.github.io/helm-charts",
-        "https://opencost.github.io/opencost-helm-chart",
-        "https://cloudnative-pg.github.io/charts",
-        "https://vmware-tanzu.github.io/helm-charts",
-        "https://prometheus-community.github.io/helm-charts",
-      ]
+      sourceRepos = concat(
+        [
+          var.platform_repo_url,
+          "https://argoproj.github.io/argo-helm",
+          "https://charts.jetstack.io",
+          "https://kyverno.github.io/kyverno",
+          "https://charts.external-secrets.io",
+          "https://kubernetes-sigs.github.io/external-dns",
+          "https://grafana.github.io/helm-charts",
+          "https://traefik.github.io/charts",
+          "https://aquasecurity.github.io/helm-charts",
+          "https://opencost.github.io/opencost-helm-chart",
+          "https://cloudnative-pg.github.io/charts",
+          "https://vmware-tanzu.github.io/helm-charts",
+          "https://prometheus-community.github.io/helm-charts",
+        ],
+        (var.config_repo_url != "" && var.config_repo_version != "") ? [var.config_repo_url] : [],
+      )
       destinations = [
         { server = "https://kubernetes.default.svc", namespace = "argocd" },
         { server = "https://kubernetes.default.svc", namespace = "cert-manager" },
@@ -202,6 +205,14 @@ resource "kubectl_manifest" "platform_root" {
             {
               name  = "platformVersion"
               value = var.platform_version
+            },
+            {
+              name  = "configRepoUrl"
+              value = var.config_repo_url
+            },
+            {
+              name  = "configRepoVersion"
+              value = var.config_repo_version
             },
           ]
         }

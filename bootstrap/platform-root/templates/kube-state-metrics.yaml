@@ -14,9 +14,12 @@ spec:
       helm:
         valueFiles:
           - $values/core/components/kube-state-metrics/values.yaml
+          {{- include "platform-root.overrideValueFile" (dict "component" "kube-state-metrics" "root" $) | nindent 10 }}
+        {{- include "platform-root.ignoreMissingValueFiles" $ | nindent 8 }}
     - repoURL: {{ .Values.platformRepoUrl }}
       targetRevision: {{ .Values.platformVersion }}
       ref: values
+    {{- include "platform-root.overrideSource" . | nindent 4 }}
   destination:
     server: https://kubernetes.default.svc
     namespace: kube-state-metrics

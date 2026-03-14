@@ -14,9 +14,12 @@ spec:
       helm:
         valueFiles:
           - $values/core/components/kyverno/values.yaml
+          {{- include "platform-root.overrideValueFile" (dict "component" "kyverno" "root" $) | nindent 10 }}
+        {{- include "platform-root.ignoreMissingValueFiles" $ | nindent 8 }}
     - repoURL: {{ .Values.platformRepoUrl }}
       targetRevision: {{ .Values.platformVersion }}
       ref: values
+    {{- include "platform-root.overrideSource" . | nindent 4 }}
   destination:
     server: https://kubernetes.default.svc
     namespace: kyverno

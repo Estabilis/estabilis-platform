@@ -58,6 +58,8 @@ spec:
         valueFiles:
           - $values/core/components/external-dns/values.yaml
           - $values/core/components/external-dns/values-{{ .Values.global.provider }}.yaml
+          {{- include "platform-root.overrideValueFile" (dict "component" "external-dns" "root" $) | nindent 10 }}
+        {{- include "platform-root.ignoreMissingValueFiles" $ | nindent 8 }}
         parameters:
           - name: domainFilters[0]
             value: "{{ .Values.global.domain }}"
@@ -76,6 +78,7 @@ spec:
     - repoURL: {{ .Values.platformRepoUrl }}
       targetRevision: {{ .Values.platformVersion }}
       ref: values
+    {{- include "platform-root.overrideSource" . | nindent 4 }}
   destination:
     server: https://kubernetes.default.svc
     namespace: external-dns

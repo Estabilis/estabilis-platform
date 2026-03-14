@@ -44,7 +44,13 @@ variable "platform_version" {
 }
 
 variable "config_repo_url" {
-  description = "Git repository URL for environment-specific configuration. Leave empty to skip."
+  description = "Git repository URL for client-specific value overrides. Leave empty to skip."
+  type        = string
+  default     = ""
+}
+
+variable "config_repo_version" {
+  description = "Git revision (branch, tag, or SHA) for the config repository. Required if config_repo_url is set."
   type        = string
   default     = ""
 }

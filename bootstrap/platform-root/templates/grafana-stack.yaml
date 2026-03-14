@@ -38,6 +38,8 @@ spec:
         valueFiles:
           - $values/core/components/grafana-stack/loki-values.yaml
           - $values/core/components/grafana-stack/loki-values-{{ .Values.global.provider }}.yaml
+          {{- include "platform-root.overrideValueFile" (dict "component" "loki" "root" $) | nindent 10 }}
+        {{- include "platform-root.ignoreMissingValueFiles" $ | nindent 8 }}
         parameters:
           {{- if eq .Values.global.provider "azure" }}
           - name: loki.storage.azure.accountName
@@ -54,6 +56,7 @@ spec:
     - repoURL: {{ .Values.platformRepoUrl }}
       targetRevision: {{ .Values.platformVersion }}
       ref: values
+    {{- include "platform-root.overrideSource" . | nindent 4 }}
   destination:
     server: https://kubernetes.default.svc
     namespace: grafana
@@ -82,6 +85,8 @@ spec:
         valueFiles:
           - $values/core/components/grafana-stack/mimir-values.yaml
           - $values/core/components/grafana-stack/mimir-values-{{ .Values.global.provider }}.yaml
+          {{- include "platform-root.overrideValueFile" (dict "component" "mimir" "root" $) | nindent 10 }}
+        {{- include "platform-root.ignoreMissingValueFiles" $ | nindent 8 }}
         parameters:
           {{- if eq .Values.global.provider "azure" }}
           - name: mimir.structuredConfig.common.storage.azure.account_name
@@ -98,6 +103,7 @@ spec:
     - repoURL: {{ .Values.platformRepoUrl }}
       targetRevision: {{ .Values.platformVersion }}
       ref: values
+    {{- include "platform-root.overrideSource" . | nindent 4 }}
   destination:
     server: https://kubernetes.default.svc
     namespace: grafana
@@ -147,9 +153,12 @@ spec:
         valueFiles:
           - $values/core/components/grafana-stack/alloy-values.yaml
           - $values/core/components/grafana-stack/alloy-values-{{ .Values.global.provider }}.yaml
+          {{- include "platform-root.overrideValueFile" (dict "component" "alloy" "root" $) | nindent 10 }}
+        {{- include "platform-root.ignoreMissingValueFiles" $ | nindent 8 }}
     - repoURL: {{ .Values.platformRepoUrl }}
       targetRevision: {{ .Values.platformVersion }}
       ref: values
+    {{- include "platform-root.overrideSource" . | nindent 4 }}
   destination:
     server: https://kubernetes.default.svc
     namespace: grafana
@@ -178,9 +187,12 @@ spec:
         valueFiles:
           - $values/core/components/grafana-stack/grafana-values.yaml
           - $values/core/components/grafana-stack/grafana-values-{{ .Values.global.provider }}.yaml
+          {{- include "platform-root.overrideValueFile" (dict "component" "grafana" "root" $) | nindent 10 }}
+        {{- include "platform-root.ignoreMissingValueFiles" $ | nindent 8 }}
     - repoURL: {{ .Values.platformRepoUrl }}
       targetRevision: {{ .Values.platformVersion }}
       ref: values
+    {{- include "platform-root.overrideSource" . | nindent 4 }}
   destination:
     server: https://kubernetes.default.svc
     namespace: grafana
@@ -209,9 +221,12 @@ spec:
         valueFiles:
           - $values/core/components/grafana-stack/tempo-values.yaml
           - $values/core/components/grafana-stack/tempo-values-{{ .Values.global.provider }}.yaml
+          {{- include "platform-root.overrideValueFile" (dict "component" "tempo" "root" $) | nindent 10 }}
+        {{- include "platform-root.ignoreMissingValueFiles" $ | nindent 8 }}
     - repoURL: {{ .Values.platformRepoUrl }}
       targetRevision: {{ .Values.platformVersion }}
       ref: values
+    {{- include "platform-root.overrideSource" . | nindent 4 }}
   destination:
     server: https://kubernetes.default.svc
     namespace: grafana
