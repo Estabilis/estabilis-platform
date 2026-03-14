@@ -169,7 +169,7 @@ resource "azurerm_federated_identity_credential" "velero" {
 }
 
 resource "azurerm_role_assignment" "velero_storage_contributor" {
-  scope                = azurerm_storage_container.velero_backup.id
+  scope                = azurerm_storage_account.velero_backup.id
   role_definition_name = "Storage Blob Data Contributor"
   principal_id         = azurerm_user_assigned_identity.velero.principal_id
 }
