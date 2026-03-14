@@ -6,12 +6,17 @@ commonLabels:
   estabilis.io/component: velero
 
 configuration:
+  features: EnableCSI
+
   backupStorageLocation:
     - name: default
       bucket: ""
 
   volumeSnapshotLocation:
     - name: default
+
+  defaultSnapshotMoveData: false
+  defaultVolumesToFsBackup: false
 
 upgradeCRDs: false
 
@@ -29,6 +34,7 @@ schedules:
     useOwnerReferencesInBackup: false
     template:
       ttl: 720h0m0s
+      snapshotVolumes: true
       includedNamespaces:
         - argocd
         - cert-manager
