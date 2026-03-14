@@ -55,6 +55,13 @@ variable "config_repo_version" {
   default     = ""
 }
 
+variable "config_repo_token" {
+  description = "Git access token for the config repository. Pass via secrets.auto.tfvars or TF_VAR_config_repo_token. Required if config_repo_url is a private repo."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
 variable "tenant_id" {
   description = "Azure AD tenant ID. Can also be set via ARM_TENANT_ID environment variable."
   type        = string
