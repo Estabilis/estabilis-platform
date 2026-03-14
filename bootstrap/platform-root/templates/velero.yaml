@@ -54,3 +54,28 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: velero-config
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "6"
+spec:
+  project: platform
+  source:
+    repoURL: {{ .Values.platformRepoUrl }}
+    targetRevision: {{ .Values.platformVersion }}
+    path: core/components/velero-config
+    helm:
+      parameters:
+        - name: global.provider
+          value: "{{ .Values.global.provider }}"
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: velero
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

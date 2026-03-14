@@ -59,6 +59,7 @@ resource "kubectl_manifest" "argocd_project_platform" {
         { group = "external-secrets.io", kind = "ClusterSecretStore" },
         { group = "aquasecurity.github.io", kind = "*" },
         { group = "networking.k8s.io", kind = "IngressClass" },
+        { group = "snapshot.storage.k8s.io", kind = "VolumeSnapshotClass" },
       ]
     }
   })
