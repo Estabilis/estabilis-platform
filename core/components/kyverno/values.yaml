@@ -4,15 +4,23 @@ commonLabels:
 
 admissionController:
   replicas: 1
+  metricsService:
+    create: true
 
 backgroundController:
   enabled: true
+  metricsService:
+    create: true
 
 cleanupController:
   enabled: true
+  metricsService:
+    create: true
 
 reportsController:
   enabled: true
+  metricsService:
+    create: true
 
 grafana:
   enabled: false
