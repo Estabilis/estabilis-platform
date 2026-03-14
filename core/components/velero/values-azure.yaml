@@ -14,11 +14,11 @@ configuration:
       provider: azure
       config:
         resourceGroup: ""
-        useAAD: "true"
+        incremental: "true"
 
 initContainers:
   - name: velero-plugin-for-azure
-    image: velero/velero-plugin-for-microsoft-azure:v1.10.0
+    image: velero/velero-plugin-for-microsoft-azure:v1.14.0
     imagePullPolicy: IfNotPresent
     volumeMounts:
       - mountPath: /target
