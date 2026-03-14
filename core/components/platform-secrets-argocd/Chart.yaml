@@ -1,0 +1,5 @@
+apiVersion: v2
+name: platform-secrets-argocd
+description: ExternalSecrets for ArgoCD (config repo credentials)
+type: application
+version: 0.1.0

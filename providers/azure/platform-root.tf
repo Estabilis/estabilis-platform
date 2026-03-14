@@ -233,28 +233,3 @@ resource "kubectl_manifest" "platform_root" {
     }
   })
 }
-
-# ---------------------------------------------------------------------------
-# Config Repository Credentials — allows ArgoCD to access private client repos
-# ---------------------------------------------------------------------------
-
-resource "kubernetes_secret" "argocd_config_repo" {
-  count = var.config_repo_token != "" ? 1 : 0
-
-  depends_on = [helm_release.argocd]
-
-  metadata {
-    name      = "repo-config-client"
-    namespace = "argocd"
-    labels = {
-      "argocd.argoproj.io/secret-type" = "repository"
-    }
-  }
-
-  data = {
-    type     = "git"
-    url      = var.config_repo_url
-    username = "x-access-token"
-    password = var.config_repo_token
-  }
-}

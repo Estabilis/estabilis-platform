@@ -117,3 +117,12 @@ resource "azurerm_key_vault_secret" "opencost_service_key" {
 
   depends_on = [azurerm_role_assignment.terraform_kv_officer]
 }
+
+resource "azurerm_key_vault_secret" "config_repo_token" {
+  count        = var.config_repo_token != "" ? 1 : 0
+  name         = "platform-config-repo-token"
+  value        = var.config_repo_token
+  key_vault_id = azurerm_key_vault.platform.id
+
+  depends_on = [azurerm_role_assignment.terraform_kv_officer]
+}

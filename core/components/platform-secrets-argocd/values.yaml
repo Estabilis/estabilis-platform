@@ -1,0 +1,4 @@
+# Config repo credentials — only created when configRepoUrl is set
+configRepoUrl: ""
+kvSecrets:
+  configRepoToken: "platform-config-repo-token"
