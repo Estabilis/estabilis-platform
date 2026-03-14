@@ -180,6 +180,12 @@ resource "azurerm_role_assignment" "velero_rg_reader" {
   principal_id         = azurerm_user_assigned_identity.velero.principal_id
 }
 
+resource "azurerm_role_assignment" "velero_disk_snapshot" {
+  scope                = azurerm_resource_group.platform.id
+  role_definition_name = "Disk Snapshot Contributor"
+  principal_id         = azurerm_user_assigned_identity.velero.principal_id
+}
+
 # ========================== opencost ========================================
 # OpenCost requires a Service Principal (not Workload Identity) because it
 # uses the legacy Azure ADAL SDK which does not support federated credentials.

@@ -29,6 +29,8 @@ spec:
             value: "{{ .Values.global.subscriptionId }}"
           - name: configuration.volumeSnapshotLocation[0].config.resourceGroup
             value: "{{ .Values.global.resourceGroup }}"
+          - name: configuration.volumeSnapshotLocation[0].config.subscriptionId
+            value: "{{ .Values.global.subscriptionId }}"
           - name: serviceAccount.server.annotations.azure\.workload\.identity/client-id
             value: "{{ .Values.identity.velero.clientId }}"
           - name: schedules.platform-daily.schedule
