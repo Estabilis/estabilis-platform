@@ -49,6 +49,9 @@ alloy:
       prometheus.scrape "pod_metrics" {
         targets    = discovery.relabel.metric_pods.output
         forward_to = [prometheus.remote_write.mimir.receiver]
+        clustering {
+          enabled = true
+        }
       }
 
       // =====================================================================
@@ -88,6 +91,9 @@ alloy:
       prometheus.scrape "argocd_app_controller" {
         targets    = discovery.relabel.argocd_app_controller.output
         forward_to = [prometheus.relabel.argocd_app_controller.receiver]
+        clustering {
+          enabled = true
+        }
       }
 
       prometheus.relabel "argocd_app_controller" {
@@ -123,6 +129,9 @@ alloy:
       prometheus.scrape "argocd_server" {
         targets    = discovery.relabel.argocd_server.output
         forward_to = [prometheus.relabel.argocd_server.receiver]
+        clustering {
+          enabled = true
+        }
       }
 
       prometheus.relabel "argocd_server" {
@@ -158,6 +167,9 @@ alloy:
       prometheus.scrape "argocd_repo_server" {
         targets    = discovery.relabel.argocd_repo_server.output
         forward_to = [prometheus.relabel.argocd_repo_server.receiver]
+        clustering {
+          enabled = true
+        }
       }
 
       prometheus.relabel "argocd_repo_server" {
@@ -193,6 +205,9 @@ alloy:
       prometheus.scrape "argocd_notifications" {
         targets    = discovery.relabel.argocd_notifications.output
         forward_to = [prometheus.relabel.argocd_notifications.receiver]
+        clustering {
+          enabled = true
+        }
       }
 
       prometheus.relabel "argocd_notifications" {
@@ -209,6 +224,9 @@ alloy:
           __address__ = "cert-manager.cert-manager.svc.cluster.local:9402",
         }]
         forward_to = [prometheus.relabel.cert_manager.receiver]
+        clustering {
+          enabled = true
+        }
       }
 
       prometheus.relabel "cert_manager" {
@@ -255,6 +273,9 @@ alloy:
       prometheus.scrape "traefik" {
         targets    = discovery.relabel.traefik.output
         forward_to = [prometheus.relabel.traefik.receiver]
+        clustering {
+          enabled = true
+        }
       }
 
       prometheus.relabel "traefik" {
@@ -271,6 +292,9 @@ alloy:
           __address__ = "velero.velero.svc.cluster.local:8085",
         }]
         forward_to = [prometheus.relabel.velero.receiver]
+        clustering {
+          enabled = true
+        }
       }
 
       prometheus.relabel "velero" {
@@ -323,6 +347,9 @@ alloy:
         targets         = discovery.relabel.kyverno.output
         forward_to      = [prometheus.relabel.kyverno.receiver]
         scrape_interval = "30s"
+        clustering {
+          enabled = true
+        }
       }
 
       prometheus.relabel "kyverno" {
@@ -339,6 +366,9 @@ alloy:
           __address__ = "opencost.opencost.svc.cluster.local:9003",
         }]
         forward_to = [prometheus.relabel.opencost.receiver]
+        clustering {
+          enabled = true
+        }
       }
 
       prometheus.relabel "opencost" {
@@ -368,6 +398,9 @@ alloy:
           __address__ = "kube-state-metrics.kube-state-metrics.svc.cluster.local:8080",
         }]
         forward_to = [prometheus.relabel.kube_state_metrics.receiver]
+        clustering {
+          enabled = true
+        }
       }
 
       prometheus.relabel "kube_state_metrics" {
@@ -392,6 +425,9 @@ alloy:
           __address__ = "external-secrets-metrics.external-secrets.svc.cluster.local:8080",
         }]
         forward_to = [prometheus.relabel.external_secrets.receiver]
+        clustering {
+          enabled = true
+        }
       }
 
       prometheus.relabel "external_secrets" {
@@ -443,6 +479,9 @@ alloy:
       prometheus.scrape "node_exporter" {
         targets    = discovery.relabel.node_exporter.output
         forward_to = [prometheus.relabel.node_exporter.receiver]
+        clustering {
+          enabled = true
+        }
       }
 
       prometheus.relabel "node_exporter" {
@@ -486,6 +525,9 @@ alloy:
       prometheus.scrape "cnpg_operator" {
         targets    = discovery.relabel.cnpg_operator.output
         forward_to = [prometheus.relabel.cnpg_operator.receiver]
+        clustering {
+          enabled = true
+        }
       }
 
       prometheus.relabel "cnpg_operator" {
@@ -531,6 +573,9 @@ alloy:
       prometheus.scrape "cnpg_instances" {
         targets    = discovery.relabel.cnpg_instances.output
         forward_to = [prometheus.relabel.cnpg_instances.receiver]
+        clustering {
+          enabled = true
+        }
       }
 
       prometheus.relabel "cnpg_instances" {
@@ -571,6 +616,9 @@ alloy:
           insecure_skip_verify = true
         }
         forward_to = [prometheus.relabel.kubelet.receiver]
+        clustering {
+          enabled = true
+        }
       }
 
       prometheus.relabel "kubelet" {
@@ -606,6 +654,9 @@ alloy:
           insecure_skip_verify = true
         }
         forward_to = [prometheus.relabel.cadvisor.receiver]
+        clustering {
+          enabled = true
+        }
       }
 
       prometheus.relabel "cadvisor" {
@@ -622,6 +673,9 @@ alloy:
           __address__ = "trivy-operator.trivy-system.svc.cluster.local:8080",
         }]
         forward_to = [prometheus.relabel.trivy_operator.receiver]
+        clustering {
+          enabled = true
+        }
       }
 
       prometheus.relabel "trivy_operator" {
@@ -645,6 +699,10 @@ alloy:
           url = "http://grafana-mimir-gateway.grafana.svc.cluster.local/api/v1/push"
         }
       }
+
+alloy:
+  clustering:
+    enabled: true
 
 controller:
   type: daemonset
