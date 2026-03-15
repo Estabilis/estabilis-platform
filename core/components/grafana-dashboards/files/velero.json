@@ -218,6 +218,65 @@
       "type": "stat"
     },
     {
+      "type": "stat",
+      "title": "Backup Storage Status",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "options": {
+                "0": {
+                  "text": "Unavailable",
+                  "color": "red"
+                }
+              },
+              "type": "value"
+            },
+            {
+              "options": {
+                "1": {
+                  "text": "Available",
+                  "color": "green"
+                }
+              },
+              "type": "value"
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 8,
+        "y": 1
+      },
+      "targets": [
+        {
+          "expr": "velero_backup_location_status_gauge",
+          "legendFormat": "{{ backup_location_name }}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
@@ -375,7 +434,7 @@
             "uid": "${datasource}"
           },
           "exemplar": false,
-          "expr": "sum(velero_volume_snapshot_success_total{schedule=~\"$schedule\"}) / sum(velero_volume_snapshot_attempt_total{schedule=~\"$schedule\"})\n",
+          "expr": "sum(velero_csi_snapshot_success_total{schedule=~\"$schedule\"}) / sum(velero_csi_snapshot_attempt_total{schedule=~\"$schedule\"})\n",
           "format": "time_series",
           "interval": "",
           "intervalFactor": 1,
@@ -459,7 +518,7 @@
             "uid": "${datasource}"
           },
           "exemplar": false,
-          "expr": "sum(velero_backup_deletion_success_total{schedule=~\"$schedule\"}) / sum(velero_backup_deletion_attempt_total{schedule=~\"$schedule\"})",
+          "expr": "sum(velero_backup_deletion_success_total{schedule=~\"$schedule\"}) / (sum(velero_backup_deletion_attempt_total{schedule=~\"$schedule\"}) > 0) or vector(1)",
           "format": "time_series",
           "instant": false,
           "interval": "",
