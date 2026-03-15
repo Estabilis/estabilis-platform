@@ -1,0 +1,59 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: mimir-rules-upload-{{ .Release.Revision }}
+  namespace: grafana
+  labels:
+    estabilis.io/managed-by: platform
+    estabilis.io/component: mimir-rules
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  ttlSecondsAfterFinished: 300
+  backoffLimit: 3
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: upload
+          image: curlimages/curl:latest
+          command:
+            - sh
+            - -c
+            - |
+              set -e
+              GATEWAY="{{ .Values.mimirGatewayUrl }}"
+              TENANT="{{ .Values.tenantId }}"
+              NS="{{ .Values.rulesNamespace }}"
+
+              echo "==> Uploading alerting rules to Mimir Ruler..."
+
+              for file in /rules/*.yaml; do
+                filename=$(basename "$file")
+                echo "  Processing $filename..."
+
+                # Extract each group from the file and upload separately
+                # The file has format: groups:\n- name: xxx\n  rules: [...]
+                # Mimir API expects just the group content (name + rules), not the groups: wrapper
+
+                # Use sed to extract group content (skip the "groups:" and "- " prefix)
+                sed '1d;s/^- //' "$file" | \
+                  curl -sf -X POST \
+                    -H "X-Scope-OrgID: $TENANT" \
+                    -H "Content-Type: application/yaml" \
+                    --data-binary @- \
+                    "$GATEWAY/prometheus/config/v1/rules/$NS"
+
+                echo "  OK: $filename uploaded"
+              done
+
+              echo "==> All rules uploaded successfully"
+          volumeMounts:
+            - name: rules
+              mountPath: /rules
+              readOnly: true
+      volumes:
+        - name: rules
+          configMap:
+            name: mimir-alerting-rules

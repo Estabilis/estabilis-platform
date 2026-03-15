@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mimir-alerting-rules
+  namespace: grafana
+  labels:
+    estabilis.io/managed-by: platform
+    estabilis.io/component: mimir-rules
+data:
+  tier1-platform-down.yaml: |
+{{ .Files.Get "files/tier1-platform-down.yaml" | indent 4 }}
+  tier2-degradation.yaml: |
+{{ .Files.Get "files/tier2-degradation.yaml" | indent 4 }}
+  tier3-operational.yaml: |
+{{ .Files.Get "files/tier3-operational.yaml" | indent 4 }}
