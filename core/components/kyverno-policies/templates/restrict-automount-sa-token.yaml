@@ -24,7 +24,7 @@ spec:
         deny:
           conditions:
             any:
-              - key: "{{ request.object.spec.automountServiceAccountToken || 'true' }}"
+              - key: "{{`{{ request.object.spec.automountServiceAccountToken || 'true' }}`}}"
                 operator: Equals
                 value: "true"
     - name: automount-sa-controllers
@@ -41,7 +41,7 @@ spec:
         deny:
           conditions:
             any:
-              - key: "{{ request.object.spec.template.spec.automountServiceAccountToken || 'true' }}"
+              - key: "{{`{{ request.object.spec.template.spec.automountServiceAccountToken || 'true' }}`}}"
                 operator: Equals
                 value: "true"
     - name: automount-sa-cronjob
@@ -55,7 +55,7 @@ spec:
         deny:
           conditions:
             any:
-              - key: "{{ request.object.spec.jobTemplate.spec.template.spec.automountServiceAccountToken || 'true' }}"
+              - key: "{{`{{ request.object.spec.jobTemplate.spec.template.spec.automountServiceAccountToken || 'true' }}`}}"
                 operator: Equals
                 value: "true"
 {{- end }}

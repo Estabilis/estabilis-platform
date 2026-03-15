@@ -26,7 +26,7 @@ spec:
             deny:
               conditions:
                 any:
-                  - key: "{{ element.image }}"
+                  - key: "{{`{{ element.image }}`}}"
                     operator: NotEquals
                     value: "*@sha256:*"
     - name: image-digest-controllers
@@ -45,7 +45,7 @@ spec:
             deny:
               conditions:
                 any:
-                  - key: "{{ element.image }}"
+                  - key: "{{`{{ element.image }}`}}"
                     operator: NotEquals
                     value: "*@sha256:*"
     - name: image-digest-cronjob
@@ -61,7 +61,7 @@ spec:
             deny:
               conditions:
                 any:
-                  - key: "{{ element.image }}"
+                  - key: "{{`{{ element.image }}`}}"
                     operator: NotEquals
                     value: "*@sha256:*"
 {{- end }}

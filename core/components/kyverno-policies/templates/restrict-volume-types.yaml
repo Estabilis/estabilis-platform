@@ -26,7 +26,7 @@ spec:
             deny:
               conditions:
                 all:
-                  - key: "{{ element.keys(@) }}"
+                  - key: "{{`{{ element.keys(@) }}`}}"
                     operator: AnyNotIn
                     value:
                       - name
@@ -52,7 +52,7 @@ spec:
             deny:
               conditions:
                 all:
-                  - key: "{{ element.keys(@) }}"
+                  - key: "{{`{{ element.keys(@) }}`}}"
                     operator: AnyNotIn
                     value:
                       - name
@@ -75,7 +75,7 @@ spec:
             deny:
               conditions:
                 all:
-                  - key: "{{ element.keys(@) }}"
+                  - key: "{{`{{ element.keys(@) }}`}}"
                     operator: AnyNotIn
                     value:
                       - name

@@ -26,12 +26,12 @@ spec:
             deny:
               conditions:
                 all:
-                  - key: "{{ element.securityContext.seccompProfile.type || 'unset' }}"
+                  - key: "{{`{{ element.securityContext.seccompProfile.type || 'unset' }}`}}"
                     operator: AnyNotIn
                     value:
                       - RuntimeDefault
                       - Localhost
-                  - key: "{{ request.object.spec.securityContext.seccompProfile.type || 'unset' }}"
+                  - key: "{{`{{ request.object.spec.securityContext.seccompProfile.type || 'unset' }}`}}"
                     operator: AnyNotIn
                     value:
                       - RuntimeDefault
@@ -52,12 +52,12 @@ spec:
             deny:
               conditions:
                 all:
-                  - key: "{{ element.securityContext.seccompProfile.type || 'unset' }}"
+                  - key: "{{`{{ element.securityContext.seccompProfile.type || 'unset' }}`}}"
                     operator: AnyNotIn
                     value:
                       - RuntimeDefault
                       - Localhost
-                  - key: "{{ request.object.spec.template.spec.securityContext.seccompProfile.type || 'unset' }}"
+                  - key: "{{`{{ request.object.spec.template.spec.securityContext.seccompProfile.type || 'unset' }}`}}"
                     operator: AnyNotIn
                     value:
                       - RuntimeDefault
@@ -75,12 +75,12 @@ spec:
             deny:
               conditions:
                 all:
-                  - key: "{{ element.securityContext.seccompProfile.type || 'unset' }}"
+                  - key: "{{`{{ element.securityContext.seccompProfile.type || 'unset' }}`}}"
                     operator: AnyNotIn
                     value:
                       - RuntimeDefault
                       - Localhost
-                  - key: "{{ request.object.spec.jobTemplate.spec.template.spec.securityContext.seccompProfile.type || 'unset' }}"
+                  - key: "{{`{{ request.object.spec.jobTemplate.spec.template.spec.securityContext.seccompProfile.type || 'unset' }}`}}"
                     operator: AnyNotIn
                     value:
                       - RuntimeDefault

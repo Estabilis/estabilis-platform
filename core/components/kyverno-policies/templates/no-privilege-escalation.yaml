@@ -24,10 +24,10 @@ spec:
             deny:
               conditions:
                 any:
-                  - key: "{{ element.securityContext.allowPrivilegeEscalation || 'true' }}"
+                  - key: "{{`{{ element.securityContext.allowPrivilegeEscalation || 'true' }}`}}"
                     operator: Equals
                     value: "true"
-                  - key: "{{ element.securityContext.runAsNonRoot || 'false' }}"
+                  - key: "{{`{{ element.securityContext.runAsNonRoot || 'false' }}`}}"
                     operator: Equals
                     value: "false"
     - name: deny-privilege-escalation-controllers
@@ -46,10 +46,10 @@ spec:
             deny:
               conditions:
                 any:
-                  - key: "{{ element.securityContext.allowPrivilegeEscalation || 'true' }}"
+                  - key: "{{`{{ element.securityContext.allowPrivilegeEscalation || 'true' }}`}}"
                     operator: Equals
                     value: "true"
-                  - key: "{{ element.securityContext.runAsNonRoot || 'false' }}"
+                  - key: "{{`{{ element.securityContext.runAsNonRoot || 'false' }}`}}"
                     operator: Equals
                     value: "false"
     - name: deny-privilege-escalation-cronjob
@@ -65,10 +65,10 @@ spec:
             deny:
               conditions:
                 any:
-                  - key: "{{ element.securityContext.allowPrivilegeEscalation || 'true' }}"
+                  - key: "{{`{{ element.securityContext.allowPrivilegeEscalation || 'true' }}`}}"
                     operator: Equals
                     value: "true"
-                  - key: "{{ element.securityContext.runAsNonRoot || 'false' }}"
+                  - key: "{{`{{ element.securityContext.runAsNonRoot || 'false' }}`}}"
                     operator: Equals
                     value: "false"
 {{- end }}

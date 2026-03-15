@@ -25,10 +25,10 @@ spec:
             deny:
               conditions:
                 all:
-                  - key: "{{ element.securityContext.runAsNonRoot || 'unset' }}"
+                  - key: "{{`{{ element.securityContext.runAsNonRoot || 'unset' }}`}}"
                     operator: NotEquals
                     value: true
-                  - key: "{{ request.object.spec.securityContext.runAsNonRoot || 'unset' }}"
+                  - key: "{{`{{ request.object.spec.securityContext.runAsNonRoot || 'unset' }}`}}"
                     operator: NotEquals
                     value: true
     - name: run-as-nonroot-controllers
@@ -47,10 +47,10 @@ spec:
             deny:
               conditions:
                 all:
-                  - key: "{{ element.securityContext.runAsNonRoot || 'unset' }}"
+                  - key: "{{`{{ element.securityContext.runAsNonRoot || 'unset' }}`}}"
                     operator: NotEquals
                     value: true
-                  - key: "{{ request.object.spec.template.spec.securityContext.runAsNonRoot || 'unset' }}"
+                  - key: "{{`{{ request.object.spec.template.spec.securityContext.runAsNonRoot || 'unset' }}`}}"
                     operator: NotEquals
                     value: true
     - name: run-as-nonroot-cronjob
@@ -66,10 +66,10 @@ spec:
             deny:
               conditions:
                 all:
-                  - key: "{{ element.securityContext.runAsNonRoot || 'unset' }}"
+                  - key: "{{`{{ element.securityContext.runAsNonRoot || 'unset' }}`}}"
                     operator: NotEquals
                     value: true
-                  - key: "{{ request.object.spec.jobTemplate.spec.template.spec.securityContext.runAsNonRoot || 'unset' }}"
+                  - key: "{{`{{ request.object.spec.jobTemplate.spec.template.spec.securityContext.runAsNonRoot || 'unset' }}`}}"
                     operator: NotEquals
                     value: true
 {{- end }}

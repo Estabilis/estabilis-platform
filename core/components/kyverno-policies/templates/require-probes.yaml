@@ -28,10 +28,10 @@ spec:
             deny:
               conditions:
                 any:
-                  - key: "{{ element.livenessProbe || '' }}"
+                  - key: "{{`{{ element.livenessProbe || '' }}`}}"
                     operator: Equals
                     value: ""
-                  - key: "{{ element.readinessProbe || '' }}"
+                  - key: "{{`{{ element.readinessProbe || '' }}`}}"
                     operator: Equals
                     value: ""
 {{- end }}

@@ -28,7 +28,7 @@ spec:
                 any:
                   - key: ALL
                     operator: AnyNotIn
-                    value: "{{ element.securityContext.capabilities.drop || '' }}"
+                    value: "{{`{{ element.securityContext.capabilities.drop || '' }}`}}"
     - name: drop-all-controllers
       match:
         any:
@@ -47,7 +47,7 @@ spec:
                 any:
                   - key: ALL
                     operator: AnyNotIn
-                    value: "{{ element.securityContext.capabilities.drop || '' }}"
+                    value: "{{`{{ element.securityContext.capabilities.drop || '' }}`}}"
     - name: drop-all-cronjob
       match:
         any:
@@ -63,5 +63,5 @@ spec:
                 any:
                   - key: ALL
                     operator: AnyNotIn
-                    value: "{{ element.securityContext.capabilities.drop || '' }}"
+                    value: "{{`{{ element.securityContext.capabilities.drop || '' }}`}}"
 {{- end }}

@@ -26,7 +26,7 @@ spec:
             deny:
               conditions:
                 any:
-                  - key: "{{ request.object.spec.serviceAccountName || 'default' }}"
+                  - key: "{{`{{ request.object.spec.serviceAccountName || 'default' }}`}}"
                     operator: Equals
                     value: "default"
     - name: default-sa-controllers
@@ -45,7 +45,7 @@ spec:
             deny:
               conditions:
                 any:
-                  - key: "{{ request.object.spec.template.spec.serviceAccountName || 'default' }}"
+                  - key: "{{`{{ request.object.spec.template.spec.serviceAccountName || 'default' }}`}}"
                     operator: Equals
                     value: "default"
     - name: default-sa-cronjob
@@ -61,7 +61,7 @@ spec:
             deny:
               conditions:
                 any:
-                  - key: "{{ request.object.spec.jobTemplate.spec.template.spec.serviceAccountName || 'default' }}"
+                  - key: "{{`{{ request.object.spec.jobTemplate.spec.template.spec.serviceAccountName || 'default' }}`}}"
                     operator: Equals
                     value: "default"
 {{- end }}

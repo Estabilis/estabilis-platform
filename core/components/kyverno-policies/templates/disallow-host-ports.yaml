@@ -26,7 +26,7 @@ spec:
             deny:
               conditions:
                 any:
-                  - key: "{{ element.ports[].hostPort || ['0'] }}"
+                  - key: "{{`{{ element.ports[].hostPort || ['0'] }}`}}"
                     operator: AnyNotIn
                     value:
                       - 0
@@ -47,7 +47,7 @@ spec:
             deny:
               conditions:
                 any:
-                  - key: "{{ element.ports[].hostPort || ['0'] }}"
+                  - key: "{{`{{ element.ports[].hostPort || ['0'] }}`}}"
                     operator: AnyNotIn
                     value:
                       - 0
@@ -65,7 +65,7 @@ spec:
             deny:
               conditions:
                 any:
-                  - key: "{{ element.ports[].hostPort || ['0'] }}"
+                  - key: "{{`{{ element.ports[].hostPort || ['0'] }}`}}"
                     operator: AnyNotIn
                     value:
                       - 0

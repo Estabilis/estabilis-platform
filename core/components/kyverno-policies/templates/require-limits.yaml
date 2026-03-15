@@ -24,16 +24,16 @@ spec:
             deny:
               conditions:
                 any:
-                  - key: "{{ element.resources.requests.cpu || '' }}"
+                  - key: "{{`{{ element.resources.requests.cpu || '' }}`}}"
                     operator: Equals
                     value: ""
-                  - key: "{{ element.resources.requests.memory || '' }}"
+                  - key: "{{`{{ element.resources.requests.memory || '' }}`}}"
                     operator: Equals
                     value: ""
-                  - key: "{{ element.resources.limits.cpu || '' }}"
+                  - key: "{{`{{ element.resources.limits.cpu || '' }}`}}"
                     operator: Equals
                     value: ""
-                  - key: "{{ element.resources.limits.memory || '' }}"
+                  - key: "{{`{{ element.resources.limits.memory || '' }}`}}"
                     operator: Equals
                     value: ""
     - name: require-limits-controllers
@@ -52,16 +52,16 @@ spec:
             deny:
               conditions:
                 any:
-                  - key: "{{ element.resources.requests.cpu || '' }}"
+                  - key: "{{`{{ element.resources.requests.cpu || '' }}`}}"
                     operator: Equals
                     value: ""
-                  - key: "{{ element.resources.requests.memory || '' }}"
+                  - key: "{{`{{ element.resources.requests.memory || '' }}`}}"
                     operator: Equals
                     value: ""
-                  - key: "{{ element.resources.limits.cpu || '' }}"
+                  - key: "{{`{{ element.resources.limits.cpu || '' }}`}}"
                     operator: Equals
                     value: ""
-                  - key: "{{ element.resources.limits.memory || '' }}"
+                  - key: "{{`{{ element.resources.limits.memory || '' }}`}}"
                     operator: Equals
                     value: ""
     - name: require-limits-cronjob
@@ -77,16 +77,16 @@ spec:
             deny:
               conditions:
                 any:
-                  - key: "{{ element.resources.requests.cpu || '' }}"
+                  - key: "{{`{{ element.resources.requests.cpu || '' }}`}}"
                     operator: Equals
                     value: ""
-                  - key: "{{ element.resources.requests.memory || '' }}"
+                  - key: "{{`{{ element.resources.requests.memory || '' }}`}}"
                     operator: Equals
                     value: ""
-                  - key: "{{ element.resources.limits.cpu || '' }}"
+                  - key: "{{`{{ element.resources.limits.cpu || '' }}`}}"
                     operator: Equals
                     value: ""
-                  - key: "{{ element.resources.limits.memory || '' }}"
+                  - key: "{{`{{ element.resources.limits.memory || '' }}`}}"
                     operator: Equals
                     value: ""
 {{- end }}

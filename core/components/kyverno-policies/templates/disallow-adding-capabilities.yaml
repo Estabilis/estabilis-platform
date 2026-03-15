@@ -26,7 +26,7 @@ spec:
             deny:
               conditions:
                 any:
-                  - key: "{{ element.securityContext.capabilities.add || '' | length(@) }}"
+                  - key: "{{`{{ element.securityContext.capabilities.add || '' | length(@) }}`}}"
                     operator: GreaterThan
                     value: 0
     - name: adding-capabilities-controllers
@@ -45,7 +45,7 @@ spec:
             deny:
               conditions:
                 any:
-                  - key: "{{ element.securityContext.capabilities.add || '' | length(@) }}"
+                  - key: "{{`{{ element.securityContext.capabilities.add || '' | length(@) }}`}}"
                     operator: GreaterThan
                     value: 0
     - name: adding-capabilities-cronjob
@@ -61,7 +61,7 @@ spec:
             deny:
               conditions:
                 any:
-                  - key: "{{ element.securityContext.capabilities.add || '' | length(@) }}"
+                  - key: "{{`{{ element.securityContext.capabilities.add || '' | length(@) }}`}}"
                     operator: GreaterThan
                     value: 0
 {{- end }}

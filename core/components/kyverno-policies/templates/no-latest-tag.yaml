@@ -24,10 +24,10 @@ spec:
             deny:
               conditions:
                 any:
-                  - key: "{{ element.image }}"
+                  - key: "{{`{{ element.image }}`}}"
                     operator: Equals
                     value: "*:latest"
-                  - key: "{{ element.image }}"
+                  - key: "{{`{{ element.image }}`}}"
                     operator: NotEquals
                     value: "*:*"
     - name: require-image-tag-controllers
@@ -46,10 +46,10 @@ spec:
             deny:
               conditions:
                 any:
-                  - key: "{{ element.image }}"
+                  - key: "{{`{{ element.image }}`}}"
                     operator: Equals
                     value: "*:latest"
-                  - key: "{{ element.image }}"
+                  - key: "{{`{{ element.image }}`}}"
                     operator: NotEquals
                     value: "*:*"
     - name: require-image-tag-cronjob
@@ -65,10 +65,10 @@ spec:
             deny:
               conditions:
                 any:
-                  - key: "{{ element.image }}"
+                  - key: "{{`{{ element.image }}`}}"
                     operator: Equals
                     value: "*:latest"
-                  - key: "{{ element.image }}"
+                  - key: "{{`{{ element.image }}`}}"
                     operator: NotEquals
                     value: "*:*"
 {{- end }}

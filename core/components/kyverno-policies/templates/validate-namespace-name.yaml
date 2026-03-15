@@ -24,7 +24,7 @@ spec:
         deny:
           conditions:
             any:
-              - key: "{{ regex_match('^[a-z0-9]([a-z0-9-]*[a-z0-9])?$', request.object.metadata.name) }}"
+              - key: "{{`{{ regex_match('^[a-z0-9]([a-z0-9-]*[a-z0-9])?$', request.object.metadata.name) }}`}}"
                 operator: NotEquals
                 value: true
 {{- end }}

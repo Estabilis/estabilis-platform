@@ -24,7 +24,7 @@ spec:
             patchStrategicMerge:
               spec:
                 containers:
-                  - (name): "{{ element.name }}"
+                  - (name): "{{`{{ element.name }}`}}"
                     securityContext:
                       +(runAsNonRoot): true
                       +(readOnlyRootFilesystem): true
@@ -51,7 +51,7 @@ spec:
                 template:
                   spec:
                     containers:
-                      - (name): "{{ element.name }}"
+                      - (name): "{{`{{ element.name }}`}}"
                         securityContext:
                           +(runAsNonRoot): true
                           +(readOnlyRootFilesystem): true
@@ -77,7 +77,7 @@ spec:
                     template:
                       spec:
                         containers:
-                          - (name): "{{ element.name }}"
+                          - (name): "{{`{{ element.name }}`}}"
                             securityContext:
                               +(runAsNonRoot): true
                               +(readOnlyRootFilesystem): true
