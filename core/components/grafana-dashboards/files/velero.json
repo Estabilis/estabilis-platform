@@ -318,21 +318,21 @@
               "type": "special"
             }
           ],
-          "max": 100,
+          "max": 1,
           "min": 0,
           "thresholds": {
             "mode": "absolute",
             "steps": [
               {
-                "color": "#d44a3a",
+                "color": "red",
                 "value": null
               },
               {
-                "color": "rgba(237, 129, 40, 0.89)",
+                "color": "orange",
                 "value": 0.95
               },
               {
-                "color": "#299c46",
+                "color": "green",
                 "value": 0.99
               }
             ]
@@ -403,21 +403,21 @@
               "type": "special"
             }
           ],
-          "max": 100,
+          "max": 1,
           "min": 0,
           "thresholds": {
             "mode": "absolute",
             "steps": [
               {
-                "color": "#d44a3a",
+                "color": "red",
                 "value": null
               },
               {
-                "color": "rgba(237, 129, 40, 0.89)",
+                "color": "orange",
                 "value": 0.95
               },
               {
-                "color": "#299c46",
+                "color": "green",
                 "value": 0.99
               }
             ]
@@ -487,21 +487,21 @@
               "type": "special"
             }
           ],
-          "max": 100,
+          "max": 1,
           "min": 0,
           "thresholds": {
             "mode": "absolute",
             "steps": [
               {
-                "color": "#d44a3a",
+                "color": "red",
                 "value": null
               },
               {
-                "color": "rgba(237, 129, 40, 0.89)",
+                "color": "orange",
                 "value": 0.95
               },
               {
-                "color": "#299c46",
+                "color": "green",
                 "value": 0.99
               }
             ]
@@ -1131,21 +1131,21 @@
               "type": "special"
             }
           ],
-          "max": 100,
+          "max": 1,
           "min": 0,
           "thresholds": {
             "mode": "absolute",
             "steps": [
               {
-                "color": "#d44a3a",
+                "color": "red",
                 "value": null
               },
               {
-                "color": "rgba(237, 129, 40, 0.89)",
+                "color": "orange",
                 "value": 0.95
               },
               {
-                "color": "#299c46",
+                "color": "green",
                 "value": 0.99
               }
             ]
