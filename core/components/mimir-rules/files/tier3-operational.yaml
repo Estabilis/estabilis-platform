@@ -67,14 +67,3 @@ groups:
     annotations:
       summary: Node {{ $labels.node }} has memory pressure
       description: Node {{ $labels.node }} is under memory pressure. Pods may be evicted.
-
-  - alert: TestArgocdRuleSync
-    expr: vector(0)
-    for: 1m
-    labels:
-      severity: info
-      tier: '3'
-      component: test
-    annotations:
-      summary: Test rule to validate ArgoCD sync
-      description: This rule exists only to test that ArgoCD deploys rules automatically. Will be removed after validation.
