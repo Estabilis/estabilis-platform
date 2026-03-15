@@ -1,0 +1,33 @@
+{{- if .Values.policies.require_pod_annotations.enabled }}
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-pod-annotations
+  annotations:
+    policies.kyverno.io/title: Require Pod Annotations
+    policies.kyverno.io/description: >-
+      Requires Deployments, StatefulSets, and DaemonSets to include
+      estabilis.io/owner and estabilis.io/contact annotations for audit
+      trail and ownership tracking.
+spec:
+  validationFailureAction: {{ .Values.policies.require_pod_annotations.action | default "Audit" }}
+  background: true
+  rules:
+    - name: require-owner-contact-annotations
+      match:
+        any:
+          - resources:
+              kinds:
+                - Deployment
+                - StatefulSet
+                - DaemonSet
+      validate:
+        message: >-
+          The annotations estabilis.io/owner and estabilis.io/contact are
+          required for audit trail and ownership tracking.
+        pattern:
+          metadata:
+            annotations:
+              estabilis.io/owner: "?*"
+              estabilis.io/contact: "?*"
+{{- end }}

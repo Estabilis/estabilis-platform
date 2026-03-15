@@ -1,0 +1,37 @@
+{{- if .Values.policies.generate_pdb.enabled }}
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: generate-pdb
+  annotations:
+    policies.kyverno.io/title: Generate PodDisruptionBudget
+    policies.kyverno.io/description: >-
+      Automatically generates a PodDisruptionBudget for Deployments with
+      2+ replicas to prevent all pods from being evicted simultaneously
+      during node maintenance or cluster autoscaling.
+spec:
+  background: true
+  rules:
+    - name: generate-pdb-for-deployments
+      match:
+        any:
+          - resources:
+              kinds:
+                - Deployment
+      preconditions:
+        all:
+          - key: "{{ request.object.spec.replicas || '1' }}"
+            operator: GreaterThan
+            value: "1"
+      generate:
+        synchronize: true
+        apiVersion: policy/v1
+        kind: PodDisruptionBudget
+        name: "{{ request.object.metadata.name }}-pdb"
+        namespace: "{{ request.object.metadata.namespace }}"
+        data:
+          spec:
+            minAvailable: 1
+            selector:
+              matchLabels: "{{ request.object.spec.selector.matchLabels }}"
+{{- end }}

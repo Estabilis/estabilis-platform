@@ -247,10 +247,19 @@ metadata:
     argocd.argoproj.io/sync-wave: "7"
 spec:
   project: platform
-  source:
-    repoURL: {{ .Values.platformRepoUrl }}
-    targetRevision: {{ .Values.platformVersion }}
-    path: core/components/mimir-rules
+  sources:
+    - repoURL: {{ .Values.platformRepoUrl }}
+      targetRevision: {{ .Values.platformVersion }}
+      path: core/components/mimir-rules
+      helm:
+        valueFiles:
+          - $values/core/components/mimir-rules/values.yaml
+          {{- include "platform-root.overrideValueFile" (dict "component" "mimir-rules" "root" $) | nindent 10 }}
+        {{- include "platform-root.ignoreMissingValueFiles" $ | nindent 8 }}
+    - repoURL: {{ .Values.platformRepoUrl }}
+      targetRevision: {{ .Values.platformVersion }}
+      ref: values
+    {{- include "platform-root.overrideSource" . | nindent 4 }}
   destination:
     server: https://kubernetes.default.svc
     namespace: grafana

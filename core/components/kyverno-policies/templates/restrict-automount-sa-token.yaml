@@ -1,0 +1,61 @@
+{{- if .Values.policies.restrict_automount_sa_token.enabled }}
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: restrict-automount-sa-token
+  annotations:
+    policies.kyverno.io/title: Restrict Automount Service Account Token
+    policies.kyverno.io/description: >-
+      Prevents pods from automatically mounting the service account token.
+      Most workloads do not need to interact with the Kubernetes API and
+      auto-mounted tokens can be exploited in case of container compromise.
+spec:
+  validationFailureAction: {{ .Values.policies.restrict_automount_sa_token.action | default "Audit" }}
+  background: true
+  rules:
+    - name: automount-sa-pods
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      validate:
+        message: "Pods must explicitly set automountServiceAccountToken to false."
+        deny:
+          conditions:
+            any:
+              - key: "{{ request.object.spec.automountServiceAccountToken || 'true' }}"
+                operator: Equals
+                value: "true"
+    - name: automount-sa-controllers
+      match:
+        any:
+          - resources:
+              kinds:
+                - Deployment
+                - StatefulSet
+                - DaemonSet
+                - Job
+      validate:
+        message: "Pods must explicitly set automountServiceAccountToken to false."
+        deny:
+          conditions:
+            any:
+              - key: "{{ request.object.spec.template.spec.automountServiceAccountToken || 'true' }}"
+                operator: Equals
+                value: "true"
+    - name: automount-sa-cronjob
+      match:
+        any:
+          - resources:
+              kinds:
+                - CronJob
+      validate:
+        message: "Pods must explicitly set automountServiceAccountToken to false."
+        deny:
+          conditions:
+            any:
+              - key: "{{ request.object.spec.jobTemplate.spec.template.spec.automountServiceAccountToken || 'true' }}"
+                operator: Equals
+                value: "true"
+{{- end }}

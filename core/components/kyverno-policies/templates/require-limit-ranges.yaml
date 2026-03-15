@@ -1,0 +1,51 @@
+{{- if .Values.policies.require_limit_ranges.enabled }}
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-limit-ranges
+  annotations:
+    policies.kyverno.io/title: Require Limit Ranges
+    policies.kyverno.io/description: >-
+      Automatically generates a default LimitRange for each new namespace.
+      LimitRanges set default resource requests and limits for containers
+      that do not specify them, preventing unbounded resource consumption.
+spec:
+  background: true
+  rules:
+    - name: generate-limit-range
+      match:
+        any:
+          - resources:
+              kinds:
+                - Namespace
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - kube-system
+                - kube-public
+                - kube-node-lease
+                - argocd
+      generate:
+        synchronize: true
+        apiVersion: v1
+        kind: LimitRange
+        name: default-limit-range
+        namespace: "{{ request.object.metadata.name }}"
+        data:
+          spec:
+            limits:
+              - type: Container
+                default:
+                  cpu: 500m
+                  memory: 512Mi
+                defaultRequest:
+                  cpu: 100m
+                  memory: 128Mi
+                max:
+                  cpu: "4"
+                  memory: 8Gi
+                min:
+                  cpu: 50m
+                  memory: 64Mi
+{{- end }}

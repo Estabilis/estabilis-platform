@@ -1,0 +1,73 @@
+{{- if .Values.policies.disallow_host_ports.enabled }}
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: disallow-host-ports
+  annotations:
+    policies.kyverno.io/title: Disallow Host Ports
+    policies.kyverno.io/description: >-
+      Prevents containers from binding to host ports. Using host ports ties a
+      pod to a specific node and opens a port directly on the host network
+      interface, bypassing network policies.
+spec:
+  validationFailureAction: {{ .Values.policies.disallow_host_ports.action | default "Audit" }}
+  background: true
+  rules:
+    - name: host-ports-pods
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      validate:
+        message: "Containers must not bind to host ports."
+        foreach:
+          - list: "request.object.spec.[containers, initContainers, ephemeralContainers][]"
+            deny:
+              conditions:
+                any:
+                  - key: "{{ element.ports[].hostPort || ['0'] }}"
+                    operator: AnyNotIn
+                    value:
+                      - 0
+                      - ""
+    - name: host-ports-controllers
+      match:
+        any:
+          - resources:
+              kinds:
+                - Deployment
+                - StatefulSet
+                - DaemonSet
+                - Job
+      validate:
+        message: "Containers must not bind to host ports."
+        foreach:
+          - list: "request.object.spec.template.spec.[containers, initContainers, ephemeralContainers][]"
+            deny:
+              conditions:
+                any:
+                  - key: "{{ element.ports[].hostPort || ['0'] }}"
+                    operator: AnyNotIn
+                    value:
+                      - 0
+                      - ""
+    - name: host-ports-cronjob
+      match:
+        any:
+          - resources:
+              kinds:
+                - CronJob
+      validate:
+        message: "Containers must not bind to host ports."
+        foreach:
+          - list: "request.object.spec.jobTemplate.spec.template.spec.[containers, initContainers, ephemeralContainers][]"
+            deny:
+              conditions:
+                any:
+                  - key: "{{ element.ports[].hostPort || ['0'] }}"
+                    operator: AnyNotIn
+                    value:
+                      - 0
+                      - ""
+{{- end }}

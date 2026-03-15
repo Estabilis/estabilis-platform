@@ -1,0 +1,75 @@
+{{- if .Values.policies.require_run_as_nonroot.enabled }}
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-run-as-nonroot
+  annotations:
+    policies.kyverno.io/title: Require Run As Non-Root
+    policies.kyverno.io/description: >-
+      Requires containers to run as a non-root user. Running as root inside a
+      container increases the risk of container breakout and host compromise.
+spec:
+  validationFailureAction: {{ .Values.policies.require_run_as_nonroot.action | default "Audit" }}
+  background: true
+  rules:
+    - name: run-as-nonroot-pods
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      validate:
+        message: "Containers must set runAsNonRoot to true."
+        foreach:
+          - list: "request.object.spec.[containers, initContainers, ephemeralContainers][]"
+            deny:
+              conditions:
+                all:
+                  - key: "{{ element.securityContext.runAsNonRoot || 'unset' }}"
+                    operator: NotEquals
+                    value: true
+                  - key: "{{ request.object.spec.securityContext.runAsNonRoot || 'unset' }}"
+                    operator: NotEquals
+                    value: true
+    - name: run-as-nonroot-controllers
+      match:
+        any:
+          - resources:
+              kinds:
+                - Deployment
+                - StatefulSet
+                - DaemonSet
+                - Job
+      validate:
+        message: "Containers must set runAsNonRoot to true."
+        foreach:
+          - list: "request.object.spec.template.spec.[containers, initContainers, ephemeralContainers][]"
+            deny:
+              conditions:
+                all:
+                  - key: "{{ element.securityContext.runAsNonRoot || 'unset' }}"
+                    operator: NotEquals
+                    value: true
+                  - key: "{{ request.object.spec.template.spec.securityContext.runAsNonRoot || 'unset' }}"
+                    operator: NotEquals
+                    value: true
+    - name: run-as-nonroot-cronjob
+      match:
+        any:
+          - resources:
+              kinds:
+                - CronJob
+      validate:
+        message: "Containers must set runAsNonRoot to true."
+        foreach:
+          - list: "request.object.spec.jobTemplate.spec.template.spec.[containers, initContainers, ephemeralContainers][]"
+            deny:
+              conditions:
+                all:
+                  - key: "{{ element.securityContext.runAsNonRoot || 'unset' }}"
+                    operator: NotEquals
+                    value: true
+                  - key: "{{ request.object.spec.jobTemplate.spec.template.spec.securityContext.runAsNonRoot || 'unset' }}"
+                    operator: NotEquals
+                    value: true
+{{- end }}

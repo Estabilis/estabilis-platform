@@ -1,0 +1,74 @@
+{{- if .Values.policies.no_privilege_escalation.enabled }}
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: no-privilege-escalation
+  annotations:
+    policies.kyverno.io/title: Disallow Privilege Escalation
+    policies.kyverno.io/description: >-
+      Requires all containers to set allowPrivilegeEscalation=false and runAsNonRoot=true.
+spec:
+  validationFailureAction: {{ .Values.policies.no_privilege_escalation.action | default "Audit" }}
+  background: true
+  rules:
+    - name: deny-privilege-escalation-pods
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      validate:
+        message: "Containers must set allowPrivilegeEscalation=false and runAsNonRoot=true."
+        foreach:
+          - list: "request.object.spec.[containers, initContainers, ephemeralContainers][]"
+            deny:
+              conditions:
+                any:
+                  - key: "{{ element.securityContext.allowPrivilegeEscalation || 'true' }}"
+                    operator: Equals
+                    value: "true"
+                  - key: "{{ element.securityContext.runAsNonRoot || 'false' }}"
+                    operator: Equals
+                    value: "false"
+    - name: deny-privilege-escalation-controllers
+      match:
+        any:
+          - resources:
+              kinds:
+                - Deployment
+                - StatefulSet
+                - DaemonSet
+                - Job
+      validate:
+        message: "Containers must set allowPrivilegeEscalation=false and runAsNonRoot=true."
+        foreach:
+          - list: "request.object.spec.template.spec.[containers, initContainers, ephemeralContainers][]"
+            deny:
+              conditions:
+                any:
+                  - key: "{{ element.securityContext.allowPrivilegeEscalation || 'true' }}"
+                    operator: Equals
+                    value: "true"
+                  - key: "{{ element.securityContext.runAsNonRoot || 'false' }}"
+                    operator: Equals
+                    value: "false"
+    - name: deny-privilege-escalation-cronjob
+      match:
+        any:
+          - resources:
+              kinds:
+                - CronJob
+      validate:
+        message: "Containers must set allowPrivilegeEscalation=false and runAsNonRoot=true."
+        foreach:
+          - list: "request.object.spec.jobTemplate.spec.template.spec.[containers, initContainers, ephemeralContainers][]"
+            deny:
+              conditions:
+                any:
+                  - key: "{{ element.securityContext.allowPrivilegeEscalation || 'true' }}"
+                    operator: Equals
+                    value: "true"
+                  - key: "{{ element.securityContext.runAsNonRoot || 'false' }}"
+                    operator: Equals
+                    value: "false"
+{{- end }}

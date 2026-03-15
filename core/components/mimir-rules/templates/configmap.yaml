@@ -7,9 +7,15 @@ metadata:
     estabilis.io/managed-by: platform
     estabilis.io/component: mimir-rules
 data:
+  {{- if .Values.ruleGroups.platformDown.enabled }}
   tier1-platform-down.yaml: |
 {{ .Files.Get "files/tier1-platform-down.yaml" | indent 4 }}
+  {{- end }}
+  {{- if .Values.ruleGroups.platformDegradation.enabled }}
   tier2-degradation.yaml: |
 {{ .Files.Get "files/tier2-degradation.yaml" | indent 4 }}
+  {{- end }}
+  {{- if .Values.ruleGroups.platformOperational.enabled }}
   tier3-operational.yaml: |
 {{ .Files.Get "files/tier3-operational.yaml" | indent 4 }}
+  {{- end }}
