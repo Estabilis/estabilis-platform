@@ -455,7 +455,7 @@
             "uid": "${datasource}"
           },
           "exemplar": false,
-          "expr": "clamp_max(sum(increase(velero_csi_snapshot_success_total{schedule!=\"\"}[24h])) / clamp_min(sum(increase(velero_csi_snapshot_attempt_total{schedule!=\"\"}[24h])), 1), 1)",
+          "expr": "avg(velero_backup_last_status{schedule!=\"\"} == bool 1)",
           "format": "time_series",
           "interval": "",
           "intervalFactor": 1,
