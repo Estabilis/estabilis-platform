@@ -1,0 +1,138 @@
+groups:
+- name: platform-down
+  interval: 1m
+  rules:
+  - alert: ArgocdAppOutOfSync
+    expr: argocd_app_info{sync_status!="Synced", project="platform"}
+    for: 10m
+    labels:
+      severity: critical
+      tier: '1'
+      component: argocd
+    annotations:
+      summary: ArgoCD Application {{ $labels.name }} is out of sync
+      description: Application {{ $labels.name }} has sync status {{ $labels.sync_status
+        }} for more than 10 minutes.
+  - alert: ArgocdAppDegraded
+    expr: argocd_app_info{health_status!="Healthy", health_status!="", project="platform"}
+    for: 10m
+    labels:
+      severity: critical
+      tier: '1'
+      component: argocd
+    annotations:
+      summary: ArgoCD Application {{ $labels.name }} is degraded
+      description: Application {{ $labels.name }} has health status {{ $labels.health_status
+        }} for more than 10 minutes.
+  - alert: ArgocdServerDown
+    expr: up{job="argocd-server"} == 0
+    for: 3m
+    labels:
+      severity: critical
+      tier: '1'
+      component: argocd
+    annotations:
+      summary: ArgoCD server is down
+      description: ArgoCD server is not responding on {{ $labels.instance }} for more
+        than 3 minutes. GitOps operations are stopped.
+  - alert: PodCrashLoopingCritical
+    expr: increase(kube_pod_container_status_restarts_total{namespace=~"argocd|cert-manager|external-secrets|kyverno|cnpg-system|traefik"}[1h])
+      > 5
+    for: 5m
+    labels:
+      severity: critical
+      tier: '1'
+      component: '{{ $labels.namespace }}'
+    annotations:
+      summary: Pod {{ $labels.namespace }}/{{ $labels.pod }} is crash-looping
+      description: Pod {{ $labels.pod }} in namespace {{ $labels.namespace }} has
+        restarted {{ $value }} times in the last hour.
+  - alert: NodeNotReady
+    expr: kube_node_status_condition{condition="Ready", status="false"} == 1
+    for: 5m
+    labels:
+      severity: critical
+      tier: '1'
+      component: infrastructure
+    annotations:
+      summary: Node {{ $labels.node }} is not ready
+      description: Node {{ $labels.node }} has been in NotReady state for more than
+        5 minutes.
+  - alert: CnpgPostgresqlDown
+    expr: up{job="cnpg-cluster"} == 0
+    for: 3m
+    labels:
+      severity: critical
+      tier: '1'
+      component: cnpg
+    annotations:
+      summary: CNPG PostgreSQL is down
+      description: PostgreSQL instance {{ $labels.pod }} is not responding. Grafana
+        and ArgoCD databases are affected.
+  - alert: MimirIngesterDown
+    expr: kube_statefulset_status_replicas_ready{namespace="grafana", statefulset="grafana-mimir-ingester"}
+      == 0
+    for: 3m
+    labels:
+      severity: critical
+      tier: '1'
+      component: mimir
+    annotations:
+      summary: Mimir ingester is down
+      description: Mimir ingester has zero ready replicas. Metrics are not being stored.
+  - alert: LokiDown
+    expr: kube_statefulset_status_replicas_ready{namespace="grafana", statefulset="grafana-loki"}
+      == 0
+    for: 3m
+    labels:
+      severity: critical
+      tier: '1'
+      component: loki
+    annotations:
+      summary: Loki is down
+      description: Loki has zero ready replicas. Logs are not being ingested.
+  - alert: KyvernoWebhookDown
+    expr: up{job="kyverno", component="admission-controller"} == 0
+    for: 3m
+    labels:
+      severity: critical
+      tier: '1'
+      component: kyverno
+    annotations:
+      summary: Kyverno admission controller is down
+      description: Kyverno webhook is not responding. Policy enforcement is disabled.
+  - alert: DaemonSetUnavailable
+    expr: kube_daemonset_status_number_unavailable{daemonset=~"grafana-alloy|node-exporter-prometheus-node-exporter"}
+      > 0
+    for: 5m
+    labels:
+      severity: critical
+      tier: '1'
+      component: monitoring
+    annotations:
+      summary: DaemonSet {{ $labels.daemonset }} has unavailable pods
+      description: DaemonSet {{ $labels.daemonset }} has {{ $value }} unavailable
+        pods. Metrics or logs collection may be incomplete.
+  - alert: ArgocdApplicationControllerDown
+    expr: kube_statefulset_status_replicas_ready{namespace="argocd", statefulset="argocd-application-controller"}
+      == 0
+    for: 3m
+    labels:
+      severity: critical
+      tier: '1'
+      component: argocd
+    annotations:
+      summary: ArgoCD Application Controller is down
+      description: ArgoCD Application Controller has zero ready replicas. No applications
+        will sync.
+  - alert: TempoDown
+    expr: kube_statefulset_status_replicas_ready{namespace="grafana", statefulset="grafana-tempo"}
+      == 0
+    for: 3m
+    labels:
+      severity: critical
+      tier: '1'
+      component: tempo
+    annotations:
+      summary: Tempo is down
+      description: Tempo has zero ready replicas. Distributed tracing is not functioning.

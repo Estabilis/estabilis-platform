@@ -1,0 +1,69 @@
+groups:
+- name: platform-operational
+  interval: 1m
+  rules:
+  - alert: DeploymentReplicasMismatch
+    expr: kube_deployment_spec_replicas{namespace=~"argocd|grafana|cert-manager|kyverno|external-secrets|external-dns|traefik|velero"} != kube_deployment_status_available_replicas
+    for: 15m
+    labels:
+      severity: info
+      tier: '3'
+      component: '{{ $labels.namespace }}'
+    annotations:
+      summary: Deployment {{ $labels.deployment }} has replica mismatch
+      description: Deployment {{ $labels.deployment }} in {{ $labels.namespace }} wants {{ $labels.spec_replicas }} replicas but only has {{ $labels.available_replicas }} available for 15 minutes.
+
+  - alert: HighCpuThrottling
+    expr: rate(container_cpu_cfs_throttled_periods_total{namespace=~"argocd|grafana|cert-manager|kyverno|cnpg-system", container!=""}[5m]) / clamp_min(rate(container_cpu_cfs_periods_total[5m]), 1) > 0.5
+    for: 15m
+    labels:
+      severity: info
+      tier: '3'
+      component: '{{ $labels.namespace }}'
+    annotations:
+      summary: Container {{ $labels.container }} is heavily CPU throttled
+      description: Container {{ $labels.container }} in pod {{ $labels.pod }} ({{ $labels.namespace }}) is throttled {{ $value | humanizePercentage }} of the time. Consider increasing CPU limits.
+
+  - alert: KyvernoPolicyViolation
+    expr: increase(kyverno_policy_results{rule_result="fail"}[1h]) > 100
+    for: 15m
+    labels:
+      severity: info
+      tier: '3'
+      component: kyverno
+    annotations:
+      summary: High rate of Kyverno policy violations
+      description: More than 100 policy violations in the last hour. Policy {{ $labels.policy_name }} rule {{ $labels.rule_name }}.
+
+  - alert: TraefikHighError5xx
+    expr: sum(rate(traefik_service_requests_total{code=~"5.."}[5m])) / clamp_min(sum(rate(traefik_service_requests_total[5m])), 1) > 0.05
+    for: 10m
+    labels:
+      severity: info
+      tier: '3'
+      component: traefik
+    annotations:
+      summary: Traefik 5xx error rate above 5%
+      description: Traefik is returning {{ $value | humanizePercentage }} 5xx errors. Check backend services.
+
+  - alert: NodeDiskPressure
+    expr: kube_node_status_condition{condition="DiskPressure", status="true"} == 1
+    for: 5m
+    labels:
+      severity: info
+      tier: '3'
+      component: infrastructure
+    annotations:
+      summary: Node {{ $labels.node }} has disk pressure
+      description: Node {{ $labels.node }} is under disk pressure. Pods may be evicted.
+
+  - alert: NodeMemoryPressure
+    expr: kube_node_status_condition{condition="MemoryPressure", status="true"} == 1
+    for: 5m
+    labels:
+      severity: info
+      tier: '3'
+      component: infrastructure
+    annotations:
+      summary: Node {{ $labels.node }} has memory pressure
+      description: Node {{ $labels.node }} is under memory pressure. Pods may be evicted.

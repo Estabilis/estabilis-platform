@@ -1,0 +1,167 @@
+groups:
+- name: platform-degradation
+  interval: 1m
+  rules:
+  - alert: VeleroBackupFailed
+    expr: increase(velero_backup_failure_total{schedule!=""}[24h]) > 0 or increase(velero_backup_partial_failure_total{schedule!=""}[24h])
+      > 0
+    for: 15m
+    labels:
+      severity: warning
+      tier: '2'
+      component: velero
+    annotations:
+      summary: Velero backup failed or partially failed
+      description: Backup schedule {{ $labels.schedule }} had failures in the last
+        24 hours.
+  - alert: VeleroBslUnavailable
+    expr: velero_backup_location_status_gauge == 0
+    for: 10m
+    labels:
+      severity: warning
+      tier: '2'
+      component: velero
+    annotations:
+      summary: Velero backup storage location is unavailable
+      description: BSL {{ $labels.backup_location_name }} is not accessible. Backups
+        will fail.
+  - alert: CertificateExpiring14d
+    expr: certmanager_certificate_expiration_timestamp_seconds - time() < 1209600
+    for: 15m
+    labels:
+      severity: warning
+      tier: '2'
+      component: cert-manager
+    annotations:
+      summary: Certificate {{ $labels.name }} expires in less than 14 days
+      description: Certificate {{ $labels.name }} in namespace {{ $labels.namespace
+        }} expires in {{ $value | humanizeDuration }}.
+  - alert: CertificateExpiring3d
+    expr: certmanager_certificate_expiration_timestamp_seconds - time() < 259200
+    for: 5m
+    labels:
+      severity: warning
+      tier: '2'
+      component: cert-manager
+    annotations:
+      summary: 'URGENT: Certificate {{ $labels.name }} expires in less than 3 days'
+      description: Certificate {{ $labels.name }} in namespace {{ $labels.namespace
+        }} expires in {{ $value | humanizeDuration }}. Immediate action required.
+  - alert: PvcAlmostFull
+    expr: kubelet_volume_stats_used_bytes / kubelet_volume_stats_capacity_bytes >
+      0.85
+    for: 15m
+    labels:
+      severity: warning
+      tier: '2'
+      component: storage
+    annotations:
+      summary: PVC {{ $labels.persistentvolumeclaim }} is {{ $value | humanizePercentage
+        }} full
+      description: PVC {{ $labels.persistentvolumeclaim }} in namespace {{ $labels.namespace
+        }} is over 85% capacity.
+  - alert: PvcFull
+    expr: kubelet_volume_stats_used_bytes / kubelet_volume_stats_capacity_bytes >
+      0.95
+    for: 5m
+    labels:
+      severity: warning
+      tier: '2'
+      component: storage
+    annotations:
+      summary: 'CRITICAL: PVC {{ $labels.persistentvolumeclaim }} is {{ $value | humanizePercentage
+        }} full'
+      description: PVC {{ $labels.persistentvolumeclaim }} in namespace {{ $labels.namespace
+        }} is over 95% capacity. Imminent data loss risk.
+  - alert: MimirIngestionErrors
+    expr: rate(cortex_discarded_samples_total[5m]) > 100
+    for: 15m
+    labels:
+      severity: warning
+      tier: '2'
+      component: mimir
+    annotations:
+      summary: Mimir discarding more than 100 samples/sec
+      description: Mimir is discarding {{ $value }} samples per second. Metrics data
+        is being lost.
+  - alert: LokiHighErrorRate
+    expr: sum(rate(loki_request_duration_seconds_count{status_code=~"5.."}[5m])) /
+      clamp_min(sum(rate(loki_request_duration_seconds_count[5m])), 1) > 0.05
+    for: 15m
+    labels:
+      severity: warning
+      tier: '2'
+      component: loki
+    annotations:
+      summary: Loki error rate above 5%
+      description: Loki has a {{ $value | humanizePercentage }} error rate. Log ingestion
+        may be degraded.
+  - alert: ExternalDnsErrors
+    expr: increase(external_dns_source_errors_total[10m]) > 5
+    for: 10m
+    labels:
+      severity: warning
+      tier: '2'
+      component: external-dns
+    annotations:
+      summary: ExternalDNS source errors detected
+      description: ExternalDNS had {{ $value }} source errors in the last 10 minutes.
+        DNS records may not be updating.
+  - alert: ExternalSecretsNotSynced
+    expr: externalsecret_status_condition{condition="Ready", status="False"} > 0
+    for: 30m
+    labels:
+      severity: warning
+      tier: '2'
+      component: external-secrets
+    annotations:
+      summary: ExternalSecret {{ $labels.name }} is not syncing
+      description: ExternalSecret {{ $labels.name }} in namespace {{ $labels.namespace
+        }} has been in Failed state for 30 minutes. Secrets are stale.
+  - alert: AlloyScrapeFailure
+    expr: up{job=~"argocd-server|cert-manager|velero|kyverno|cnpg-cluster"} == 0
+    for: 10m
+    labels:
+      severity: warning
+      tier: '2'
+      component: alloy
+    annotations:
+      summary: Alloy cannot scrape {{ $labels.job }}
+      description: Metrics collection for {{ $labels.job }} ({{ $labels.instance }})
+        has been down for 10 minutes. Monitoring is blind for this component.
+  - alert: HighMemoryUsage
+    expr: container_memory_working_set_bytes{namespace=~"argocd|grafana|cert-manager|kyverno|cnpg-system",
+      container!=""} / container_spec_memory_limit_bytes > 0.95 and container_spec_memory_limit_bytes
+      > 134217728
+    for: 15m
+    labels:
+      severity: warning
+      tier: '2'
+      component: '{{ $labels.namespace }}'
+    annotations:
+      summary: Pod {{ $labels.pod }} memory at {{ $value | humanizePercentage }}
+      description: Container {{ $labels.container }} in pod {{ $labels.pod }} ({{
+        $labels.namespace }}) is using over 95% of memory limit. OOM kill imminent.
+  - alert: PodCrashLoopingWarning
+    expr: increase(kube_pod_container_status_restarts_total{namespace=~"grafana|velero|opencost|trivy-system|external-dns|node-exporter|kube-state-metrics"}[1h])
+      > 5
+    for: 15m
+    labels:
+      severity: warning
+      tier: '2'
+      component: '{{ $labels.namespace }}'
+    annotations:
+      summary: Pod {{ $labels.namespace }}/{{ $labels.pod }} is crash-looping
+      description: Pod {{ $labels.pod }} in namespace {{ $labels.namespace }} has
+        restarted {{ $value }} times in the last hour.
+  - alert: VeleroNoRecentBackup
+    expr: time() - velero_backup_last_successful_timestamp{schedule!=""} > 86400
+    for: 15m
+    labels:
+      severity: warning
+      tier: '2'
+      component: velero
+    annotations:
+      summary: No successful backup in the last 24 hours
+      description: Schedule {{ $labels.schedule }} has not completed a successful
+        backup in over 24 hours. Data protection is at risk.
