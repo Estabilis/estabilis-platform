@@ -226,7 +226,7 @@
             "uid": "${datasource}"
           },
           "exemplar": false,
-          "expr": "velero_backup_last_status",
+          "expr": "velero_backup_last_status{schedule!=\"\"}",
           "format": "time_series",
           "instant": true,
           "interval": "",
