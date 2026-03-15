@@ -11,6 +11,18 @@ backgroundController:
   enabled: true
   metricsService:
     create: true
+  rbac:
+    clusterRole:
+      extraResources:
+        - apiGroups: ["policy"]
+          resources: ["poddisruptionbudgets"]
+          verbs: ["create", "update", "delete", "get", "list"]
+        - apiGroups: ["networking.k8s.io"]
+          resources: ["networkpolicies"]
+          verbs: ["create", "update", "delete", "get", "list"]
+        - apiGroups: [""]
+          resources: ["resourcequotas", "limitranges"]
+          verbs: ["create", "update", "delete", "get", "list"]
 
 cleanupController:
   enabled: true
