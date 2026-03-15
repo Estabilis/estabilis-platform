@@ -137,40 +137,64 @@
       "description": "The last status of the backup. A value of 1 indicates success, while a value of 0 indicates failure.",
       "fieldConfig": {
         "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
           "mappings": [
             {
               "options": {
-                "match": "null",
-                "result": {
-                  "text": "N/A"
+                "0": {
+                  "text": "Failed",
+                  "color": "red",
+                  "index": 0
                 }
               },
-              "type": "special"
+              "type": "value"
+            },
+            {
+              "options": {
+                "1": {
+                  "text": "Completed",
+                  "color": "green",
+                  "index": 1
+                }
+              },
+              "type": "value"
+            },
+            {
+              "options": {
+                "2": {
+                  "text": "Partial Failure",
+                  "color": "yellow",
+                  "index": 2
+                }
+              },
+              "type": "value"
+            },
+            {
+              "options": {
+                "3": {
+                  "text": "In Progress",
+                  "color": "blue",
+                  "index": 3
+                }
+              },
+              "type": "value"
             }
           ],
-          "max": 100,
-          "min": 0,
           "thresholds": {
             "mode": "absolute",
             "steps": [
               {
-                "color": "#d44a3a",
+                "color": "red",
                 "value": null
               },
               {
-                "color": "rgba(237, 129, 40, 0.89)",
-                "value": 0.95
-              },
-              {
-                "color": "#299c46",
-                "value": 0.99
+                "color": "green",
+                "value": 1
               }
             ]
           },
-          "unit": "short"
+          "color": {
+            "mode": "thresholds"
+          }
         },
         "overrides": []
       },
@@ -184,18 +208,15 @@
       "links": [],
       "maxDataPoints": 100,
       "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "auto",
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "auto"
+          ]
+        }
       },
       "pluginVersion": "8.4.4",
       "targets": [
