@@ -231,7 +231,7 @@
           "instant": true,
           "interval": "",
           "intervalFactor": 1,
-          "legendFormat": "",
+          "legendFormat": "{{schedule}}",
           "refId": "A"
         }
       ],
