@@ -17,38 +17,47 @@ spec:
       restartPolicy: OnFailure
       containers:
         - name: upload
-          image: curlimages/curl:latest
+          image: python:3.12-alpine
           command:
-            - sh
+            - python3
             - -c
             - |
-              set -e
-              GATEWAY="{{ .Values.mimirGatewayUrl }}"
-              TENANT="{{ .Values.tenantId }}"
-              NS="{{ .Values.rulesNamespace }}"
+              import yaml, urllib.request, json, os, glob
 
-              echo "==> Uploading alerting rules to Mimir Ruler..."
+              gateway = "{{ .Values.mimirGatewayUrl }}"
+              tenant = "{{ .Values.tenantId }}"
+              ns = "{{ .Values.rulesNamespace }}"
 
-              for file in /rules/*.yaml; do
-                filename=$(basename "$file")
-                echo "  Processing $filename..."
+              print("==> Uploading alerting rules to Mimir Ruler...")
 
-                # Extract each group from the file and upload separately
-                # The file has format: groups:\n- name: xxx\n  rules: [...]
-                # Mimir API expects just the group content (name + rules), not the groups: wrapper
+              for filepath in sorted(glob.glob("/rules/*.yaml")):
+                  filename = os.path.basename(filepath)
+                  with open(filepath) as f:
+                      data = yaml.safe_load(f)
 
-                # Use sed to extract group content (skip the "groups:" and "- " prefix)
-                sed '1d;s/^- //' "$file" | \
-                  curl -sf -X POST \
-                    -H "X-Scope-OrgID: $TENANT" \
-                    -H "Content-Type: application/yaml" \
-                    --data-binary @- \
-                    "$GATEWAY/prometheus/config/v1/rules/$NS"
+                  for group in data.get("groups", []):
+                      group_yaml = yaml.dump(group, default_flow_style=False, sort_keys=False)
+                      url = f"{gateway}/prometheus/config/v1/rules/{ns}"
 
-                echo "  OK: $filename uploaded"
-              done
+                      req = urllib.request.Request(
+                          url,
+                          data=group_yaml.encode(),
+                          headers={
+                              "X-Scope-OrgID": tenant,
+                              "Content-Type": "application/yaml",
+                          },
+                          method="POST",
+                      )
+                      try:
+                          resp = urllib.request.urlopen(req)
+                          result = json.loads(resp.read())
+                          print(f"  OK: {filename} group '{group['name']}' ({len(group.get('rules', []))} rules)")
+                      except urllib.error.HTTPError as e:
+                          body = e.read().decode()
+                          print(f"  FAIL: {filename} group '{group['name']}': {e.code} {body}")
+                          raise
 
-              echo "==> All rules uploaded successfully"
+              print("==> All rules uploaded successfully")
           volumeMounts:
             - name: rules
               mountPath: /rules
