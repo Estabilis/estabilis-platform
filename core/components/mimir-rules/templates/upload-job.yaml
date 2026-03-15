@@ -19,50 +19,82 @@ spec:
         - name: upload
           image: python:3.12-alpine
           command:
-            - python3
+            - sh
             - -c
             - |
-              import yaml, urllib.request, json, os, glob
-
-              gateway = "{{ .Values.mimirGatewayUrl }}"
-              tenant = "{{ .Values.tenantId }}"
-              ns = "{{ .Values.rulesNamespace }}"
-
-              print("==> Uploading alerting rules to Mimir Ruler...")
-
-              for filepath in sorted(glob.glob("/rules/*.yaml")):
-                  filename = os.path.basename(filepath)
-                  with open(filepath) as f:
-                      data = yaml.safe_load(f)
-
-                  for group in data.get("groups", []):
-                      group_yaml = yaml.dump(group, default_flow_style=False, sort_keys=False)
-                      url = f"{gateway}/prometheus/config/v1/rules/{ns}"
-
-                      req = urllib.request.Request(
-                          url,
-                          data=group_yaml.encode(),
-                          headers={
-                              "X-Scope-OrgID": tenant,
-                              "Content-Type": "application/yaml",
-                          },
-                          method="POST",
-                      )
-                      try:
-                          resp = urllib.request.urlopen(req)
-                          result = json.loads(resp.read())
-                          print(f"  OK: {filename} group '{group['name']}' ({len(group.get('rules', []))} rules)")
-                      except urllib.error.HTTPError as e:
-                          body = e.read().decode()
-                          print(f"  FAIL: {filename} group '{group['name']}': {e.code} {body}")
-                          raise
-
-              print("==> All rules uploaded successfully")
+              pip install -q pyyaml 2>/dev/null
+              python3 /scripts/upload.py
           volumeMounts:
             - name: rules
               mountPath: /rules
+              readOnly: true
+            - name: script
+              mountPath: /scripts
               readOnly: true
       volumes:
         - name: rules
           configMap:
             name: mimir-alerting-rules
+        - name: script
+          configMap:
+            name: mimir-rules-upload-script
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mimir-rules-upload-script
+  namespace: grafana
+  labels:
+    estabilis.io/managed-by: platform
+    estabilis.io/component: mimir-rules
+data:
+  upload.py: |
+    import urllib.request, json, os, glob, sys
+
+    # Install yaml if needed
+    try:
+        import yaml
+    except ImportError:
+        os.system("pip install -q pyyaml")
+        import yaml
+
+    gateway = os.environ.get("MIMIR_GATEWAY", "{{ .Values.mimirGatewayUrl }}")
+    tenant = os.environ.get("MIMIR_TENANT", "{{ .Values.tenantId }}")
+    ns = os.environ.get("MIMIR_RULES_NS", "{{ .Values.rulesNamespace }}")
+
+    print("==> Uploading alerting rules to Mimir Ruler...")
+
+    errors = 0
+    for filepath in sorted(glob.glob("/rules/*.yaml")):
+        filename = os.path.basename(filepath)
+        with open(filepath) as f:
+            data = yaml.safe_load(f)
+
+        for group in data.get("groups", []):
+            group_yaml = yaml.dump(group, default_flow_style=False, sort_keys=False)
+            url = f"{gateway}/prometheus/config/v1/rules/{ns}"
+
+            req = urllib.request.Request(
+                url,
+                data=group_yaml.encode(),
+                headers={
+                    "X-Scope-OrgID": tenant,
+                    "Content-Type": "application/yaml",
+                },
+                method="POST",
+            )
+            try:
+                resp = urllib.request.urlopen(req)
+                result = json.loads(resp.read())
+                rules_count = len(group.get("rules", []))
+                print(f"  OK: {filename} group '{group['name']}' ({rules_count} rules)")
+            except urllib.error.HTTPError as e:
+                body = e.read().decode()
+                print(f"  FAIL: {filename} group '{group['name']}': {e.code} {body}")
+                errors += 1
+
+    if errors > 0:
+        print(f"==> {errors} errors occurred")
+        sys.exit(1)
+    else:
+        print("==> All rules uploaded successfully")
