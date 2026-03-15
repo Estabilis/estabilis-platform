@@ -19,3 +19,11 @@ data:
   tier3-operational.yaml: |
 {{ .Files.Get "files/tier3-operational.yaml" | indent 4 }}
   {{- end }}
+  {{- range $name, $group := .Values.customRuleGroups }}
+  custom-{{ $name }}.yaml: |
+    groups:
+    - name: {{ $name }}
+      interval: 1m
+      rules:
+      {{- toYaml $group.rules | nindent 6 }}
+  {{- end }}

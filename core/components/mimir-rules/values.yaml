@@ -10,3 +10,18 @@ ruleGroups:
     enabled: true
   platformOperational:
     enabled: true
+
+# Custom rule groups — clients can add their own alerting rules here.
+# Each entry renders as a separate YAML file uploaded to Mimir Ruler.
+# Example:
+#   customRuleGroups:
+#     app-alerts:
+#       rules:
+#         - alert: MyAppDown
+#           expr: up{job="my-app"} == 0
+#           for: 5m
+#           labels:
+#             severity: critical
+#           annotations:
+#             summary: "My app is down"
+customRuleGroups: {}
