@@ -5,19 +5,21 @@ metadata:
   annotations:
     policies.kyverno.io/title: Require Probes
     policies.kyverno.io/description: >-
-      Requires all Deployment containers to define liveness and readiness probes.
-      Probes enable Kubernetes to detect unhealthy pods and route traffic only to
-      healthy instances.
+      Requires all long-running workload containers to define liveness and
+      readiness probes. Probes enable Kubernetes to detect unhealthy pods
+      and route traffic only to healthy instances.
 spec:
   validationFailureAction: Audit
   background: true
   rules:
-    - name: require-probes-deployment
+    - name: require-probes-controllers
       match:
         any:
           - resources:
               kinds:
                 - Deployment
+                - StatefulSet
+                - DaemonSet
       validate:
         message: "All containers must define livenessProbe and readinessProbe."
         foreach:

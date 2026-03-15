@@ -19,7 +19,7 @@ spec:
       validate:
         message: "All containers must have CPU and memory requests and limits defined."
         foreach:
-          - list: "request.object.spec.[containers, initContainers][]"
+          - list: "request.object.spec.[containers, initContainers, ephemeralContainers][]"
             deny:
               conditions:
                 any:
@@ -47,7 +47,7 @@ spec:
       validate:
         message: "All containers must have CPU and memory requests and limits defined."
         foreach:
-          - list: "request.object.spec.template.spec.[containers, initContainers][]"
+          - list: "request.object.spec.template.spec.[containers, initContainers, ephemeralContainers][]"
             deny:
               conditions:
                 any:
@@ -72,7 +72,7 @@ spec:
       validate:
         message: "All containers must have CPU and memory requests and limits defined."
         foreach:
-          - list: "request.object.spec.jobTemplate.spec.template.spec.[containers, initContainers][]"
+          - list: "request.object.spec.jobTemplate.spec.template.spec.[containers, initContainers, ephemeralContainers][]"
             deny:
               conditions:
                 any:

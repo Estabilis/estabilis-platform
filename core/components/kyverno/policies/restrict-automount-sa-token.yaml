@@ -19,10 +19,13 @@ spec:
               kinds:
                 - Pod
       validate:
-        message: "Pods should set automountServiceAccountToken to false."
-        pattern:
-          spec:
-            automountServiceAccountToken: false
+        message: "Pods must explicitly set automountServiceAccountToken to false."
+        deny:
+          conditions:
+            any:
+              - key: "{{ request.object.spec.automountServiceAccountToken || 'true' }}"
+                operator: Equals
+                value: "true"
     - name: automount-sa-controllers
       match:
         any:
@@ -33,12 +36,13 @@ spec:
                 - DaemonSet
                 - Job
       validate:
-        message: "Pods should set automountServiceAccountToken to false."
-        pattern:
-          spec:
-            template:
-              spec:
-                automountServiceAccountToken: false
+        message: "Pods must explicitly set automountServiceAccountToken to false."
+        deny:
+          conditions:
+            any:
+              - key: "{{ request.object.spec.template.spec.automountServiceAccountToken || 'true' }}"
+                operator: Equals
+                value: "true"
     - name: automount-sa-cronjob
       match:
         any:
@@ -46,11 +50,10 @@ spec:
               kinds:
                 - CronJob
       validate:
-        message: "Pods should set automountServiceAccountToken to false."
-        pattern:
-          spec:
-            jobTemplate:
-              spec:
-                template:
-                  spec:
-                    automountServiceAccountToken: false
+        message: "Pods must explicitly set automountServiceAccountToken to false."
+        deny:
+          conditions:
+            any:
+              - key: "{{ request.object.spec.jobTemplate.spec.template.spec.automountServiceAccountToken || 'true' }}"
+                operator: Equals
+                value: "true"
