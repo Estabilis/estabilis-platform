@@ -31,10 +31,10 @@
     {
       "collapsed": false,
       "gridPos": {
-        "h": 1,
-        "w": 24,
         "x": 0,
-        "y": 0
+        "y": 0,
+        "w": 24,
+        "h": 1
       },
       "id": 15,
       "panels": [],
@@ -87,10 +87,10 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 9,
-        "w": 3,
         "x": 0,
-        "y": 1
+        "y": 1,
+        "w": 3,
+        "h": 5
       },
       "id": 23,
       "links": [],
@@ -175,10 +175,10 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 9,
-        "w": 3,
         "x": 3,
-        "y": 1
+        "y": 1,
+        "w": 3,
+        "h": 5
       },
       "id": 48,
       "links": [],
@@ -263,10 +263,10 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 4,
-        "w": 4,
-        "x": 8,
-        "y": 1
+        "x": 6,
+        "y": 1,
+        "w": 3,
+        "h": 5
       },
       "targets": [
         {
@@ -321,10 +321,10 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 9,
-        "w": 3,
-        "x": 6,
-        "y": 1
+        "x": 9,
+        "y": 1,
+        "w": 5,
+        "h": 5
       },
       "id": 22,
       "links": [],
@@ -406,10 +406,10 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 9,
-        "w": 3,
-        "x": 9,
-        "y": 1
+        "x": 14,
+        "y": 1,
+        "w": 5,
+        "h": 5
       },
       "id": 25,
       "links": [],
@@ -490,10 +490,10 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 9,
-        "w": 3,
-        "x": 12,
-        "y": 1
+        "x": 19,
+        "y": 1,
+        "w": 5,
+        "h": 5
       },
       "id": 26,
       "links": [],
@@ -545,10 +545,10 @@
       "description": "for schedule backup use only",
       "fontSize": "100%",
       "gridPos": {
-        "h": 9,
-        "w": 9,
-        "x": 15,
-        "y": 1
+        "x": 0,
+        "y": 6,
+        "w": 24,
+        "h": 5
       },
       "id": 13,
       "scroll": true,
@@ -621,10 +621,10 @@
       "fill": 10,
       "fillGradient": 0,
       "gridPos": {
-        "h": 9,
-        "w": 24,
         "x": 0,
-        "y": 10
+        "y": 11,
+        "w": 24,
+        "h": 8
       },
       "hiddenSeries": false,
       "id": 8,
@@ -846,10 +846,10 @@
         "uid": "${datasource}"
       },
       "gridPos": {
-        "h": 8,
-        "w": 24,
         "x": 0,
-        "y": 19
+        "y": 19,
+        "w": 24,
+        "h": 7
       },
       "heatmap": {},
       "hideZeroBuckets": false,
@@ -908,10 +908,10 @@
       "fill": 1,
       "fillGradient": 0,
       "gridPos": {
-        "h": 6,
-        "w": 24,
         "x": 0,
-        "y": 27
+        "y": 26,
+        "w": 24,
+        "h": 6
       },
       "hiddenSeries": false,
       "id": 18,
@@ -991,10 +991,10 @@
     {
       "collapsed": false,
       "gridPos": {
-        "h": 1,
-        "w": 24,
         "x": 0,
-        "y": 33
+        "y": 32,
+        "w": 24,
+        "h": 1
       },
       "id": 17,
       "panels": [],
@@ -1047,10 +1047,10 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 9,
-        "w": 4,
         "x": 0,
-        "y": 34
+        "y": 33,
+        "w": 4,
+        "h": 5
       },
       "id": 27,
       "links": [],
@@ -1134,10 +1134,10 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 9,
-        "w": 4,
         "x": 4,
-        "y": 34
+        "y": 33,
+        "w": 4,
+        "h": 5
       },
       "id": 24,
       "links": [],
@@ -1193,10 +1193,10 @@
       "fill": 10,
       "fillGradient": 0,
       "gridPos": {
-        "h": 9,
-        "w": 16,
         "x": 8,
-        "y": 34
+        "y": 33,
+        "w": 16,
+        "h": 8
       },
       "hiddenSeries": false,
       "id": 28,
@@ -1316,10 +1316,10 @@
     {
       "collapsed": false,
       "gridPos": {
-        "h": 1,
-        "w": 24,
         "x": 0,
-        "y": 43
+        "y": 41,
+        "w": 24,
+        "h": 1
       },
       "id": 30,
       "panels": [],
@@ -1345,10 +1345,10 @@
       "fill": 10,
       "fillGradient": 0,
       "gridPos": {
-        "h": 9,
-        "w": 24,
         "x": 0,
-        "y": 44
+        "y": 42,
+        "w": 24,
+        "h": 8
       },
       "hiddenSeries": false,
       "id": 32,
