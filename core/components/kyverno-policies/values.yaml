@@ -1,6 +1,6 @@
 policies:
   default_deny_network_policy:
-    enabled: true
+    enabled: false  # Requires Kyverno background-controller RBAC for NetworkPolicy
   deny_ingress_platform_ns:
     enabled: true
     action: Audit
@@ -26,7 +26,7 @@ policies:
     enabled: true
     action: Audit
   generate_pdb:
-    enabled: true
+    enabled: false  # Requires Kyverno background-controller RBAC for PodDisruptionBudget (see issue #20)
   inject_pss_labels:
     enabled: true
   inject_security_context:
@@ -44,7 +44,7 @@ policies:
     enabled: true
     action: Audit
   require_limit_ranges:
-    enabled: true
+    enabled: false  # Requires Kyverno background-controller RBAC for LimitRange
   require_limits:
     enabled: true
     action: Audit
@@ -55,7 +55,7 @@ policies:
     enabled: true
     action: Audit
   require_resource_quotas:
-    enabled: true
+    enabled: false  # Requires Kyverno background-controller RBAC for ResourceQuota
   require_run_as_nonroot:
     enabled: true
     action: Audit
