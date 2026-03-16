@@ -15,14 +15,29 @@ spec:
   template:
     spec:
       restartPolicy: OnFailure
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: upload
           image: python:3.12-alpine
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
+            capabilities:
+              drop:
+                - ALL
+          env:
+            - name: HOME
+              value: /tmp
           command:
             - sh
             - -c
             - |
-              pip install -q pyyaml 2>/dev/null
+              pip install --user -q pyyaml 2>/dev/null
               python3 /scripts/upload.py
           volumeMounts:
             - name: rules
@@ -55,7 +70,7 @@ data:
     try:
         import yaml
     except ImportError:
-        os.system("pip install -q pyyaml")
+        os.system("pip install --user -q pyyaml")
         import yaml
 
     gateway = os.environ.get("MIMIR_GATEWAY", "{{ .Values.mimirGatewayUrl }}")
