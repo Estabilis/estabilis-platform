@@ -44,6 +44,3 @@ spec:
                 max:
                   cpu: "4"
                   memory: 8Gi
-                min:
-                  cpu: 50m
-                  memory: 64Mi
