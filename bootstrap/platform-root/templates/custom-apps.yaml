@@ -1,0 +1,29 @@
+{{- if and .Values.configRepoUrl .Values.configRepoVersion }}
+{{- range $name, $app := .Values.customApps }}
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: custom-{{ $name }}
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: {{ $app.syncWave | default "10" | quote }}
+  labels:
+    estabilis.io/custom-app: "true"
+spec:
+  project: platform
+  source:
+    repoURL: {{ $.Values.configRepoUrl }}
+    targetRevision: {{ $.Values.configRepoVersion }}
+    path: {{ $app.path }}
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: {{ $app.namespace }}
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+{{- end }}
+{{- end }}
