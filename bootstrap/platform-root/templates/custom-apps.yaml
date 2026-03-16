@@ -4,22 +4,30 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: custom-{{ $name }}
+  name: app-{{ $name }}
   namespace: argocd
   annotations:
     argocd.argoproj.io/sync-wave: {{ $app.syncWave | default "10" | quote }}
   labels:
-    estabilis.io/custom-app: "true"
+    estabilis.io/managed-by: client
+    estabilis.io/tier: application
 spec:
-  project: platform
+  project: applications
   source:
     repoURL: {{ $.Values.configRepoUrl }}
     targetRevision: {{ $.Values.configRepoVersion }}
     path: {{ $app.path }}
   destination:
     server: https://kubernetes.default.svc
-    namespace: {{ $app.namespace }}
+    namespace: app-{{ $name }}
   syncPolicy:
+    managedNamespaceMetadata:
+      labels:
+        estabilis.io/managed-by: client
+        estabilis.io/tier: application
+        {{- if $app.owner }}
+        estabilis.io/owner: {{ $app.owner | quote }}
+        {{- end }}
     automated:
       prune: true
       selfHeal: true

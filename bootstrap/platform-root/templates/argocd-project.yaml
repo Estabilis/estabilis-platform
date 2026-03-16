@@ -1,3 +1,4 @@
+# Platform project — restricted to platform namespaces only
 apiVersion: argoproj.io/v1alpha1
 kind: AppProject
 metadata:
@@ -24,11 +25,37 @@ spec:
     - "https://cloudnative-pg.github.io/charts"
     - "https://vmware-tanzu.github.io/helm-charts"
     - "https://prometheus-community.github.io/helm-charts"
-  # Wildcard destinations — clients can deploy custom apps to any namespace.
-  # Security is enforced by Kyverno policies, not AppProject restrictions.
   destinations:
     - server: https://kubernetes.default.svc
-      namespace: "*"
+      namespace: argocd
+    - server: https://kubernetes.default.svc
+      namespace: cert-manager
+    - server: https://kubernetes.default.svc
+      namespace: kyverno
+    - server: https://kubernetes.default.svc
+      namespace: external-secrets
+    - server: https://kubernetes.default.svc
+      namespace: external-dns
+    - server: https://kubernetes.default.svc
+      namespace: grafana
+    - server: https://kubernetes.default.svc
+      namespace: kube-system
+    - server: https://kubernetes.default.svc
+      namespace: traefik
+    - server: https://kubernetes.default.svc
+      namespace: trivy-system
+    - server: https://kubernetes.default.svc
+      namespace: opencost
+    - server: https://kubernetes.default.svc
+      namespace: cnpg-system
+    - server: https://kubernetes.default.svc
+      namespace: velero
+    - server: https://kubernetes.default.svc
+      namespace: kube-state-metrics
+    - server: https://kubernetes.default.svc
+      namespace: node-exporter
+    - server: https://kubernetes.default.svc
+      namespace: policy-reporter
   clusterResourceWhitelist:
     - group: "*"
       kind: Namespace
@@ -54,3 +81,25 @@ spec:
       kind: VolumeSnapshotClass
     - group: policy
       kind: PodDisruptionBudget
+{{- if and .Values.configRepoUrl .Values.configRepoVersion }}
+---
+# Applications project — for client custom apps in app-* namespaces
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: applications
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  description: Client custom applications (app-* namespaces only)
+  sourceRepos:
+    - {{ .Values.configRepoUrl | quote }}
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: "app-*"
+  clusterResourceWhitelist: []
+  namespaceResourceWhitelist:
+    - group: "*"
+      kind: "*"
+{{- end }}

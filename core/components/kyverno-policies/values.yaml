@@ -71,26 +71,10 @@ policies:
   validate_namespace_name:
     enabled: true
     action: Audit
-
-# Custom policies — clients can add their own ClusterPolicies here.
-# Each entry renders as a full ClusterPolicy resource.
-# Example:
-#   customPolicies:
-#     require-team-label:
-#       spec:
-#         validationFailureAction: Audit
-#         background: true
-#         rules:
-#           - name: require-team
-#             match:
-#               any:
-#                 - resources:
-#                     kinds:
-#                       - Deployment
-#             validate:
-#               message: "Label 'team' is required."
-#               pattern:
-#                 metadata:
-#                   labels:
-#                     team: "?*"
+  require_app_namespace_labels:
+    enabled: true
+    action: Audit
+  block_client_in_platform_ns:
+    enabled: true
+    action: Audit
 customPolicies: {}
