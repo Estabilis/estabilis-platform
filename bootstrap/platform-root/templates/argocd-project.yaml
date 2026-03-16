@@ -98,7 +98,9 @@ spec:
   destinations:
     - server: https://kubernetes.default.svc
       namespace: "app-*"
-  clusterResourceWhitelist: []
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
   namespaceResourceWhitelist:
     - group: "*"
       kind: "*"
