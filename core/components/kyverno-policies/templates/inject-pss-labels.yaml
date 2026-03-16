@@ -6,13 +6,31 @@ metadata:
   annotations:
     policies.kyverno.io/title: Inject PSS Labels
     policies.kyverno.io/description: >-
-      Automatically injects Pod Security Standards (PSS) restricted-level
-      labels on new namespaces. This enables the built-in Kubernetes pod
-      security admission controller for defense in depth.
+      Injects Pod Security Standards (PSS) labels on namespaces.
+      Client namespaces (app-*) get enforce=restricted.
+      Platform namespaces get enforce=baseline with warn/audit=restricted.
 spec:
   background: true
   rules:
-    - name: inject-pss-restricted
+    - name: inject-pss-restricted-client
+      match:
+        any:
+          - resources:
+              kinds:
+                - Namespace
+              names:
+                - "app-*"
+      mutate:
+        patchStrategicMerge:
+          metadata:
+            labels:
+              pod-security.kubernetes.io/enforce: restricted
+              pod-security.kubernetes.io/enforce-version: latest
+              pod-security.kubernetes.io/audit: restricted
+              pod-security.kubernetes.io/audit-version: latest
+              pod-security.kubernetes.io/warn: restricted
+              pod-security.kubernetes.io/warn-version: latest
+    - name: inject-pss-baseline-platform
       match:
         any:
           - resources:
@@ -21,16 +39,19 @@ spec:
       exclude:
         any:
           - resources:
+              names:
+                - "app-*"
+          - resources:
               namespaces:
                 - kube-system
                 - kube-public
                 - kube-node-lease
-                - argocd
+                - kyverno
       mutate:
         patchStrategicMerge:
           metadata:
             labels:
-              pod-security.kubernetes.io/enforce: restricted
+              pod-security.kubernetes.io/enforce: baseline
               pod-security.kubernetes.io/enforce-version: latest
               pod-security.kubernetes.io/audit: restricted
               pod-security.kubernetes.io/audit-version: latest
