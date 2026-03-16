@@ -1,10 +1,57 @@
-platformRepoUrl: ""
-platformVersion: "v0.1.2"
-configRepoUrl: ""
-configRepoVersion: ""
+# Platform Root — Helm values
+#
+# Values marked "# injected by terraform" are passed as helm.parameters
+# from platform-root.tf and override these defaults.
+# All other values are defaults that can be overridden by the client
+# via the multi-source mechanism.
+
+platformRepoUrl: ""       # injected by terraform
+platformVersion: ""       # injected by terraform
+configRepoUrl: ""         # injected by terraform
+configRepoVersion: ""     # injected by terraform
 
 global:
+  # Client configuration — injected by terraform from client tfvars
+  provider: ""            # injected by terraform
+  domain: ""              # injected by terraform
+  environment: ""         # injected by terraform
+  letsencryptEmail: ""    # injected by terraform
+
+  # Azure resource outputs — injected by terraform
+  clusterName: ""
+  resourceGroup: ""
+  tenantId: ""
+  subscriptionId: ""
+  azureOfferId: ""
+  storageAccountName: ""
+  keyVaultName: ""
+  keyVaultUri: ""
   cnpgStorageAccountName: ""
-  cnpgBackupContainerName: "cnpg-backup"
+  cnpgBackupContainerName: ""
   veleroStorageAccountName: ""
-  veleroBackupContainerName: "velero-backup"
+  veleroBackupContainerName: ""
+
+  # Backup/Observability — injected by terraform from client tfvars (with defaults in variables.tf)
+  veleroBackupSchedule: ""
+  veleroBackupRetentionHours: ""
+  cnpgBackupRetentionDays: ""
+  cnpgBackupSchedule: ""
+  lokiExternalIngressEnabled: ""
+  lokiAllowedCidrs: ""
+
+# Workload Identity client IDs — injected by terraform
+identity:
+  externalDns:
+    clientId: ""
+  externalSecrets:
+    clientId: ""
+  loki:
+    clientId: ""
+  mimir:
+    clientId: ""
+  cnpg:
+    clientId: ""
+  certManager:
+    clientId: ""
+  velero:
+    clientId: ""

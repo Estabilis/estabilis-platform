@@ -1,0 +1,43 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: argocd
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  project: platform
+  sources:
+    - repoURL: https://argoproj.github.io/argo-helm
+      chart: argo-cd
+      targetRevision: "9.4.7"
+      helm:
+        valueFiles:
+          - $values/core/components/argocd/values.yaml
+          {{- include "platform-root.overrideValueFile" (dict "component" "argocd" "root" $) | nindent 10 }}
+        {{- include "platform-root.ignoreMissingValueFiles" $ | nindent 8 }}
+    - repoURL: {{ .Values.platformRepoUrl }}
+      targetRevision: {{ .Values.platformVersion }}
+      ref: values
+    {{- include "platform-root.overrideSource" . | nindent 4 }}
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  ignoreDifferences:
+    - group: admissionregistration.k8s.io
+      kind: MutatingWebhookConfiguration
+      jqPathExpressions:
+        - .webhooks[]?.clientConfig.caBundle
+    - group: admissionregistration.k8s.io
+      kind: ValidatingWebhookConfiguration
+      jqPathExpressions:
+        - .webhooks[]?.clientConfig.caBundle
+  syncPolicy:
+    {{- include "platform-root.managedNamespaceMetadata" . | nindent 4 }}
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+      - RespectIgnoreDifferences=true

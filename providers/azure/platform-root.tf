@@ -1,72 +1,12 @@
 # ---------------------------------------------------------------------------
 # Platform Root – ArgoCD Application (App-of-Apps bootstrap)
 # ---------------------------------------------------------------------------
-
-resource "kubectl_manifest" "argocd_project_platform" {
-  depends_on = [helm_release.argocd]
-
-  yaml_body = yamlencode({
-    apiVersion = "argoproj.io/v1alpha1"
-    kind       = "AppProject"
-    metadata = {
-      name      = "platform"
-      namespace = "argocd"
-    }
-    spec = {
-      description = "Estabilis Platform core components"
-      sourceRepos = concat(
-        [
-          var.platform_repo_url,
-          "https://argoproj.github.io/argo-helm",
-          "https://charts.jetstack.io",
-          "https://kyverno.github.io/kyverno",
-          "https://charts.external-secrets.io",
-          "https://kubernetes-sigs.github.io/external-dns",
-          "https://grafana.github.io/helm-charts",
-          "https://traefik.github.io/charts",
-          "https://aquasecurity.github.io/helm-charts",
-          "https://opencost.github.io/opencost-helm-chart",
-          "https://cloudnative-pg.github.io/charts",
-          "https://vmware-tanzu.github.io/helm-charts",
-          "https://prometheus-community.github.io/helm-charts",
-        ],
-        (var.config_repo_url != "" && var.config_repo_version != "") ? [var.config_repo_url] : [],
-      )
-      destinations = [
-        { server = "https://kubernetes.default.svc", namespace = "argocd" },
-        { server = "https://kubernetes.default.svc", namespace = "cert-manager" },
-        { server = "https://kubernetes.default.svc", namespace = "kyverno" },
-        { server = "https://kubernetes.default.svc", namespace = "external-secrets" },
-        { server = "https://kubernetes.default.svc", namespace = "external-dns" },
-        { server = "https://kubernetes.default.svc", namespace = "grafana" },
-        { server = "https://kubernetes.default.svc", namespace = "kube-system" },
-        { server = "https://kubernetes.default.svc", namespace = "traefik" },
-        { server = "https://kubernetes.default.svc", namespace = "trivy-system" },
-        { server = "https://kubernetes.default.svc", namespace = "opencost" },
-        { server = "https://kubernetes.default.svc", namespace = "cnpg-system" },
-        { server = "https://kubernetes.default.svc", namespace = "velero" },
-        { server = "https://kubernetes.default.svc", namespace = "kube-state-metrics" },
-        { server = "https://kubernetes.default.svc", namespace = "node-exporter" },
-      ]
-      clusterResourceWhitelist = [
-        { group = "*", kind = "Namespace" },
-        { group = "*", kind = "ClusterRole" },
-        { group = "*", kind = "ClusterRoleBinding" },
-        { group = "kyverno.io", kind = "ClusterPolicy" },
-        { group = "apiextensions.k8s.io", kind = "CustomResourceDefinition" },
-        { group = "admissionregistration.k8s.io", kind = "*" },
-        { group = "cert-manager.io", kind = "ClusterIssuer" },
-        { group = "external-secrets.io", kind = "ClusterSecretStore" },
-        { group = "aquasecurity.github.io", kind = "*" },
-        { group = "networking.k8s.io", kind = "IngressClass" },
-        { group = "snapshot.storage.k8s.io", kind = "VolumeSnapshotClass" },
-      ]
-    }
-  })
-}
+# Uses the "default" project (always exists in ArgoCD) for bootstrap.
+# The "platform" AppProject is created by the Helm chart template
+# (argocd-project.yaml, sync wave -1) before any Application needs it.
 
 resource "kubectl_manifest" "platform_root" {
-  depends_on = [helm_release.argocd, kubectl_manifest.argocd_project_platform]
+  depends_on = [helm_release.argocd]
 
   yaml_body = yamlencode({
     apiVersion = "argoproj.io/v1alpha1"
@@ -76,13 +16,28 @@ resource "kubectl_manifest" "platform_root" {
       namespace = "argocd"
     }
     spec = {
-      project = "platform"
+      project = "default"
       source = {
         repoURL        = var.platform_repo_url
         targetRevision = var.platform_version
         path           = "bootstrap/platform-root"
         helm = {
           parameters = [
+            # --- Platform ---
+            {
+              name  = "platformRepoUrl"
+              value = var.platform_repo_url
+            },
+            {
+              name  = "platformVersion"
+              value = var.platform_version
+            },
+
+            # --- Client config (from tfvars) ---
+            {
+              name  = "global.provider"
+              value = "azure"
+            },
             {
               name  = "global.domain"
               value = var.domain
@@ -92,9 +47,45 @@ resource "kubectl_manifest" "platform_root" {
               value = var.environment
             },
             {
-              name  = "global.provider"
-              value = "azure"
+              name  = "global.letsencryptEmail"
+              value = var.letsencrypt_email
             },
+            {
+              name  = "configRepoUrl"
+              value = var.config_repo_url
+            },
+            {
+              name  = "configRepoVersion"
+              value = var.config_repo_version
+            },
+
+            # --- Backup/Observability config (from tfvars) ---
+            {
+              name  = "global.veleroBackupSchedule"
+              value = var.velero_backup_schedule
+            },
+            {
+              name  = "global.veleroBackupRetentionHours"
+              value = tostring(var.velero_backup_retention_hours)
+            },
+            {
+              name  = "global.lokiExternalIngressEnabled"
+              value = tostring(var.loki_external_ingress_enabled)
+            },
+            {
+              name  = "global.lokiAllowedCidrs"
+              value = var.loki_allowed_cidrs
+            },
+            {
+              name  = "global.cnpgBackupRetentionDays"
+              value = tostring(var.cnpg_backup_retention_days)
+            },
+            {
+              name  = "global.cnpgBackupSchedule"
+              value = var.cnpg_backup_schedule
+            },
+
+            # --- Azure resource outputs ---
             {
               name  = "global.clusterName"
               value = azurerm_kubernetes_cluster.platform.name
@@ -108,6 +99,14 @@ resource "kubectl_manifest" "platform_root" {
               value = var.tenant_id
             },
             {
+              name  = "global.subscriptionId"
+              value = var.subscription_id
+            },
+            {
+              name  = "global.azureOfferId"
+              value = local.azure_offer_id
+            },
+            {
               name  = "global.storageAccountName"
               value = azurerm_storage_account.observability.name
             },
@@ -119,6 +118,24 @@ resource "kubectl_manifest" "platform_root" {
               name  = "global.keyVaultUri"
               value = azurerm_key_vault.platform.vault_uri
             },
+            {
+              name  = "global.cnpgStorageAccountName"
+              value = azurerm_storage_account.cnpg_backup.name
+            },
+            {
+              name  = "global.cnpgBackupContainerName"
+              value = azurerm_storage_container.cnpg_backup.name
+            },
+            {
+              name  = "global.veleroStorageAccountName"
+              value = azurerm_storage_account.velero_backup.name
+            },
+            {
+              name  = "global.veleroBackupContainerName"
+              value = azurerm_storage_container.velero_backup.name
+            },
+
+            # --- Workload Identity client IDs ---
             {
               name  = "identity.externalDns.clientId"
               value = azurerm_user_assigned_identity.external_dns.client_id
@@ -144,76 +161,8 @@ resource "kubectl_manifest" "platform_root" {
               value = azurerm_user_assigned_identity.cert_manager.client_id
             },
             {
-              name  = "global.letsencryptEmail"
-              value = var.letsencrypt_email
-            },
-            {
               name  = "identity.velero.clientId"
               value = azurerm_user_assigned_identity.velero.client_id
-            },
-            {
-              name  = "global.subscriptionId"
-              value = var.subscription_id
-            },
-            {
-              name  = "global.azureOfferId"
-              value = local.azure_offer_id
-            },
-            {
-              name  = "global.cnpgStorageAccountName"
-              value = azurerm_storage_account.cnpg_backup.name
-            },
-            {
-              name  = "global.cnpgBackupContainerName"
-              value = azurerm_storage_container.cnpg_backup.name
-            },
-            {
-              name  = "global.veleroStorageAccountName"
-              value = azurerm_storage_account.velero_backup.name
-            },
-            {
-              name  = "global.veleroBackupContainerName"
-              value = azurerm_storage_container.velero_backup.name
-            },
-            {
-              name  = "global.veleroBackupSchedule"
-              value = var.velero_backup_schedule
-            },
-            {
-              name  = "global.veleroBackupRetentionHours"
-              value = tostring(var.velero_backup_retention_hours)
-            },
-            {
-              name  = "global.lokiExternalIngressEnabled"
-              value = tostring(var.loki_external_ingress_enabled)
-            },
-            {
-              name  = "global.lokiAllowedCidrs"
-              value = var.loki_allowed_cidrs
-            },
-            {
-              name  = "global.cnpgBackupRetentionDays"
-              value = tostring(var.cnpg_backup_retention_days)
-            },
-            {
-              name  = "global.cnpgBackupSchedule"
-              value = var.cnpg_backup_schedule
-            },
-            {
-              name  = "platformRepoUrl"
-              value = var.platform_repo_url
-            },
-            {
-              name  = "platformVersion"
-              value = var.platform_version
-            },
-            {
-              name  = "configRepoUrl"
-              value = var.config_repo_url
-            },
-            {
-              name  = "configRepoVersion"
-              value = var.config_repo_version
             },
           ]
         }

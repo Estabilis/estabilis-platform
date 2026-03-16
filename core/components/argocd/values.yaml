@@ -1,0 +1,63 @@
+# ArgoCD — self-managed configuration
+# After bootstrap, ArgoCD manages itself via this values file.
+# All configuration changes go here, not in Terraform.
+
+commonLabels:
+  estabilis.io/managed-by: platform
+  estabilis.io/component: argocd
+
+configs:
+  params:
+    server.insecure: true
+    timeout.reconciliation: "60s"
+  rbac:
+    policy.default: "role:readonly"
+    scopes: "[groups]"
+
+server:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+
+controller:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+repoServer:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+
+redis:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 100m
+      memory: 128Mi
+
+notifications:
+  enabled: true
+
+tolerations:
+  - key: "estabilis.io/workload-type"
+    operator: "Equal"
+    value: "platform"
+    effect: "NoSchedule"

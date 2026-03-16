@@ -1,6 +1,13 @@
 # ---------------------------------------------------------------------------
 # ArgoCD – Seed Helm Release
 # ---------------------------------------------------------------------------
+# Minimal bootstrap installation. After first reconciliation, the ArgoCD
+# Application self-managed (bootstrap/platform-root/templates/argocd.yaml)
+# takes over all configuration via GitOps.
+#
+# Only server.insecure is set here (required for seed to work without TLS).
+# All other configs (RBAC, polling, replicas) are in:
+#   core/components/argocd/values.yaml
 
 resource "helm_release" "argocd" {
   name             = "argocd"
@@ -14,25 +21,10 @@ resource "helm_release" "argocd" {
   wait    = true
   timeout = 600
 
-  # Run server in insecure mode (TLS termination at ingress)
-  set {
-    name  = "server.insecure"
-    value = "true"
-  }
-
+  # Minimal config — only what's needed for bootstrap
   set {
     name  = "configs.params.server\\.insecure"
     value = "true"
-  }
-
-  set {
-    name  = "configs.rbac.policy\\.default"
-    value = "role:readonly"
-  }
-
-  set {
-    name  = "configs.rbac.scopes"
-    value = "[groups]"
   }
 
   lifecycle {
