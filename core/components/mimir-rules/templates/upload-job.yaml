@@ -4,8 +4,13 @@ metadata:
   name: mimir-rules-upload-{{ .Release.Revision }}
   namespace: grafana
   labels:
+    app: mimir-rules-upload
+    team: platform
     estabilis.io/managed-by: platform
     estabilis.io/component: mimir-rules
+    estabilis.io/owner: platform
+    estabilis.io/service: mimir-rules
+    estabilis.io/tier: platform
   annotations:
     argocd.argoproj.io/hook: PostSync
     argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
@@ -13,9 +18,18 @@ spec:
   ttlSecondsAfterFinished: 300
   backoffLimit: 3
   template:
+    metadata:
+      labels:
+        app: mimir-rules-upload
+        team: platform
+        estabilis.io/managed-by: platform
+        estabilis.io/owner: platform
+        estabilis.io/service: mimir-rules
+        estabilis.io/tier: platform
     spec:
       restartPolicy: OnFailure
       automountServiceAccountToken: false
+      serviceAccountName: mimir-rules-upload
       securityContext:
         runAsNonRoot: true
         runAsUser: 65534
@@ -23,13 +37,20 @@ spec:
           type: RuntimeDefault
       containers:
         - name: upload
-          image: python:3.12-alpine
+          image: python@sha256:7747d47f92cfca63a6e2b50275e23dba8407c30d8ae929a88ddd49a5d3f2d331
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: false
             capabilities:
               drop:
                 - ALL
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
           env:
             - name: HOME
               value: /tmp
@@ -55,13 +76,29 @@ spec:
             name: mimir-rules-upload-script
 ---
 apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: mimir-rules-upload
+  namespace: grafana
+  labels:
+    app: mimir-rules-upload
+    estabilis.io/managed-by: platform
+    estabilis.io/component: mimir-rules
+automountServiceAccountToken: false
+---
+apiVersion: v1
 kind: ConfigMap
 metadata:
   name: mimir-rules-upload-script
   namespace: grafana
   labels:
+    app: mimir-rules-upload
+    team: platform
     estabilis.io/managed-by: platform
     estabilis.io/component: mimir-rules
+    estabilis.io/owner: platform
+    estabilis.io/service: mimir-rules
+    estabilis.io/tier: platform
 data:
   upload.py: |
     import urllib.request, json, os, glob, sys
