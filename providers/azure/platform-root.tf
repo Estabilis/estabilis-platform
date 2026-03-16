@@ -6,7 +6,8 @@
 # (argocd-project.yaml, sync wave -1) before any Application needs it.
 
 resource "kubectl_manifest" "platform_root" {
-  depends_on = [helm_release.argocd]
+  depends_on       = [helm_release.argocd]
+  wait_for_rollout = false
 
   yaml_body = yamlencode({
     apiVersion = "argoproj.io/v1alpha1"
