@@ -223,9 +223,15 @@ resource "azuread_service_principal" "opencost" {
   client_id = azuread_application.opencost.client_id
 }
 
+resource "time_rotating" "opencost_password" {
+  rotation_days = 330
+}
+
 resource "azuread_service_principal_password" "opencost" {
   service_principal_id = azuread_service_principal.opencost.id
-  end_date             = timeadd(plantimestamp(), "8760h") # 1 year
+  rotate_when_changed = {
+    rotation = time_rotating.opencost_password.id
+  }
 }
 
 resource "azurerm_role_definition" "opencost" {
