@@ -8,7 +8,8 @@ metadata:
     policies.kyverno.io/description: >-
       Injects Pod Security Standards (PSS) labels on namespaces.
       Client namespaces (app-*) get enforce=restricted.
-      Platform namespaces get enforce=baseline with warn/audit=restricted.
+      Privileged namespaces (node-exporter, trivy-system) get enforce=privileged.
+      All other platform namespaces get enforce=baseline with warn/audit=restricted.
 spec:
   background: true
   rules:
@@ -30,6 +31,25 @@ spec:
               pod-security.kubernetes.io/audit-version: latest
               pod-security.kubernetes.io/warn: restricted
               pod-security.kubernetes.io/warn-version: latest
+    - name: inject-pss-privileged
+      match:
+        any:
+          - resources:
+              kinds:
+                - Namespace
+              names:
+                - node-exporter
+                - trivy-system
+      mutate:
+        patchStrategicMerge:
+          metadata:
+            labels:
+              pod-security.kubernetes.io/enforce: privileged
+              pod-security.kubernetes.io/enforce-version: latest
+              pod-security.kubernetes.io/audit: baseline
+              pod-security.kubernetes.io/audit-version: latest
+              pod-security.kubernetes.io/warn: baseline
+              pod-security.kubernetes.io/warn-version: latest
     - name: inject-pss-baseline-platform
       match:
         any:
@@ -41,6 +61,8 @@ spec:
           - resources:
               names:
                 - "app-*"
+                - node-exporter
+                - trivy-system
           - resources:
               namespaces:
                 - kube-system
