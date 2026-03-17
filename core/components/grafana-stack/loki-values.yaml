@@ -75,6 +75,15 @@ singleBinary:
                 operator: In
                 values: ["regular"]
 
+sidecar:
+  resources:
+    requests:
+      cpu: 10m
+      memory: 32Mi
+    limits:
+      cpu: 50m
+      memory: 64Mi
+
 minio:
   enabled: false
 
