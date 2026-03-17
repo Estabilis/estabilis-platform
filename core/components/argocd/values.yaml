@@ -28,11 +28,11 @@ controller:
   replicas: 1
   resources:
     requests:
-      cpu: 200m
-      memory: 512Mi
+      cpu: 270m
+      memory: 680Mi
     limits:
-      cpu: 1000m
-      memory: 1Gi
+      cpu: 1330m
+      memory: 1365Mi
 
 repoServer:
   replicas: 1
