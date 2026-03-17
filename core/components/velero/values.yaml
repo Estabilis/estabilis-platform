@@ -23,6 +23,7 @@ upgradeCRDs: false
 containerSecurityContext:
   runAsUser: 65534
   runAsNonRoot: true
+  readOnlyRootFilesystem: false
 
 credentials:
   useSecret: false
