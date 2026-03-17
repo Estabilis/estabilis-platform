@@ -10,11 +10,11 @@ opencost:
     cloudProviderApiKey: ""
     resources:
       requests:
-        cpu: 20m
-        memory: 64Mi
+        cpu: 50m
+        memory: 128Mi
       limits:
-        cpu: 100m
-        memory: 256Mi
+        cpu: 200m
+        memory: 512Mi
   carbonCost:
     enabled: true
   prometheus:
@@ -32,3 +32,10 @@ tolerations:
 
 ui:
   enabled: true
+  resources:
+    requests:
+      cpu: 10m
+      memory: 32Mi
+    limits:
+      cpu: 50m
+      memory: 64Mi
