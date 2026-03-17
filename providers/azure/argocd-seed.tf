@@ -27,32 +27,33 @@ resource "helm_release" "argocd" {
     value = "true"
   }
 
-  # Private config repo credentials — injected via configs.repositories
-  dynamic "set_sensitive" {
-    for_each = var.config_repo_token != "" ? [1] : []
-    content {
-      name  = "configs.repositories.config-repo.url"
-      value = var.config_repo_url
-    }
-  }
-
-  dynamic "set_sensitive" {
-    for_each = var.config_repo_token != "" ? [1] : []
-    content {
-      name  = "configs.repositories.config-repo.username"
-      value = "x-access-token"
-    }
-  }
-
-  dynamic "set_sensitive" {
-    for_each = var.config_repo_token != "" ? [1] : []
-    content {
-      name  = "configs.repositories.config-repo.password"
-      value = var.config_repo_token
-    }
-  }
-
   lifecycle {
-    ignore_changes = [set, set_sensitive, version]
+    ignore_changes = [set, version]
   }
+}
+
+# ---------------------------------------------------------------------------
+# Private config repo credentials — created as a separate Secret so ArgoCD
+# auto-detects it via the argocd.argoproj.io/secret-type label.
+# This avoids the ignore_changes problem with helm_release set_sensitive.
+# ---------------------------------------------------------------------------
+resource "kubernetes_secret" "argocd_repo_config" {
+  count = var.config_repo_token != "" ? 1 : 0
+
+  metadata {
+    name      = "repo-config-downstream"
+    namespace = "argocd"
+    labels = {
+      "argocd.argoproj.io/secret-type" = "repository"
+    }
+  }
+
+  data = {
+    url      = var.config_repo_url
+    username = "x-access-token"
+    password = var.config_repo_token
+    type     = "git"
+  }
+
+  depends_on = [helm_release.argocd]
 }
