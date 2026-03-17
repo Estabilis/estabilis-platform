@@ -14,9 +14,12 @@ tempo:
     limits:
       cpu: 200m
       memory: 512Mi
+  securityContext:
+    readOnlyRootFilesystem: false
 
 persistence:
-  enabled: false
+  enabled: true
+  size: 5Gi
 
 tolerations:
   - key: "estabilis.io/workload-type"
