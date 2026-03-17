@@ -8,6 +8,8 @@ commonLabels:
 opencost:
   exporter:
     cloudProviderApiKey: ""
+    securityContext:
+      readOnlyRootFilesystem: false
     resources:
       requests:
         cpu: 50m
