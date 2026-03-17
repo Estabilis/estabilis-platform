@@ -4,14 +4,36 @@ commonLabels:
 
 replicaCount: 1
 
+resources:
+  requests:
+    cpu: 20m
+    memory: 64Mi
+  limits:
+    cpu: 100m
+    memory: 256Mi
+
 serviceAccount:
   create: true
 
 webhook:
   replicaCount: 1
+  resources:
+    requests:
+      cpu: 20m
+      memory: 64Mi
+    limits:
+      cpu: 100m
+      memory: 256Mi
 
 certController:
   replicaCount: 1
+  resources:
+    requests:
+      cpu: 10m
+      memory: 32Mi
+    limits:
+      cpu: 50m
+      memory: 128Mi
 
 grafana:
   dashboards:

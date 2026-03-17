@@ -5,6 +5,14 @@ commonLabels:
   estabilis.io/managed-by: platform
   estabilis.io/component: traefik
 
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 300m
+    memory: 256Mi
+
 deployment:
   replicas: 2
 

@@ -4,11 +4,26 @@ commonLabels:
 
 admissionController:
   replicas: 1
+  container:
+    resources:
+      requests:
+        cpu: 50m
+        memory: 128Mi
+      limits:
+        cpu: 200m
+        memory: 512Mi
   metricsService:
     create: true
 
 backgroundController:
   enabled: true
+  resources:
+    requests:
+      cpu: 20m
+      memory: 64Mi
+    limits:
+      cpu: 100m
+      memory: 256Mi
   metricsService:
     create: true
   rbac:
@@ -26,11 +41,25 @@ backgroundController:
 
 cleanupController:
   enabled: true
+  resources:
+    requests:
+      cpu: 10m
+      memory: 32Mi
+    limits:
+      cpu: 50m
+      memory: 128Mi
   metricsService:
     create: true
 
 reportsController:
   enabled: true
+  resources:
+    requests:
+      cpu: 20m
+      memory: 64Mi
+    limits:
+      cpu: 100m
+      memory: 256Mi
   metricsService:
     create: true
 

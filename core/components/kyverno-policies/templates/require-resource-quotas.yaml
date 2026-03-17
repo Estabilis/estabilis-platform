@@ -40,6 +40,6 @@ spec:
               limits.cpu: "8"
               limits.memory: 16Gi
               pods: "50"
-              services: "20"
+              services: "40"
               persistentvolumeclaims: "10"
 {{- end }}

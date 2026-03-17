@@ -342,6 +342,13 @@ query_frontend:
 
 query_scheduler:
   replicas: 1
+  resources:
+    requests:
+      cpu: 10m
+      memory: 32Mi
+    limits:
+      cpu: 100m
+      memory: 128Mi
   tolerations:
     - key: "estabilis.io/workload-type"
       operator: "Equal"

@@ -20,6 +20,10 @@ configuration:
 
 upgradeCRDs: false
 
+containerSecurityContext:
+  runAsUser: 65534
+  runAsNonRoot: true
+
 credentials:
   useSecret: false
 
