@@ -23,19 +23,20 @@ opencost:
     external:
       enabled: true
       url: "http://grafana-mimir-gateway.grafana.svc.cluster.local/prometheus"
+  ui:
+    enabled: true
+    resources:
+      requests:
+        cpu: 10m
+        memory: 32Mi
+      limits:
+        cpu: 50m
+        memory: 64Mi
+    securityContext:
+      readOnlyRootFilesystem: false
 
 tolerations:
   - key: "estabilis.io/workload-type"
     operator: "Equal"
     value: "platform"
     effect: "NoSchedule"
-
-ui:
-  enabled: true
-  resources:
-    requests:
-      cpu: 10m
-      memory: 32Mi
-    limits:
-      cpu: 50m
-      memory: 64Mi

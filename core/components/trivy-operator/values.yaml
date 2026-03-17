@@ -23,6 +23,18 @@ operator:
   rbacAssessmentScannerEnabled: true
   infraAssessmentScannerEnabled: false
 
+trivyOperator:
+  scanJobPodTemplatePodSecurityContext:
+    runAsNonRoot: false
+  scanJobPodTemplateContainerSecurityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
+    privileged: false
+    readOnlyRootFilesystem: true
+    runAsNonRoot: false
+
 tolerations:
   - key: "estabilis.io/workload-type"
     operator: "Equal"

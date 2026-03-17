@@ -49,11 +49,11 @@ singleBinary:
     size: 10Gi
   resources:
     requests:
-      cpu: 100m
-      memory: 256Mi
+      cpu: 200m
+      memory: 512Mi
     limits:
-      cpu: 500m
-      memory: 1Gi
+      cpu: 1000m
+      memory: 2Gi
   tolerations:
     - key: "estabilis.io/workload-type"
       operator: "Equal"
@@ -78,11 +78,11 @@ singleBinary:
 sidecar:
   resources:
     requests:
-      cpu: 10m
-      memory: 32Mi
-    limits:
-      cpu: 50m
+      cpu: 20m
       memory: 64Mi
+    limits:
+      cpu: 100m
+      memory: 128Mi
 
 minio:
   enabled: false
