@@ -67,12 +67,6 @@ resource "azurerm_kubernetes_cluster_node_pool" "platform_spot" {
   min_count            = 0
   max_count            = var.workload_spot_max_count
 
-  upgrade_settings {
-    max_surge                     = "10%"
-    drain_timeout_in_minutes      = 0
-    node_soak_duration_in_minutes = 0
-  }
-
   node_labels = {
     "estabilis.io/workload-type" = "platform"
     "estabilis.io/pool-type"     = "spot"
@@ -84,7 +78,10 @@ resource "azurerm_kubernetes_cluster_node_pool" "platform_spot" {
   tags = var.tags
 
   lifecycle {
-    ignore_changes = [node_labels["kubernetes.azure.com/scalesetpriority"]]
+    ignore_changes = [
+      node_labels["kubernetes.azure.com/scalesetpriority"],
+      upgrade_settings,
+    ]
   }
 }
 
