@@ -27,7 +27,32 @@ resource "helm_release" "argocd" {
     value = "true"
   }
 
+  # Private config repo credentials — injected via configs.repositories
+  dynamic "set_sensitive" {
+    for_each = var.config_repo_token != "" ? [1] : []
+    content {
+      name  = "configs.repositories.config-repo.url"
+      value = var.config_repo_url
+    }
+  }
+
+  dynamic "set_sensitive" {
+    for_each = var.config_repo_token != "" ? [1] : []
+    content {
+      name  = "configs.repositories.config-repo.username"
+      value = "x-access-token"
+    }
+  }
+
+  dynamic "set_sensitive" {
+    for_each = var.config_repo_token != "" ? [1] : []
+    content {
+      name  = "configs.repositories.config-repo.password"
+      value = var.config_repo_token
+    }
+  }
+
   lifecycle {
-    ignore_changes = [set, version]
+    ignore_changes = [set, set_sensitive, version]
   }
 }
