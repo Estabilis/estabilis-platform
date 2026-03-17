@@ -7,6 +7,13 @@ commonLabels:
 
 tempo:
   retention: 720h
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 200m
+      memory: 512Mi
 
 persistence:
   enabled: false
@@ -33,10 +40,3 @@ affinity:
               operator: In
               values: ["regular"]
 
-resources:
-  requests:
-    cpu: 50m
-    memory: 128Mi
-  limits:
-    cpu: 200m
-    memory: 512Mi
