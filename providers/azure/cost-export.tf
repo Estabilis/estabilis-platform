@@ -18,10 +18,11 @@ resource "azurerm_storage_account" "cost_exports" {
   shared_access_key_enabled       = true # required by OpenCost cloud-integration
   allow_nested_items_to_be_public = false
 
-  # Network rules managed by azurerm_storage_account_network_rules below.
-  # Inline block kept to prevent Terraform from reverting to default.
+  # Start open so Cost Management can access during export creation.
+  # azurerm_storage_account_network_rules locks down after export exists.
+  # ignore_changes prevents Terraform from reverting Deny back to Allow.
   network_rules {
-    default_action = "Deny"
+    default_action = "Allow"
     bypass         = ["AzureServices"]
   }
 
