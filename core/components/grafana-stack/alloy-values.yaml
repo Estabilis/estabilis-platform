@@ -11,7 +11,6 @@ alloy:
     allowPrivilegeEscalation: false
     capabilities:
       drop: [ALL]
-      add: [CHOWN, DAC_OVERRIDE, FOWNER, FSETID, SETGID, SETUID]
   resources:
     requests:
       cpu: 50m
