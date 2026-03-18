@@ -43,6 +43,14 @@ repoServer:
     limits:
       cpu: 500m
       memory: 512Mi
+  copyutil:
+    resources:
+      requests:
+        cpu: 10m
+        memory: 32Mi
+      limits:
+        cpu: 50m
+        memory: 64Mi
 
 redis:
   resources:
@@ -53,8 +61,33 @@ redis:
       cpu: 100m
       memory: 128Mi
 
+applicationSet:
+  resources:
+    requests:
+      cpu: 20m
+      memory: 64Mi
+    limits:
+      cpu: 100m
+      memory: 256Mi
+
+dex:
+  resources:
+    requests:
+      cpu: 20m
+      memory: 64Mi
+    limits:
+      cpu: 100m
+      memory: 256Mi
+
 notifications:
   enabled: true
+  resources:
+    requests:
+      cpu: 20m
+      memory: 64Mi
+    limits:
+      cpu: 100m
+      memory: 256Mi
 
 tolerations:
   - key: "estabilis.io/workload-type"

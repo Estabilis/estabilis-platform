@@ -50,6 +50,13 @@ datasources:
             enabled: true
 
 sidecar:
+  resources:
+    requests:
+      cpu: 10m
+      memory: 64Mi
+    limits:
+      cpu: 50m
+      memory: 128Mi
   dashboards:
     enabled: true
     searchNamespace: ALL

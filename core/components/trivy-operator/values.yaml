@@ -7,14 +7,21 @@ commonLabels:
 
 trivy:
   ignoreUnfixed: true
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
 
 resources:
   requests:
     cpu: 20m
-    memory: 64Mi
+    memory: 128Mi
   limits:
-    cpu: 100m
-    memory: 256Mi
+    cpu: 200m
+    memory: 512Mi
 
 operator:
   scanJobsConcurrentLimit: 1

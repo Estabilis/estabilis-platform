@@ -5,6 +5,13 @@ commonLabels:
 alloy:
   clustering:
     enabled: true
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 200m
+      memory: 512Mi
   configMap:
     content: |
       // Discover Kubernetes pods for log collection
@@ -720,6 +727,15 @@ tolerations:
 
 serviceAccount:
   create: true
+
+configReloader:
+  resources:
+    requests:
+      cpu: 10m
+      memory: 50Mi
+    limits:
+      cpu: 50m
+      memory: 128Mi
 
 rbac:
   create: false

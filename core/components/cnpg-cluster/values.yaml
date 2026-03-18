@@ -3,6 +3,14 @@ global:
   cnpgBackupContainerName: "cnpg-backup"
   cnpgBackupRetentionDays: 7
   cnpgBackupSchedule: "0 2 * * *"
+postgres:
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "256Mi"
+    limits:
+      cpu: "1"
+      memory: "1Gi"
 identity:
   cnpg:
     clientId: ""
