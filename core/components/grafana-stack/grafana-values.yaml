@@ -66,6 +66,14 @@ sidecar:
     provider:
       foldersFromFilesStructure: true
 
+extraVolumeMounts:
+  - name: tmp
+    mountPath: /tmp
+
+extraVolumes:
+  - name: tmp
+    emptyDir: {}
+
 persistence:
   enabled: false
 
