@@ -5,6 +5,13 @@ commonLabels:
 alloy:
   clustering:
     enabled: true
+  securityContext:
+    runAsUser: 0
+    runAsNonRoot: false
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop: [ALL]
+      add: [CHOWN, DAC_OVERRIDE, FOWNER, FSETID, SETGID, SETUID]
   resources:
     requests:
       cpu: 50m
@@ -729,6 +736,12 @@ serviceAccount:
   create: true
 
 configReloader:
+  securityContext:
+    runAsUser: 65534
+    runAsNonRoot: true
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop: [ALL]
   resources:
     requests:
       cpu: 10m
