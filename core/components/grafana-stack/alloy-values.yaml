@@ -5,6 +5,10 @@ commonLabels:
 alloy:
   clustering:
     enabled: true
+  mounts:
+    extra:
+      - name: tmp
+        mountPath: /tmp
   securityContext:
     runAsUser: 0
     runAsNonRoot: false
@@ -717,6 +721,10 @@ alloy:
 
 controller:
   type: daemonset
+  volumes:
+    extra:
+      - name: tmp
+        emptyDir: {}
   resources:
     requests:
       cpu: 50m
