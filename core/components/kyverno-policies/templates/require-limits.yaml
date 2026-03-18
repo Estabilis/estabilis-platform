@@ -19,23 +19,16 @@ spec:
                 - Pod
       validate:
         message: "All containers must have CPU and memory requests and limits defined."
-        foreach:
-          - list: "request.object.spec.[containers, initContainers, ephemeralContainers][]"
-            deny:
-              conditions:
-                any:
-                  - key: "{{`{{ element.resources.requests.cpu || '' }}`}}"
-                    operator: Equals
-                    value: ""
-                  - key: "{{`{{ element.resources.requests.memory || '' }}`}}"
-                    operator: Equals
-                    value: ""
-                  - key: "{{`{{ element.resources.limits.cpu || '' }}`}}"
-                    operator: Equals
-                    value: ""
-                  - key: "{{`{{ element.resources.limits.memory || '' }}`}}"
-                    operator: Equals
-                    value: ""
+        pattern:
+          spec:
+            containers:
+              - resources:
+                  requests:
+                    cpu: "?*"
+                    memory: "?*"
+                  limits:
+                    cpu: "?*"
+                    memory: "?*"
     - name: require-limits-controllers
       match:
         any:
@@ -47,23 +40,18 @@ spec:
                 - Job
       validate:
         message: "All containers must have CPU and memory requests and limits defined."
-        foreach:
-          - list: "request.object.spec.template.spec.[containers, initContainers, ephemeralContainers][]"
-            deny:
-              conditions:
-                any:
-                  - key: "{{`{{ element.resources.requests.cpu || '' }}`}}"
-                    operator: Equals
-                    value: ""
-                  - key: "{{`{{ element.resources.requests.memory || '' }}`}}"
-                    operator: Equals
-                    value: ""
-                  - key: "{{`{{ element.resources.limits.cpu || '' }}`}}"
-                    operator: Equals
-                    value: ""
-                  - key: "{{`{{ element.resources.limits.memory || '' }}`}}"
-                    operator: Equals
-                    value: ""
+        pattern:
+          spec:
+            template:
+              spec:
+                containers:
+                  - resources:
+                      requests:
+                        cpu: "?*"
+                        memory: "?*"
+                      limits:
+                        cpu: "?*"
+                        memory: "?*"
     - name: require-limits-cronjob
       match:
         any:
@@ -72,21 +60,18 @@ spec:
                 - CronJob
       validate:
         message: "All containers must have CPU and memory requests and limits defined."
-        foreach:
-          - list: "request.object.spec.jobTemplate.spec.template.spec.[containers, initContainers, ephemeralContainers][]"
-            deny:
-              conditions:
-                any:
-                  - key: "{{`{{ element.resources.requests.cpu || '' }}`}}"
-                    operator: Equals
-                    value: ""
-                  - key: "{{`{{ element.resources.requests.memory || '' }}`}}"
-                    operator: Equals
-                    value: ""
-                  - key: "{{`{{ element.resources.limits.cpu || '' }}`}}"
-                    operator: Equals
-                    value: ""
-                  - key: "{{`{{ element.resources.limits.memory || '' }}`}}"
-                    operator: Equals
-                    value: ""
+        pattern:
+          spec:
+            jobTemplate:
+              spec:
+                template:
+                  spec:
+                    containers:
+                      - resources:
+                          requests:
+                            cpu: "?*"
+                            memory: "?*"
+                          limits:
+                            cpu: "?*"
+                            memory: "?*"
 {{- end }}
