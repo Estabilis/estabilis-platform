@@ -24,6 +24,7 @@ spec:
             operator: GreaterThan
             value: "1"
       generate:
+        generateExisting: true
         synchronize: true
         apiVersion: policy/v1
         kind: PodDisruptionBudget
