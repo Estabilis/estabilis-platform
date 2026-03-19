@@ -49,7 +49,10 @@ resource "azurerm_kubernetes_cluster" "platform" {
   }
 
   api_server_access_profile {
-    authorized_ip_ranges = var.authorized_ip_ranges
+    authorized_ip_ranges = var.nat_gateway_enabled ? concat(
+      var.authorized_ip_ranges,
+      ["${azurerm_public_ip.nat_gateway[0].ip_address}/32"]
+    ) : var.authorized_ip_ranges
   }
 
   dynamic "monitor_metrics" {
