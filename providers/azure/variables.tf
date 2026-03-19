@@ -242,6 +242,12 @@ variable "azure_monitor_enabled" {
   default     = false
 }
 
+variable "keyvault_soft_delete_days" {
+  description = "Retention days for Key Vault soft delete. Minimum 7, maximum 90."
+  type        = number
+  default     = 7
+}
+
 variable "keyvault_purge_protection" {
   description = "Enable purge protection on Key Vault. Once enabled, cannot be disabled. Prevents teardown from purging KV immediately — must wait retention period (7 days). Disable for dev/test environments that do frequent destroy/recreate cycles."
   type        = bool

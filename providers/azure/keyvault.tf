@@ -3,13 +3,13 @@
 # ---------------------------------------------------------------------------
 
 resource "azurerm_key_vault" "platform" {
-  name                       = "kv-${var.name_prefix}-plat"
+  name                       = "kv-${var.name_prefix}-${random_string.storage_suffix.result}"
   location                   = azurerm_resource_group.platform.location
   resource_group_name        = azurerm_resource_group.platform.name
   tenant_id                  = var.tenant_id
   sku_name                   = "standard"
   rbac_authorization_enabled = true
-  soft_delete_retention_days = 7
+  soft_delete_retention_days = var.keyvault_soft_delete_days
   purge_protection_enabled   = var.keyvault_purge_protection
 
   network_acls {
