@@ -32,6 +32,18 @@ variable "kubernetes_version" {
   default     = "1.34"
 }
 
+variable "auto_upgrade_channel" {
+  description = "AKS auto-upgrade channel. Use 'patch' for production (security patches only), 'none' for manual control."
+  type        = string
+  default     = "patch"
+}
+
+variable "sku_tier" {
+  description = "AKS SKU tier. 'Standard' for production SLA (99.95%, ~$75/mo), 'Free' for dev/test."
+  type        = string
+  default     = "Free"
+}
+
 variable "platform_repo_url" {
   description = "Git repository URL for the platform manifests."
   type        = string
@@ -85,9 +97,27 @@ variable "system_vm_size" {
 }
 
 variable "system_node_count" {
-  description = "Number of nodes in the system node pool."
+  description = "Number of nodes in the system node pool. Used as initial count when autoscaling is enabled."
   type        = number
   default     = 2
+}
+
+variable "system_auto_scaling_enabled" {
+  description = "Enable cluster autoscaler on the system node pool."
+  type        = bool
+  default     = false
+}
+
+variable "system_min_count" {
+  description = "Minimum nodes in the system pool when autoscaling is enabled."
+  type        = number
+  default     = 2
+}
+
+variable "system_max_count" {
+  description = "Maximum nodes in the system pool when autoscaling is enabled."
+  type        = number
+  default     = 4
 }
 
 variable "system_os_disk_size_gb" {

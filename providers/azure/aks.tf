@@ -3,11 +3,13 @@
 # ---------------------------------------------------------------------------
 
 resource "azurerm_kubernetes_cluster" "platform" {
-  name                = "aks-${var.name_prefix}-platform"
-  location            = azurerm_resource_group.platform.location
-  resource_group_name = azurerm_resource_group.platform.name
-  dns_prefix          = "aks-${var.name_prefix}-platform"
-  kubernetes_version  = var.kubernetes_version
+  name                      = "aks-${var.name_prefix}-platform"
+  location                  = azurerm_resource_group.platform.location
+  resource_group_name       = azurerm_resource_group.platform.name
+  dns_prefix                = "aks-${var.name_prefix}-platform"
+  kubernetes_version        = var.kubernetes_version
+  sku_tier                  = var.sku_tier
+  automatic_upgrade_channel = var.auto_upgrade_channel
 
   # --- Identity ----------------------------------------------------------
   identity {
@@ -20,12 +22,15 @@ resource "azurerm_kubernetes_cluster" "platform" {
   # --- Default (system) node pool ----------------------------------------
   default_node_pool {
     name                        = "system"
-    node_count                  = var.system_node_count
+    node_count                  = var.system_auto_scaling_enabled ? null : var.system_node_count
     vm_size                     = var.system_vm_size
     vnet_subnet_id              = azurerm_subnet.aks_nodes.id
     os_disk_size_gb             = var.system_os_disk_size_gb
     os_disk_type                = var.os_disk_type
     zones                       = var.availability_zones
+    auto_scaling_enabled        = var.system_auto_scaling_enabled
+    min_count                   = var.system_auto_scaling_enabled ? var.system_min_count : null
+    max_count                   = var.system_auto_scaling_enabled ? var.system_max_count : null
     temporary_name_for_rotation = "systemtmp"
 
     upgrade_settings {
