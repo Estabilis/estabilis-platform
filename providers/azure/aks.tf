@@ -42,7 +42,7 @@ resource "azurerm_kubernetes_cluster" "platform" {
   network_profile {
     network_plugin      = "azure"
     network_plugin_mode = "overlay"
-    outbound_type       = var.nat_gateway_enabled ? "userDefinedRouting" : "loadBalancer"
+    outbound_type       = var.nat_gateway_enabled ? "userAssignedNATGateway" : "loadBalancer"
     service_cidr        = var.service_cidr
     dns_service_ip      = var.dns_service_ip
     pod_cidr            = var.pod_cidr
@@ -83,7 +83,6 @@ resource "azurerm_kubernetes_cluster" "platform" {
   }
 
   depends_on = [
-    azurerm_subnet_route_table_association.aks_nodes,
     azurerm_subnet_nat_gateway_association.aks_nodes,
     azurerm_subnet_network_security_group_association.aks_nodes,
   ]
