@@ -31,8 +31,8 @@ controller:
       cpu: 270m
       memory: 680Mi
     limits:
-      cpu: 1330m
-      memory: 1365Mi
+      cpu: 2
+      memory: 2Gi
 
 repoServer:
   replicas: 1
