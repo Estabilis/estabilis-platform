@@ -224,6 +224,18 @@ variable "maintenance_window_duration" {
   default     = 4
 }
 
+variable "nat_gateway_enabled" {
+  description = "Enable NAT Gateway for controlled outbound traffic with static IP. Required for outboundType userDefinedRouting."
+  type        = bool
+  default     = true
+}
+
+variable "nsg_enabled" {
+  description = "Enable Network Security Group on AKS node subnet for defense in depth."
+  type        = bool
+  default     = true
+}
+
 variable "authorized_ip_ranges" {
   description = "List of authorized IP ranges for AKS API server access. Empty list makes API server private."
   type        = list(string)

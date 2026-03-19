@@ -61,3 +61,8 @@ output "cert_manager_client_id" {
   description = "Client ID of the cert-manager managed identity."
   value       = azurerm_user_assigned_identity.cert_manager.client_id
 }
+
+output "nat_gateway_public_ip" {
+  description = "Static outbound IP address (NAT Gateway). Use this for external allowlists."
+  value       = var.nat_gateway_enabled ? azurerm_public_ip.nat_gateway[0].ip_address : null
+}

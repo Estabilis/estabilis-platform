@@ -42,6 +42,7 @@ resource "azurerm_kubernetes_cluster" "platform" {
   network_profile {
     network_plugin      = "azure"
     network_plugin_mode = "overlay"
+    outbound_type       = var.nat_gateway_enabled ? "userDefinedRouting" : "loadBalancer"
     service_cidr        = var.service_cidr
     dns_service_ip      = var.dns_service_ip
     pod_cidr            = var.pod_cidr
