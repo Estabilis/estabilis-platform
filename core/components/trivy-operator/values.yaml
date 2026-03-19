@@ -5,6 +5,24 @@ commonLabels:
   estabilis.io/managed-by: platform
   estabilis.io/component: trivy-operator
 
+podLabels:
+  app: trivy-operator
+  team: platform
+  estabilis.io/owner: platform
+  estabilis.io/service: trivy-operator
+  estabilis.io/tier: security
+
+securityContext:
+  runAsNonRoot: true
+  seccompProfile:
+    type: RuntimeDefault
+
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  runAsNonRoot: true
+  capabilities:
+    drop: [ALL]
+
 trivy:
   ignoreUnfixed: true
   resources:

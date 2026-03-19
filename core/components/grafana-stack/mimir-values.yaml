@@ -5,6 +5,14 @@ commonLabels:
   estabilis.io/managed-by: platform
   estabilis.io/component: mimir
 
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  runAsNonRoot: true
+  capabilities:
+    drop: [ALL]
+  seccompProfile:
+    type: RuntimeDefault
+
 mimir:
   structuredConfig:
     usage_stats:
