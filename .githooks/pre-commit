@@ -18,6 +18,19 @@ if command -v terraform &> /dev/null; then
             fi
         done
         echo "Terraform formatting OK."
+
+        # Validate Terraform configuration (only if providers are fully initialized)
+        for dir in providers/*/; do
+            if [ -d "$dir/.terraform/providers" ]; then
+                echo "Validating Terraform: $dir"
+                if ! terraform -chdir="$dir" validate > /dev/null 2>&1; then
+                    echo "ERROR: Terraform validation failed in $dir"
+                    terraform -chdir="$dir" validate
+                    exit 1
+                fi
+                echo "Terraform validation OK: $dir"
+            fi
+        done
     fi
 else
     echo "WARNING: terraform not found, skipping format check."
