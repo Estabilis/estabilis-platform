@@ -8,6 +8,9 @@ Required by every namespace. Use with: {{ include "network-policies.dns-egress" 
         - namespaceSelector:
             matchLabels:
               kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
       ports:
         - protocol: UDP
           port: 53
