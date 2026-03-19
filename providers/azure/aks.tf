@@ -24,6 +24,7 @@ resource "azurerm_kubernetes_cluster" "platform" {
     vm_size                     = var.system_vm_size
     vnet_subnet_id              = azurerm_subnet.aks_nodes.id
     os_disk_size_gb             = var.system_os_disk_size_gb
+    zones                       = var.availability_zones
     temporary_name_for_rotation = "systemtmp"
 
     upgrade_settings {
@@ -75,6 +76,7 @@ resource "azurerm_kubernetes_cluster_node_pool" "platform_spot" {
   vm_size                     = var.workload_vm_size
   vnet_subnet_id              = azurerm_subnet.aks_nodes.id
   os_disk_size_gb             = var.workload_os_disk_size_gb
+  zones                       = var.availability_zones
   temporary_name_for_rotation = "platspttmp"
 
   priority        = "Spot"
@@ -113,6 +115,7 @@ resource "azurerm_kubernetes_cluster_node_pool" "platform_regular" {
   vm_size                     = var.workload_vm_size
   vnet_subnet_id              = azurerm_subnet.aks_nodes.id
   os_disk_size_gb             = var.workload_os_disk_size_gb
+  zones                       = var.availability_zones
   temporary_name_for_rotation = "platrgtmp"
 
   priority = "Regular"

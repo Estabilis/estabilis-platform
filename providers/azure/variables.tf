@@ -164,6 +164,12 @@ variable "pod_cidr" {
   default     = "10.244.0.0/16"
 }
 
+variable "availability_zones" {
+  description = "Availability zones for AKS node pools. Use [1,2,3] for production. Empty list disables zones."
+  type        = list(string)
+  default     = ["1", "2", "3"]
+}
+
 variable "maintenance_window_day" {
   description = "Day of week for AKS planned maintenance window (e.g., Saturday)."
   type        = string
