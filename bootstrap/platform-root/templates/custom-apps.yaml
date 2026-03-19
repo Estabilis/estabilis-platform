@@ -1,3 +1,4 @@
+{{- /* conditional: downstream custom apps — enabled when configRepoUrl is set */ -}}
 {{- if and .Values.configRepoUrl .Values.configRepoVersion }}
 {{- range $name, $app := .Values.customApps }}
 ---
