@@ -56,6 +56,50 @@ identity:
   velero:
     clientId: ""
 
+# ---------------------------------------------------------------------------
+# Component Toggles
+# ---------------------------------------------------------------------------
+# Controls which platform components are deployed. Downstream can override
+# to disable optional components via overrides/platform-root/values.yaml.
+#
+# Classification:
+#   core        — CANNOT be disabled, platform breaks without them
+#   optional    — CAN be disabled by downstream
+#   observability — CAN be disabled individually or as a group
+#   conditional — enabled based on provider or feature flags
+#
+# Dependencies (if disabling, must also disable):
+#   cnpg        → grafana (uses postgres), argocd-db
+#   mimir       → mimir-rules
+#   loki        → loki-ingress
+#   traefik     → loki-ingress
+#   observability (group) → grafana, loki, mimir, alloy, tempo, dashboards, mimir-rules
+components:
+  # --- core (do not disable) ---
+  cert-manager: true         # core: TLS for all services
+  external-secrets: true     # core: secrets management via Key Vault
+  kyverno: true              # core: security policies, PSS enforcement
+  cnpg: true                 # core: PostgreSQL for Grafana and ArgoCD
+  argocd: true               # core: self-managed GitOps controller
+
+  # --- optional ---
+  traefik: true              # optional: ingress controller (disable if no external endpoints)
+  opencost: true             # optional: cost tracking (disable if not needed)
+  trivy: true                # optional: vulnerability scanning (disable if using alternative)
+  velero: true               # optional: backup/restore (disable if handled externally)
+  external-dns: true         # optional: DNS record management (disable if manual DNS)
+
+  # --- observability (disable individually or set all to false) ---
+  grafana: true              # observability: dashboards and visualization
+  loki: true                 # observability: log aggregation
+  mimir: true                # observability: metrics storage
+  alloy: true                # observability: telemetry collector (DaemonSet)
+  tempo: true                # observability: distributed tracing
+  grafana-dashboards: true   # observability: pre-built dashboards
+  mimir-rules: true          # observability: alerting rules
+  kube-state-metrics: true   # observability: Kubernetes state metrics
+  node-exporter: true        # observability: node-level metrics
+
 # Custom Applications — clients can deploy their own apps via overrides.
 # Each entry creates an ArgoCD Application that references the client's
 # downstream repo. The client controls the path and content.

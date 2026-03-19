@@ -1,3 +1,5 @@
+{{- /* observability: downstream can disable via components.grafana: false */ -}}
+{{- if ne (index .Values.components "grafana") false }}
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -27,6 +29,49 @@ spec:
     syncOptions:
       - ServerSideApply=true
 ---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: grafana
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "7"
+spec:
+  project: platform
+  sources:
+    - repoURL: https://grafana.github.io/helm-charts
+      chart: grafana
+      targetRevision: "10.5.15"
+      helm:
+        valueFiles:
+          - $values/core/components/grafana-stack/grafana-values.yaml
+          - $values/core/components/grafana-stack/grafana-values-{{ .Values.global.provider }}.yaml
+          {{- include "platform-root.overrideValueFile" (dict "component" "grafana" "root" $) | nindent 10 }}
+        {{- include "platform-root.ignoreMissingValueFiles" $ | nindent 8 }}
+    - repoURL: {{ .Values.platformRepoUrl }}
+      targetRevision: {{ .Values.platformVersion }}
+      ref: values
+    {{- include "platform-root.overrideSource" . | nindent 4 }}
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: grafana
+  syncPolicy:
+    {{- include "platform-root.managedNamespaceMetadata" . | nindent 4 }}
+    automated:
+      prune: true
+      selfHeal: true
+    retry:
+      limit: 10
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 3m
+    syncOptions:
+      - CreateNamespace=true
+{{- end }}
+---
+{{- /* observability: downstream can disable via components.loki: false */ -}}
+{{- if ne (index .Values.components "loki") false }}
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -79,7 +124,10 @@ spec:
         maxDuration: 3m
     syncOptions:
       - CreateNamespace=true
+{{- end }}
 ---
+{{- /* observability: downstream can disable via components.mimir: false */ -}}
+{{- if ne (index .Values.components "mimir") false }}
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -132,7 +180,10 @@ spec:
         maxDuration: 3m
     syncOptions:
       - CreateNamespace=true
+{{- end }}
 ---
+{{- /* observability: downstream can disable via components.alloy: false */ -}}
+{{- if ne (index .Values.components "alloy") false }}
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -199,47 +250,10 @@ spec:
         maxDuration: 3m
     syncOptions:
       - CreateNamespace=true
+{{- end }}
 ---
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-metadata:
-  name: grafana
-  namespace: argocd
-  annotations:
-    argocd.argoproj.io/sync-wave: "7"
-spec:
-  project: platform
-  sources:
-    - repoURL: https://grafana.github.io/helm-charts
-      chart: grafana
-      targetRevision: "10.5.15"
-      helm:
-        valueFiles:
-          - $values/core/components/grafana-stack/grafana-values.yaml
-          - $values/core/components/grafana-stack/grafana-values-{{ .Values.global.provider }}.yaml
-          {{- include "platform-root.overrideValueFile" (dict "component" "grafana" "root" $) | nindent 10 }}
-        {{- include "platform-root.ignoreMissingValueFiles" $ | nindent 8 }}
-    - repoURL: {{ .Values.platformRepoUrl }}
-      targetRevision: {{ .Values.platformVersion }}
-      ref: values
-    {{- include "platform-root.overrideSource" . | nindent 4 }}
-  destination:
-    server: https://kubernetes.default.svc
-    namespace: grafana
-  syncPolicy:
-    {{- include "platform-root.managedNamespaceMetadata" . | nindent 4 }}
-    automated:
-      prune: true
-      selfHeal: true
-    retry:
-      limit: 10
-      backoff:
-        duration: 10s
-        factor: 2
-        maxDuration: 3m
-    syncOptions:
-      - CreateNamespace=true
----
+{{- /* observability: downstream can disable via components.tempo: false */ -}}
+{{- if ne (index .Values.components "tempo") false }}
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -279,7 +293,11 @@ spec:
         maxDuration: 3m
     syncOptions:
       - CreateNamespace=true
+{{- end }}
 ---
+{{- /* observability: downstream can disable via components.mimir-rules: false */ -}}
+{{- if ne (index .Values.components "mimir-rules") false }}
+{{- if ne (index .Values.components "mimir") false }}
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -315,3 +333,5 @@ spec:
         duration: 10s
         factor: 2
         maxDuration: 3m
+{{- end }}
+{{- end }}

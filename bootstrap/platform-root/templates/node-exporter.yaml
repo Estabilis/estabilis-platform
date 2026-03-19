@@ -1,3 +1,5 @@
+{{- /* optional: downstream can disable via components.node-exporter: false */ -}}
+{{- if ne (index .Values.components "node-exporter") false }}
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -37,3 +39,4 @@ spec:
         maxDuration: 3m
     syncOptions:
       - CreateNamespace=true
+{{- end }}

@@ -1,3 +1,4 @@
+{{- /* conditional: enabled via global.lokiExternalIngressEnabled, depends on traefik and loki */ -}}
 {{- if or (eq (.Values.global.lokiExternalIngressEnabled | toString) "true") (eq (.Values.global.lokiExternalIngressEnabled | toString) "True") }}
 apiVersion: argoproj.io/v1alpha1
 kind: Application

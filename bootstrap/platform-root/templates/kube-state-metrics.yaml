@@ -1,3 +1,5 @@
+{{- /* optional: downstream can disable via components.kube-state-metrics: false */ -}}
+{{- if ne (index .Values.components "kube-state-metrics") false }}
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -36,3 +38,4 @@ spec:
         maxDuration: 3m
     syncOptions:
       - CreateNamespace=true
+{{- end }}

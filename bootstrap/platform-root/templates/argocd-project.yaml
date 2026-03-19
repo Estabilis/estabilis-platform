@@ -1,3 +1,4 @@
+{{- /* core: this component cannot be disabled — platform depends on it */ -}}
 # Platform project — restricted to platform namespaces only
 apiVersion: argoproj.io/v1alpha1
 kind: AppProject
