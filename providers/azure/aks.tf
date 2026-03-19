@@ -98,6 +98,7 @@ resource "azurerm_kubernetes_cluster" "platform" {
 # ---------------------------------------------------------------------------
 
 resource "azurerm_kubernetes_cluster_node_pool" "platform_spot" {
+  count                       = var.workload_spot_enabled ? 1 : 0
   name                        = "platformsp"
   kubernetes_cluster_id       = azurerm_kubernetes_cluster.platform.id
   vm_size                     = var.workload_vm_size
@@ -138,6 +139,7 @@ resource "azurerm_kubernetes_cluster_node_pool" "platform_spot" {
 # ---------------------------------------------------------------------------
 
 resource "azurerm_kubernetes_cluster_node_pool" "platform_regular" {
+  count                       = var.workload_regular_enabled ? 1 : 0
   name                        = "platformrg"
   kubernetes_cluster_id       = azurerm_kubernetes_cluster.platform.id
   vm_size                     = var.workload_vm_size

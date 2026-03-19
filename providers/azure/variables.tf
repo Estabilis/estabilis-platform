@@ -99,7 +99,7 @@ variable "system_vm_size" {
 variable "system_node_count" {
   description = "Number of nodes in the system node pool. Used as initial count when autoscaling is enabled."
   type        = number
-  default     = 2
+  default     = 3
 }
 
 variable "system_auto_scaling_enabled" {
@@ -129,6 +129,18 @@ variable "system_os_disk_size_gb" {
 # ---------------------------------------------------------------------------
 # AKS – Workload node pool
 # ---------------------------------------------------------------------------
+
+variable "workload_regular_enabled" {
+  description = "Enable the regular workload node pool."
+  type        = bool
+  default     = false
+}
+
+variable "workload_spot_enabled" {
+  description = "Enable the spot workload node pool."
+  type        = bool
+  default     = false
+}
 
 variable "workload_vm_size" {
   description = "VM size for the workload node pool."
