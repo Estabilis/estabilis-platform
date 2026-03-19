@@ -82,6 +82,12 @@ resource "azurerm_kubernetes_cluster" "platform" {
     utc_offset  = "+00:00"
   }
 
+  depends_on = [
+    azurerm_subnet_route_table_association.aks_nodes,
+    azurerm_subnet_nat_gateway_association.aks_nodes,
+    azurerm_subnet_network_security_group_association.aks_nodes,
+  ]
+
   tags = var.tags
 }
 
