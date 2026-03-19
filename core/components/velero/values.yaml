@@ -20,10 +20,18 @@ configuration:
 
 upgradeCRDs: false
 
+podSecurityContext:
+  runAsNonRoot: true
+  seccompProfile:
+    type: RuntimeDefault
+
 containerSecurityContext:
   runAsUser: 65534
   runAsNonRoot: true
   readOnlyRootFilesystem: false
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop: [ALL]
 
 credentials:
   useSecret: false

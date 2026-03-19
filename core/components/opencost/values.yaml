@@ -10,6 +10,12 @@ opencost:
     cloudProviderApiKey: ""
     securityContext:
       readOnlyRootFilesystem: false
+      allowPrivilegeEscalation: false
+      runAsNonRoot: true
+      capabilities:
+        drop: [ALL]
+      seccompProfile:
+        type: RuntimeDefault
     resources:
       requests:
         cpu: 100m
@@ -36,6 +42,12 @@ opencost:
         memory: 64Mi
     securityContext:
       readOnlyRootFilesystem: false
+      allowPrivilegeEscalation: false
+      runAsNonRoot: true
+      capabilities:
+        drop: [ALL]
+      seccompProfile:
+        type: RuntimeDefault
 
 tolerations:
   - key: "estabilis.io/workload-type"

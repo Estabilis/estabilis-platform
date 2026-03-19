@@ -5,6 +5,13 @@ commonLabels:
 admissionController:
   replicas: 1
   container:
+    securityContext:
+      allowPrivilegeEscalation: false
+      runAsNonRoot: true
+      capabilities:
+        drop: [ALL]
+      seccompProfile:
+        type: RuntimeDefault
     resources:
       requests:
         cpu: 50m
@@ -17,6 +24,14 @@ admissionController:
 
 backgroundController:
   enabled: true
+  container:
+    securityContext:
+      allowPrivilegeEscalation: false
+      runAsNonRoot: true
+      capabilities:
+        drop: [ALL]
+      seccompProfile:
+        type: RuntimeDefault
   resources:
     requests:
       cpu: 20m
@@ -41,6 +56,14 @@ backgroundController:
 
 cleanupController:
   enabled: true
+  container:
+    securityContext:
+      allowPrivilegeEscalation: false
+      runAsNonRoot: true
+      capabilities:
+        drop: [ALL]
+      seccompProfile:
+        type: RuntimeDefault
   resources:
     requests:
       cpu: 10m
@@ -53,6 +76,14 @@ cleanupController:
 
 reportsController:
   enabled: true
+  container:
+    securityContext:
+      allowPrivilegeEscalation: false
+      runAsNonRoot: true
+      capabilities:
+        drop: [ALL]
+      seccompProfile:
+        type: RuntimeDefault
   resources:
     requests:
       cpu: 20m
