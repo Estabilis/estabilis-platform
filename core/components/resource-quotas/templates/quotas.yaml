@@ -1,0 +1,13 @@
+{{- range $ns, $quota := .Values.namespaces }}
+{{- if $quota.enabled }}
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: platform-quota
+  namespace: {{ $ns }}
+spec:
+  hard:
+    {{- toYaml $quota.hard | nindent 4 }}
+{{- end }}
+{{- end }}

@@ -6,18 +6,18 @@ metadata:
   annotations:
     policies.kyverno.io/title: Require Resource Quotas
     policies.kyverno.io/description: >-
-      Automatically generates a default ResourceQuota for each new namespace.
-      ResourceQuotas prevent a single namespace from consuming all cluster
-      resources and ensure fair sharing across tenants.
+      Validates that every namespace has a ResourceQuota defined.
+      Resource quotas are managed by the resource-quotas platform component.
 spec:
+  validationFailureAction: {{ .Values.policies.require_resource_quotas.action | default "Audit" }}
   background: true
   rules:
-    - name: generate-resource-quota
+    - name: check-quota-exists
       match:
         any:
           - resources:
               kinds:
-                - Namespace
+                - Pod
       exclude:
         any:
           - resources:
@@ -25,21 +25,19 @@ spec:
                 - kube-system
                 - kube-public
                 - kube-node-lease
+                - default
                 - argocd
-      generate:
-        synchronize: true
-        apiVersion: v1
-        kind: ResourceQuota
-        name: default-resource-quota
-        namespace: "{{`{{ request.object.metadata.name }}`}}"
-        data:
-          spec:
-            hard:
-              requests.cpu: "4"
-              requests.memory: 8Gi
-              limits.cpu: "8"
-              limits.memory: 16Gi
-              pods: "50"
-              services: "40"
-              persistentvolumeclaims: "10"
+      context:
+        - name: quotaCount
+          apiCall:
+            urlPath: "/api/v1/namespaces/{{`{{request.namespace}}`}}/resourcequotas"
+            jmesPath: "items | length(@)"
+      validate:
+        message: "Namespace {{`{{request.namespace}}`}} must have a ResourceQuota. Deploy the resource-quotas component or add a quota manually."
+        deny:
+          conditions:
+            all:
+              - key: "{{`{{ quotaCount }}`}}"
+                operator: Equals
+                value: 0
 {{- end }}
