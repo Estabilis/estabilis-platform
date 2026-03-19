@@ -26,8 +26,6 @@ spec:
         duration: 10s
         factor: 2
         maxDuration: 3m
-    syncOptions:
-      - ServerSideApply=true
 ---
 apiVersion: argoproj.io/v1alpha1
 kind: Application
