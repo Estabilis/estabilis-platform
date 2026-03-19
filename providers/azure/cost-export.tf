@@ -13,7 +13,7 @@ resource "azurerm_storage_account" "cost_exports" {
   resource_group_name             = azurerm_resource_group.platform.name
   location                        = azurerm_resource_group.platform.location
   account_tier                    = "Standard"
-  account_replication_type        = "ZRS"
+  account_replication_type        = var.storage_replication_type
   min_tls_version                 = "TLS1_2"
   shared_access_key_enabled       = true # required by OpenCost cloud-integration
   allow_nested_items_to_be_public = false
@@ -28,10 +28,10 @@ resource "azurerm_storage_account" "cost_exports" {
 
   blob_properties {
     delete_retention_policy {
-      days = 14
+      days = var.storage_soft_delete_retention_days
     }
     container_delete_retention_policy {
-      days = 14
+      days = var.storage_soft_delete_retention_days
     }
   }
 

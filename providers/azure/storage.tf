@@ -7,7 +7,7 @@ resource "azurerm_storage_account" "observability" {
   resource_group_name             = azurerm_resource_group.platform.name
   location                        = azurerm_resource_group.platform.location
   account_tier                    = "Standard"
-  account_replication_type        = "ZRS"
+  account_replication_type        = var.storage_replication_type
   min_tls_version                 = "TLS1_2"
   shared_access_key_enabled       = false
   allow_nested_items_to_be_public = false
@@ -16,10 +16,10 @@ resource "azurerm_storage_account" "observability" {
 
   blob_properties {
     delete_retention_policy {
-      days = 14
+      days = var.storage_soft_delete_retention_days
     }
     container_delete_retention_policy {
-      days = 14
+      days = var.storage_soft_delete_retention_days
     }
   }
   tags = var.tags
@@ -93,17 +93,17 @@ resource "azurerm_storage_account" "cnpg_backup" {
   resource_group_name             = azurerm_resource_group.platform.name
   location                        = azurerm_resource_group.platform.location
   account_tier                    = "Standard"
-  account_replication_type        = "ZRS"
+  account_replication_type        = var.storage_replication_type
   min_tls_version                 = "TLS1_2"
   shared_access_key_enabled       = false
   allow_nested_items_to_be_public = false
 
   blob_properties {
     delete_retention_policy {
-      days = 14
+      days = var.storage_soft_delete_retention_days
     }
     container_delete_retention_policy {
-      days = 14
+      days = var.storage_soft_delete_retention_days
     }
   }
   tags = var.tags
@@ -124,17 +124,17 @@ resource "azurerm_storage_account" "velero_backup" {
   resource_group_name             = azurerm_resource_group.platform.name
   location                        = azurerm_resource_group.platform.location
   account_tier                    = "Standard"
-  account_replication_type        = "ZRS"
+  account_replication_type        = var.storage_replication_type
   min_tls_version                 = "TLS1_2"
   shared_access_key_enabled       = false
   allow_nested_items_to_be_public = false
 
   blob_properties {
     delete_retention_policy {
-      days = 14
+      days = var.storage_soft_delete_retention_days
     }
     container_delete_retention_policy {
-      days = 14
+      days = var.storage_soft_delete_retention_days
     }
   }
   tags = var.tags

@@ -218,6 +218,32 @@ variable "velero_backup_schedule" {
   default     = "0 2 * * *"
 }
 
+# ---------------------------------------------------------------------------
+# Storage
+# ---------------------------------------------------------------------------
+
+variable "storage_replication_type" {
+  description = "Replication type for all storage accounts. ZRS for production, LRS for dev/test."
+  type        = string
+  default     = "ZRS"
+}
+
+variable "storage_soft_delete_retention_days" {
+  description = "Retention days for blob and container soft delete on all storage accounts."
+  type        = number
+  default     = 14
+}
+
+# ---------------------------------------------------------------------------
+# Diagnostics
+# ---------------------------------------------------------------------------
+
+variable "log_analytics_retention_days" {
+  description = "Retention days for Log Analytics Workspace (AKS audit logs)."
+  type        = number
+  default     = 30
+}
+
 variable "loki_allowed_cidrs" {
   description = "Comma-separated list of CIDRs allowed to push logs to Loki external ingress. Empty string disables IP restriction."
   type        = string
