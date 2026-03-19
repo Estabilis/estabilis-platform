@@ -1,11 +1,12 @@
-# Resource quotas per namespace — override via downstream overrides/resource-quotas/values.yaml
+# Resource quotas and limit ranges per namespace
+# Override via downstream overrides/resource-quotas/values.yaml
 #
-# Downstream can add custom namespaces. If 'hard' is omitted, defaults are used.
+# Downstream can add custom namespaces. If 'hard' or 'limitRange' is omitted, defaults are used.
 # Example:
 #   namespaces:
 #     my-app:
 #       enabled: true
-#       # uses defaults below
+#       # uses defaults below for both quota and limitRange
 
 defaults:
   hard:
@@ -15,6 +16,16 @@ defaults:
     limits.memory: 4Gi
     pods: "20"
     persistentvolumeclaims: "5"
+  limitRange:
+    default:
+      cpu: 100m
+      memory: 128Mi
+    defaultRequest:
+      cpu: 10m
+      memory: 32Mi
+    max:
+      cpu: "4"
+      memory: 8Gi
 
 namespaces:
   grafana:
