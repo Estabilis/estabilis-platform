@@ -19,12 +19,15 @@ resource "azurerm_storage_account" "tfstate" {
   shared_access_key_enabled       = false
   allow_nested_items_to_be_public = false
 
-  blob_properties {
-    delete_retention_policy {
-      days = var.storage_soft_delete_retention_days
-    }
-    container_delete_retention_policy {
-      days = var.storage_soft_delete_retention_days
+  dynamic "blob_properties" {
+    for_each = var.storage_soft_delete_enabled ? [1] : []
+    content {
+      delete_retention_policy {
+        days = var.storage_soft_delete_retention_days
+      }
+      container_delete_retention_policy {
+        days = var.storage_soft_delete_retention_days
+      }
     }
   }
   tags = var.tags

@@ -258,8 +258,14 @@ variable "storage_replication_type_cost_exports" {
   default     = ""
 }
 
+variable "storage_soft_delete_enabled" {
+  description = "Enable blob and container soft delete on all storage accounts."
+  type        = bool
+  default     = true
+}
+
 variable "storage_soft_delete_retention_days" {
-  description = "Retention days for blob and container soft delete on all storage accounts."
+  description = "Retention days for blob and container soft delete on all storage accounts. Only used when storage_soft_delete_enabled is true."
   type        = number
   default     = 14
 }

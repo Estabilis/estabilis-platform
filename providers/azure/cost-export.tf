@@ -26,12 +26,15 @@ resource "azurerm_storage_account" "cost_exports" {
     bypass         = ["AzureServices"]
   }
 
-  blob_properties {
-    delete_retention_policy {
-      days = var.storage_soft_delete_retention_days
-    }
-    container_delete_retention_policy {
-      days = var.storage_soft_delete_retention_days
+  dynamic "blob_properties" {
+    for_each = var.storage_soft_delete_enabled ? [1] : []
+    content {
+      delete_retention_policy {
+        days = var.storage_soft_delete_retention_days
+      }
+      container_delete_retention_policy {
+        days = var.storage_soft_delete_retention_days
+      }
     }
   }
 
