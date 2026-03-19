@@ -52,6 +52,18 @@ resource "azurerm_kubernetes_cluster" "platform" {
     authorized_ip_ranges = var.authorized_ip_ranges
   }
 
+  dynamic "monitor_metrics" {
+    for_each = var.azure_monitor_enabled ? [1] : []
+    content {}
+  }
+
+  dynamic "oms_agent" {
+    for_each = var.azure_monitor_enabled && var.diagnostics_enabled ? [1] : []
+    content {
+      log_analytics_workspace_id = azurerm_log_analytics_workspace.platform[0].id
+    }
+  }
+
   maintenance_window_auto_upgrade {
     frequency   = "Weekly"
     interval    = 1

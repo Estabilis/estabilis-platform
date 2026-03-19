@@ -224,6 +224,12 @@ variable "maintenance_window_duration" {
   default     = 4
 }
 
+variable "azure_monitor_enabled" {
+  description = "Enable Azure Monitor Agent on AKS nodes for infrastructure-level metrics."
+  type        = bool
+  default     = true
+}
+
 variable "nat_gateway_enabled" {
   description = "Enable NAT Gateway for controlled outbound traffic with static IP. Required for outboundType userDefinedRouting."
   type        = bool
