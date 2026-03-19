@@ -8,6 +8,10 @@ metadata:
   namespace: {{ $ns }}
 spec:
   hard:
+    {{- if $quota.hard }}
     {{- toYaml $quota.hard | nindent 4 }}
+    {{- else }}
+    {{- toYaml $.Values.defaults.hard | nindent 4 }}
+    {{- end }}
 {{- end }}
 {{- end }}
