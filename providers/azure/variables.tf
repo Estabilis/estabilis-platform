@@ -238,6 +238,12 @@ variable "storage_soft_delete_retention_days" {
 # Diagnostics
 # ---------------------------------------------------------------------------
 
+variable "diagnostics_enabled" {
+  description = "Enable AKS diagnostic settings (Log Analytics + audit logs). Disable for dev/test to save costs."
+  type        = bool
+  default     = true
+}
+
 variable "log_analytics_retention_days" {
   description = "Retention days for Log Analytics Workspace (AKS audit logs)."
   type        = number
