@@ -223,9 +223,39 @@ variable "velero_backup_schedule" {
 # ---------------------------------------------------------------------------
 
 variable "storage_replication_type" {
-  description = "Replication type for all storage accounts. ZRS for production, LRS for dev/test."
+  description = "Default replication type for storage accounts. Per-storage overrides take precedence when set."
   type        = string
   default     = "ZRS"
+}
+
+variable "storage_replication_type_tfstate" {
+  description = "Replication type for Terraform state storage. Empty string uses storage_replication_type."
+  type        = string
+  default     = ""
+}
+
+variable "storage_replication_type_observability" {
+  description = "Replication type for observability storage (Loki/Mimir). Empty string uses storage_replication_type."
+  type        = string
+  default     = ""
+}
+
+variable "storage_replication_type_cnpg" {
+  description = "Replication type for CNPG backup storage. Empty string uses storage_replication_type."
+  type        = string
+  default     = ""
+}
+
+variable "storage_replication_type_velero" {
+  description = "Replication type for Velero backup storage. Empty string uses storage_replication_type."
+  type        = string
+  default     = ""
+}
+
+variable "storage_replication_type_cost_exports" {
+  description = "Replication type for cost exports storage. Empty string uses storage_replication_type."
+  type        = string
+  default     = ""
 }
 
 variable "storage_soft_delete_retention_days" {

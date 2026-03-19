@@ -7,7 +7,7 @@ resource "azurerm_storage_account" "observability" {
   resource_group_name             = azurerm_resource_group.platform.name
   location                        = azurerm_resource_group.platform.location
   account_tier                    = "Standard"
-  account_replication_type        = var.storage_replication_type
+  account_replication_type        = coalesce(var.storage_replication_type_observability, var.storage_replication_type)
   min_tls_version                 = "TLS1_2"
   shared_access_key_enabled       = false
   allow_nested_items_to_be_public = false
@@ -93,7 +93,7 @@ resource "azurerm_storage_account" "cnpg_backup" {
   resource_group_name             = azurerm_resource_group.platform.name
   location                        = azurerm_resource_group.platform.location
   account_tier                    = "Standard"
-  account_replication_type        = var.storage_replication_type
+  account_replication_type        = coalesce(var.storage_replication_type_cnpg, var.storage_replication_type)
   min_tls_version                 = "TLS1_2"
   shared_access_key_enabled       = false
   allow_nested_items_to_be_public = false
@@ -124,7 +124,7 @@ resource "azurerm_storage_account" "velero_backup" {
   resource_group_name             = azurerm_resource_group.platform.name
   location                        = azurerm_resource_group.platform.location
   account_tier                    = "Standard"
-  account_replication_type        = var.storage_replication_type
+  account_replication_type        = coalesce(var.storage_replication_type_velero, var.storage_replication_type)
   min_tls_version                 = "TLS1_2"
   shared_access_key_enabled       = false
   allow_nested_items_to_be_public = false

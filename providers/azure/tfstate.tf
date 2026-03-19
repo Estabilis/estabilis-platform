@@ -14,7 +14,7 @@ resource "azurerm_storage_account" "tfstate" {
   resource_group_name             = azurerm_resource_group.tfstate.name
   location                        = azurerm_resource_group.tfstate.location
   account_tier                    = "Standard"
-  account_replication_type        = var.storage_replication_type
+  account_replication_type        = coalesce(var.storage_replication_type_tfstate, var.storage_replication_type)
   min_tls_version                 = "TLS1_2"
   shared_access_key_enabled       = false
   allow_nested_items_to_be_public = false
