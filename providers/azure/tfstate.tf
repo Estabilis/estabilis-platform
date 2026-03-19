@@ -14,11 +14,20 @@ resource "azurerm_storage_account" "tfstate" {
   resource_group_name             = azurerm_resource_group.tfstate.name
   location                        = azurerm_resource_group.tfstate.location
   account_tier                    = "Standard"
-  account_replication_type        = "LRS"
+  account_replication_type        = "ZRS"
   min_tls_version                 = "TLS1_2"
   shared_access_key_enabled       = false
   allow_nested_items_to_be_public = false
-  tags                            = var.tags
+
+  blob_properties {
+    delete_retention_policy {
+      days = 14
+    }
+    container_delete_retention_policy {
+      days = 14
+    }
+  }
+  tags = var.tags
 }
 
 resource "azurerm_storage_container" "tfstate" {

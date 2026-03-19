@@ -13,7 +13,7 @@ resource "azurerm_storage_account" "cost_exports" {
   resource_group_name             = azurerm_resource_group.platform.name
   location                        = azurerm_resource_group.platform.location
   account_tier                    = "Standard"
-  account_replication_type        = "LRS"
+  account_replication_type        = "ZRS"
   min_tls_version                 = "TLS1_2"
   shared_access_key_enabled       = true # required by OpenCost cloud-integration
   allow_nested_items_to_be_public = false
@@ -24,6 +24,15 @@ resource "azurerm_storage_account" "cost_exports" {
   network_rules {
     default_action = "Allow"
     bypass         = ["AzureServices"]
+  }
+
+  blob_properties {
+    delete_retention_policy {
+      days = 14
+    }
+    container_delete_retention_policy {
+      days = 14
+    }
   }
 
   lifecycle {
