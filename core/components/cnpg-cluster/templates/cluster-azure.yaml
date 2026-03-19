@@ -42,14 +42,6 @@ spec:
         connectionLimit: -1
         passwordSecret:
           name: grafana-db-credentials
-      - name: argocd
-        ensure: present
-        login: true
-        inherit: true
-        superuser: false
-        connectionLimit: -1
-        passwordSecret:
-          name: argocd-db-credentials
 
   # Backup to Azure Blob Storage via WAL archiving
   backup:

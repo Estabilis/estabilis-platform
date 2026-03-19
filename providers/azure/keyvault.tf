@@ -51,11 +51,6 @@ resource "random_password" "grafana_db" {
   special = false
 }
 
-resource "random_password" "argocd_db" {
-  length  = 32
-  special = false
-}
-
 resource "azurerm_key_vault_secret" "grafana_admin_password" {
   name         = "platform-grafana-admin-password"
   value        = random_password.grafana_admin.result
@@ -67,14 +62,6 @@ resource "azurerm_key_vault_secret" "grafana_admin_password" {
 resource "azurerm_key_vault_secret" "grafana_db_password" {
   name         = "platform-grafana-db-password"
   value        = random_password.grafana_db.result
-  key_vault_id = azurerm_key_vault.platform.id
-
-  depends_on = [azurerm_role_assignment.terraform_kv_officer]
-}
-
-resource "azurerm_key_vault_secret" "argocd_db_password" {
-  name         = "platform-argocd-db-password"
-  value        = random_password.argocd_db.result
   key_vault_id = azurerm_key_vault.platform.id
 
   depends_on = [azurerm_role_assignment.terraform_kv_officer]
