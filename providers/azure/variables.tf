@@ -237,9 +237,9 @@ variable "maintenance_window_duration" {
 }
 
 variable "azure_monitor_enabled" {
-  description = "Enable Azure Monitor Agent on AKS nodes for infrastructure-level metrics."
+  description = "Enable Azure Monitor Agent on AKS nodes for infrastructure-level metrics. Opt-in — platform uses Grafana/Alloy/Mimir by default."
   type        = bool
-  default     = true
+  default     = false
 }
 
 variable "nat_gateway_enabled" {
