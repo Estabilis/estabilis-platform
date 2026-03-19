@@ -137,13 +137,13 @@ variable "vnet_address_space" {
 variable "subnet_nodes_prefix" {
   description = "Address prefix for the AKS nodes subnet."
   type        = string
-  default     = "10.0.1.0/24"
+  default     = "10.0.0.0/22"
 }
 
 variable "subnet_pods_prefix" {
   description = "Address prefix for the AKS pods subnet."
   type        = string
-  default     = "10.0.2.0/23"
+  default     = "10.0.4.0/22"
 }
 
 variable "service_cidr" {
