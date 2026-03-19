@@ -28,14 +28,7 @@ spec:
     - from:
         - namespaceSelector: {}
   egress:
-    # DNS
-    - to:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: kube-system
-      ports:
-        - protocol: UDP
-          port: 53
+{{ include "network-policies.dns-egress" . }}
     # PostgreSQL to cnpg-system
     - to:
         - namespaceSelector:
@@ -69,14 +62,7 @@ spec:
   policyTypes:
     - Egress
   egress:
-    # DNS
-    - to:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: kube-system
-      ports:
-        - protocol: UDP
-          port: 53
+{{ include "network-policies.dns-egress" . }}
     # All egress (github, chart registries, kubernetes API)
     - to: []
 {{- end }}
@@ -96,14 +82,7 @@ spec:
   policyTypes:
     - Egress
   egress:
-    # DNS
-    - to:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: kube-system
-      ports:
-        - protocol: UDP
-          port: 53
+{{ include "network-policies.dns-egress" . }}
     # All egress (Let's Encrypt ACME, Azure DNS API)
     - to: []
 {{- end }}
@@ -123,14 +102,7 @@ spec:
   policyTypes:
     - Egress
   egress:
-    # DNS
-    - to:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: kube-system
-      ports:
-        - protocol: UDP
-          port: 53
+{{ include "network-policies.dns-egress" . }}
     # All egress (Azure Key Vault)
     - to: []
 {{- end }}
@@ -150,14 +122,7 @@ spec:
   policyTypes:
     - Egress
   egress:
-    # DNS
-    - to:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: kube-system
-      ports:
-        - protocol: UDP
-          port: 53
+{{ include "network-policies.dns-egress" . }}
     # All egress (Azure DNS API)
     - to: []
 {{- end }}
@@ -188,14 +153,7 @@ spec:
         - protocol: TCP
           port: 5432
   egress:
-    # DNS
-    - to:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: kube-system
-      ports:
-        - protocol: UDP
-          port: 53
+{{ include "network-policies.dns-egress" . }}
     # All egress (Azure Blob for WAL backup)
     - to: []
 {{- end }}
@@ -220,14 +178,7 @@ spec:
     # All ingress (webhook callbacks from API server, source IP unpredictable)
     - from: []
   egress:
-    # DNS
-    - to:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: kube-system
-      ports:
-        - protocol: UDP
-          port: 53
+{{ include "network-policies.dns-egress" . }}
     # All egress (kubernetes API for webhooks)
     - to: []
 {{- end }}
@@ -252,14 +203,7 @@ spec:
     # All ingress (Azure Load Balancer, external traffic)
     - from: []
   egress:
-    # DNS
-    - to:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: kube-system
-      ports:
-        - protocol: UDP
-          port: 53
+{{ include "network-policies.dns-egress" . }}
     # Backend routing to grafana namespace
     - to:
         - namespaceSelector:
@@ -282,14 +226,7 @@ spec:
   policyTypes:
     - Egress
   egress:
-    # DNS
-    - to:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: kube-system
-      ports:
-        - protocol: UDP
-          port: 53
+{{ include "network-policies.dns-egress" . }}
     # All egress (Azure Blob, kubernetes API)
     - to: []
 {{- end }}
@@ -309,14 +246,7 @@ spec:
   policyTypes:
     - Egress
   egress:
-    # DNS
-    - to:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: kube-system
-      ports:
-        - protocol: UDP
-          port: 53
+{{ include "network-policies.dns-egress" . }}
     # All egress (Azure API, grafana for metrics push)
     - to: []
 {{- end }}
@@ -336,14 +266,7 @@ spec:
   policyTypes:
     - Egress
   egress:
-    # DNS
-    - to:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: kube-system
-      ports:
-        - protocol: UDP
-          port: 53
+{{ include "network-policies.dns-egress" . }}
     # All egress (container registries for scanning)
     - to: []
 {{- end }}
@@ -371,14 +294,7 @@ spec:
             matchLabels:
               kubernetes.io/metadata.name: grafana
   egress:
-    # DNS
-    - to:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: kube-system
-      ports:
-        - protocol: UDP
-          port: 53
+{{ include "network-policies.dns-egress" . }}
     # All egress (kubernetes API)
     - to: []
 {{- end }}
@@ -406,12 +322,5 @@ spec:
             matchLabels:
               kubernetes.io/metadata.name: grafana
   egress:
-    # DNS only
-    - to:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: kube-system
-      ports:
-        - protocol: UDP
-          port: 53
+{{ include "network-policies.dns-egress" . }}
 {{- end }}
