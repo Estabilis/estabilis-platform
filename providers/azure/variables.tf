@@ -270,6 +270,12 @@ variable "storage_soft_delete_retention_days" {
   default     = 14
 }
 
+variable "storage_protect_critical" {
+  description = "Apply Azure resource locks on critical storage accounts (tfstate, cnpg-backup, velero) to prevent accidental deletion. Must be removed before teardown/destroy."
+  type        = bool
+  default     = false
+}
+
 # ---------------------------------------------------------------------------
 # Diagnostics
 # ---------------------------------------------------------------------------
