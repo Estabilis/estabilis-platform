@@ -83,6 +83,7 @@ components:
   argocd: true               # core: self-managed GitOps controller
 
   # --- optional ---
+  network-policies: true     # optional: network segmentation (disable if using alternative)
   traefik: true              # optional: ingress controller (disable if no external endpoints)
   opencost: true             # optional: cost tracking (disable if not needed)
   trivy: true                # optional: vulnerability scanning (disable if using alternative)

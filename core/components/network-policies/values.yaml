@@ -1,0 +1,34 @@
+# Network policy allow rules per namespace
+# Override via downstream overrides/network-policies/values.yaml
+#
+# Every namespace has a deny-all NetworkPolicy from Kyverno.
+# This component creates allow rules for legitimate traffic.
+# All pods need DNS egress (port 53 to kube-dns).
+
+policies:
+  grafana:
+    enabled: true
+  argocd:
+    enabled: true
+  cert-manager:
+    enabled: true
+  external-secrets:
+    enabled: true
+  external-dns:
+    enabled: true
+  cnpg-system:
+    enabled: true
+  kyverno:
+    enabled: true
+  traefik:
+    enabled: true
+  velero:
+    enabled: true
+  opencost:
+    enabled: true
+  trivy-system:
+    enabled: true
+  kube-state-metrics:
+    enabled: true
+  node-exporter:
+    enabled: true
