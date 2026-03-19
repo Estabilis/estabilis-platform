@@ -164,6 +164,24 @@ variable "pod_cidr" {
   default     = "10.244.0.0/16"
 }
 
+variable "maintenance_window_day" {
+  description = "Day of week for AKS planned maintenance window (e.g., Saturday)."
+  type        = string
+  default     = "Saturday"
+}
+
+variable "maintenance_window_start_hour" {
+  description = "Start hour (UTC) for AKS planned maintenance window."
+  type        = number
+  default     = 2
+}
+
+variable "maintenance_window_duration" {
+  description = "Duration in hours for AKS planned maintenance window."
+  type        = number
+  default     = 4
+}
+
 variable "authorized_ip_ranges" {
   description = "List of authorized IP ranges for AKS API server access. Empty list makes API server private."
   type        = list(string)

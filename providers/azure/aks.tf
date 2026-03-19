@@ -44,6 +44,24 @@ resource "azurerm_kubernetes_cluster" "platform" {
     authorized_ip_ranges = var.authorized_ip_ranges
   }
 
+  maintenance_window_auto_upgrade {
+    frequency   = "Weekly"
+    interval    = 1
+    day_of_week = var.maintenance_window_day
+    start_time  = format("%02d:00", var.maintenance_window_start_hour)
+    duration    = var.maintenance_window_duration
+    utc_offset  = "+00:00"
+  }
+
+  maintenance_window_node_os {
+    frequency   = "Weekly"
+    interval    = 1
+    day_of_week = var.maintenance_window_day
+    start_time  = format("%02d:00", var.maintenance_window_start_hour)
+    duration    = var.maintenance_window_duration
+    utc_offset  = "+00:00"
+  }
+
   tags = var.tags
 }
 
