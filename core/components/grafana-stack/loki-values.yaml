@@ -46,7 +46,7 @@ resultsCache:
 singleBinary:
   replicas: 1
   persistence:
-    size: 10Gi
+    size: 4Gi
   resources:
     requests:
       cpu: 200m

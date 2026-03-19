@@ -19,7 +19,7 @@ tempo:
 
 persistence:
   enabled: true
-  size: 5Gi
+  size: 4Gi
 
 tolerations:
   - key: "estabilis.io/workload-type"

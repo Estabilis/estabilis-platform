@@ -23,7 +23,7 @@ spec:
 
   # Storage
   storage:
-    size: 10Gi
+    size: 4Gi
 
   # Bootstrap — creates the cluster from scratch
   bootstrap:

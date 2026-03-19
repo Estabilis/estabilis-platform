@@ -50,6 +50,8 @@ kafka:
 alertmanager:
   enabled: true
   replicas: 1
+  persistentVolume:
+    size: 4Gi
   fallbackConfig: |
     route:
       receiver: 'default'
@@ -297,6 +299,8 @@ ingester:
   replicas: 1
   zoneAwareReplication:
     enabled: false
+  persistentVolume:
+    size: 4Gi
   resources:
     requests:
       cpu: 50m
@@ -357,6 +361,8 @@ query_scheduler:
 
 compactor:
   replicas: 1
+  persistentVolume:
+    size: 4Gi
   resources:
     requests:
       cpu: 50m
@@ -374,6 +380,8 @@ store_gateway:
   replicas: 1
   zoneAwareReplication:
     enabled: false
+  persistentVolume:
+    size: 4Gi
   resources:
     requests:
       cpu: 50m
