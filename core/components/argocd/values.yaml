@@ -6,6 +6,19 @@ commonLabels:
   estabilis.io/managed-by: platform
   estabilis.io/component: argocd
 
+global:
+  securityContext:
+    runAsNonRoot: true
+    seccompProfile:
+      type: RuntimeDefault
+  containerSecurityContext:
+    allowPrivilegeEscalation: false
+    runAsNonRoot: true
+    capabilities:
+      drop: [ALL]
+    seccompProfile:
+      type: RuntimeDefault
+
 configs:
   params:
     server.insecure: true
