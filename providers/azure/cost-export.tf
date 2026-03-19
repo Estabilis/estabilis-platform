@@ -109,6 +109,10 @@ resource "azurerm_subscription_cost_management_export" "daily" {
     time_frame = "MonthToDate"
   }
 
+  lifecycle {
+    ignore_changes = [recurrence_period_start_date, recurrence_period_end_date]
+  }
+
   depends_on = [
     azurerm_resource_provider_registration.cost_management_exports,
     azurerm_role_assignment.terraform_cost_exports_owner,
