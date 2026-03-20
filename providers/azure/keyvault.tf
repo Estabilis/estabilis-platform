@@ -113,3 +113,12 @@ resource "azurerm_key_vault_secret" "config_repo_token" {
 
   depends_on = [azurerm_role_assignment.terraform_kv_officer]
 }
+
+resource "azurerm_key_vault_secret" "openai_api_key" {
+  count        = var.openai_api_key != "" ? 1 : 0
+  name         = "platform-openai-api-key"
+  value        = var.openai_api_key
+  key_vault_id = azurerm_key_vault.platform.id
+
+  depends_on = [azurerm_role_assignment.terraform_kv_officer]
+}

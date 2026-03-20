@@ -58,6 +58,8 @@ datasources:
 
 plugins:
   - grafana-llm-app
+  - grafana-lokioperational-app
+  - grafana-github-datasource
 
 sidecar:
   securityContext:
@@ -83,6 +85,13 @@ sidecar:
     provider:
       foldersFromFilesStructure: true
 
+extraConfigmapMounts:
+  - name: llm-provisioning
+    mountPath: /etc/grafana/provisioning/plugins/llm.yaml
+    subPath: llm.yaml
+    configMap: grafana-llm-provisioning
+    readOnly: true
+
 extraVolumeMounts:
   - name: tmp
     mountPath: /tmp
@@ -106,6 +115,8 @@ grafana.ini:
 envFromSecrets:
   - name: grafana-db-credentials
     optional: false
+  - name: grafana-llm-credentials
+    optional: true
 
 admin:
   existingSecret: grafana-admin-credentials

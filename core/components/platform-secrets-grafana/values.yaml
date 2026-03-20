@@ -2,3 +2,4 @@
 kvSecrets:
   grafanaDbPassword: "platform-grafana-db-password"
   grafanaAdminPassword: "platform-grafana-admin-password"
+  openaiApiKey: "platform-openai-api-key"

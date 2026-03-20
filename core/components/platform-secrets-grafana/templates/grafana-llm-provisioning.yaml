@@ -1,0 +1,20 @@
+# ConfigMap for Grafana LLM plugin provisioning.
+# Mounts at /etc/grafana/provisioning/plugins/llm.yaml via extraConfigmapMounts.
+# The plugin reads OPENAI_API_KEY env var from grafana-llm-credentials secret.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-llm-provisioning
+  namespace: grafana
+data:
+  llm.yaml: |
+    apiVersion: 1
+    apps:
+      - type: grafana-llm-app
+        disabled: false
+        jsonData:
+          openAI:
+            provider: openai
+            url: https://api.openai.com
+        secureJsonData:
+          openAIKey: ${OPENAI_API_KEY}

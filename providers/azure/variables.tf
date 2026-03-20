@@ -406,6 +406,17 @@ variable "letsencrypt_email" {
 }
 
 # ---------------------------------------------------------------------------
+# LLM / AI
+# ---------------------------------------------------------------------------
+
+variable "openai_api_key" {
+  description = "OpenAI API key for Grafana LLM plugin (flame graph AI analysis). Pass via secrets.auto.tfvars or TF_VAR_openai_api_key."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+# ---------------------------------------------------------------------------
 # Tags
 # ---------------------------------------------------------------------------
 
