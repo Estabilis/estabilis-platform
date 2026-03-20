@@ -42,7 +42,6 @@ spec:
                 - Deployment
                 - StatefulSet
                 - DaemonSet
-                - Job
       mutate:
         foreach:
           - list: "request.object.spec.template.spec.containers[]"
