@@ -22,6 +22,7 @@ spec:
           - resources:
               namespaces:
                 - node-exporter
+                - trivy-system
           - resources:
               namespaces:
                 - grafana
@@ -55,6 +56,7 @@ spec:
           - resources:
               namespaces:
                 - node-exporter
+                - trivy-system
           - resources:
               namespaces:
                 - grafana
@@ -85,6 +87,7 @@ spec:
           - resources:
               namespaces:
                 - node-exporter
+                - trivy-system
           - resources:
               namespaces:
                 - grafana
