@@ -27,11 +27,10 @@ containerSecurityContext:
     type: RuntimeDefault
 
 # --- Trivy server mode ---
+# builtInTrivyServer deploys a StatefulSet with trivy-server in-cluster.
+# It overrides trivy.mode to ClientServer and sets serverURL automatically.
 # Server keeps DB in memory, scan jobs are lightweight clients.
-# No repeated DB downloads, no mirror.gcr.io dependency during scans.
 trivy:
-  mode: ClientServer
-  serverURL: "http://trivy-server.trivy-system:4954"
   ignoreUnfixed: true
   resources:
     requests:
@@ -40,28 +39,26 @@ trivy:
     limits:
       cpu: 200m
       memory: 256Mi
-
-server:
-  replicas: 1
-  podSecurityContext:
-    runAsNonRoot: true
-    seccompProfile:
-      type: RuntimeDefault
-  securityContext:
-    allowPrivilegeEscalation: false
-    runAsNonRoot: true
-    readOnlyRootFilesystem: true
-    capabilities:
-      drop: [ALL]
-    seccompProfile:
-      type: RuntimeDefault
-  resources:
-    requests:
-      cpu: 50m
-      memory: 256Mi
-    limits:
-      cpu: 500m
-      memory: 512Mi
+  server:
+    podSecurityContext:
+      runAsNonRoot: true
+      seccompProfile:
+        type: RuntimeDefault
+    securityContext:
+      allowPrivilegeEscalation: false
+      runAsNonRoot: true
+      readOnlyRootFilesystem: true
+      capabilities:
+        drop: [ALL]
+      seccompProfile:
+        type: RuntimeDefault
+    resources:
+      requests:
+        cpu: 50m
+        memory: 256Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
 
 # --- Operator ---
 resources:
@@ -73,6 +70,7 @@ resources:
     memory: 512Mi
 
 operator:
+  builtInTrivyServer: true
   scanJobsConcurrentLimit: 1
   scanJobRetryAfter: 30s
   scanJobBackoffLimit: 10
