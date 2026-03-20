@@ -12,6 +12,9 @@ securityContext:
 
 tempo:
   retention: 720h
+  metricsGenerator:
+    enabled: true
+    remoteWriteUrl: "http://grafana-mimir-gateway.grafana.svc.cluster.local/api/v1/push"
   resources:
     requests:
       cpu: 50m
@@ -25,6 +28,14 @@ tempo:
     runAsNonRoot: true
     capabilities:
       drop: [ALL]
+  extraConfig:
+    overrides:
+      defaults:
+        metrics_generator:
+          processors:
+            - service-graphs
+            - span-metrics
+            - local-blocks
 
 persistence:
   enabled: true
