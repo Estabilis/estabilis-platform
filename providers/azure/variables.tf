@@ -209,7 +209,7 @@ variable "pod_cidr" {
 variable "os_disk_type" {
   description = "OS disk type for AKS node pools. Ephemeral uses local SSD (faster, no extra cost). Managed uses network-attached disk."
   type        = string
-  default     = "Ephemeral"
+  default     = "Managed"
 }
 
 variable "availability_zones" {
