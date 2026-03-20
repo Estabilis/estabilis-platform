@@ -22,6 +22,19 @@ spec:
           - resources:
               namespaces:
                 - kube-system
+                - argocd
+                - cert-manager
+                - cnpg-system
+                - external-dns
+                - external-secrets
+                - grafana
+                - kube-state-metrics
+                - kyverno
+                - node-exporter
+                - opencost
+                - traefik
+                - trivy-system
+                - velero
       validate:
         message: "An image tag is required. Images must not use ':latest' or omit the tag."
         foreach:
@@ -49,6 +62,19 @@ spec:
           - resources:
               namespaces:
                 - kube-system
+                - argocd
+                - cert-manager
+                - cnpg-system
+                - external-dns
+                - external-secrets
+                - grafana
+                - kube-state-metrics
+                - kyverno
+                - node-exporter
+                - opencost
+                - traefik
+                - trivy-system
+                - velero
       validate:
         message: "An image tag is required. Images must not use ':latest' or omit the tag."
         foreach:
@@ -73,6 +99,19 @@ spec:
           - resources:
               namespaces:
                 - kube-system
+                - argocd
+                - cert-manager
+                - cnpg-system
+                - external-dns
+                - external-secrets
+                - grafana
+                - kube-state-metrics
+                - kyverno
+                - node-exporter
+                - opencost
+                - traefik
+                - trivy-system
+                - velero
       validate:
         message: "An image tag is required. Images must not use ':latest' or omit the tag."
         foreach:

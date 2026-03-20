@@ -24,7 +24,19 @@ spec:
           - resources:
               namespaces:
                 - kube-system
+                - argocd
+                - cert-manager
+                - cnpg-system
+                - external-dns
+                - external-secrets
+                - grafana
+                - kube-state-metrics
+                - kyverno
                 - node-exporter
+                - opencost
+                - traefik
+                - trivy-system
+                - velero
       validate:
         message: "Containers must drop ALL capabilities."
         foreach:
@@ -49,7 +61,19 @@ spec:
           - resources:
               namespaces:
                 - kube-system
+                - argocd
+                - cert-manager
+                - cnpg-system
+                - external-dns
+                - external-secrets
+                - grafana
+                - kube-state-metrics
+                - kyverno
                 - node-exporter
+                - opencost
+                - traefik
+                - trivy-system
+                - velero
       validate:
         message: "Containers must drop ALL capabilities."
         foreach:
@@ -71,7 +95,19 @@ spec:
           - resources:
               namespaces:
                 - kube-system
+                - argocd
+                - cert-manager
+                - cnpg-system
+                - external-dns
+                - external-secrets
+                - grafana
+                - kube-state-metrics
+                - kyverno
                 - node-exporter
+                - opencost
+                - traefik
+                - trivy-system
+                - velero
       validate:
         message: "Containers must drop ALL capabilities."
         foreach:

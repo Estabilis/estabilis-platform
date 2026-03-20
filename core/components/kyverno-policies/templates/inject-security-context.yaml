@@ -23,6 +23,19 @@ spec:
           - resources:
               namespaces:
                 - kube-system
+                - argocd
+                - cert-manager
+                - cnpg-system
+                - external-dns
+                - external-secrets
+                - grafana
+                - kube-state-metrics
+                - kyverno
+                - node-exporter
+                - opencost
+                - traefik
+                - trivy-system
+                - velero
       mutate:
         foreach:
           - list: "request.object.spec.containers[]"
@@ -52,6 +65,19 @@ spec:
           - resources:
               namespaces:
                 - kube-system
+                - argocd
+                - cert-manager
+                - cnpg-system
+                - external-dns
+                - external-secrets
+                - grafana
+                - kube-state-metrics
+                - kyverno
+                - node-exporter
+                - opencost
+                - traefik
+                - trivy-system
+                - velero
       mutate:
         foreach:
           - list: "request.object.spec.template.spec.containers[]"
@@ -81,6 +107,19 @@ spec:
           - resources:
               namespaces:
                 - kube-system
+                - argocd
+                - cert-manager
+                - cnpg-system
+                - external-dns
+                - external-secrets
+                - grafana
+                - kube-state-metrics
+                - kyverno
+                - node-exporter
+                - opencost
+                - traefik
+                - trivy-system
+                - velero
       mutate:
         foreach:
           - list: "request.object.spec.jobTemplate.spec.template.spec.containers[]"

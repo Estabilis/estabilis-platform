@@ -23,11 +23,19 @@ spec:
           - resources:
               namespaces:
                 - kube-system
-                - node-exporter
-                - trivy-system
-          - resources:
-              namespaces:
+                - argocd
+                - cert-manager
+                - cnpg-system
+                - external-dns
+                - external-secrets
                 - grafana
+                - kube-state-metrics
+                - kyverno
+                - node-exporter
+                - opencost
+                - traefik
+                - trivy-system
+                - velero
       validate:
         message: "Containers must set runAsNonRoot to true."
         foreach:
@@ -55,11 +63,19 @@ spec:
           - resources:
               namespaces:
                 - kube-system
-                - node-exporter
-                - trivy-system
-          - resources:
-              namespaces:
+                - argocd
+                - cert-manager
+                - cnpg-system
+                - external-dns
+                - external-secrets
                 - grafana
+                - kube-state-metrics
+                - kyverno
+                - node-exporter
+                - opencost
+                - traefik
+                - trivy-system
+                - velero
       validate:
         message: "Containers must set runAsNonRoot to true."
         foreach:
@@ -84,11 +100,19 @@ spec:
           - resources:
               namespaces:
                 - kube-system
-                - node-exporter
-                - trivy-system
-          - resources:
-              namespaces:
+                - argocd
+                - cert-manager
+                - cnpg-system
+                - external-dns
+                - external-secrets
                 - grafana
+                - kube-state-metrics
+                - kyverno
+                - node-exporter
+                - opencost
+                - traefik
+                - trivy-system
+                - velero
       validate:
         message: "Containers must set runAsNonRoot to true."
         foreach:

@@ -24,6 +24,19 @@ spec:
           - resources:
               namespaces:
                 - kube-system
+                - argocd
+                - cert-manager
+                - cnpg-system
+                - external-dns
+                - external-secrets
+                - grafana
+                - kube-state-metrics
+                - kyverno
+                - node-exporter
+                - opencost
+                - traefik
+                - trivy-system
+                - velero
       validate:
         message: "Containers must not run in privileged mode."
         foreach:
@@ -48,6 +61,19 @@ spec:
           - resources:
               namespaces:
                 - kube-system
+                - argocd
+                - cert-manager
+                - cnpg-system
+                - external-dns
+                - external-secrets
+                - grafana
+                - kube-state-metrics
+                - kyverno
+                - node-exporter
+                - opencost
+                - traefik
+                - trivy-system
+                - velero
       validate:
         message: "Containers must not run in privileged mode."
         foreach:
@@ -69,6 +95,19 @@ spec:
           - resources:
               namespaces:
                 - kube-system
+                - argocd
+                - cert-manager
+                - cnpg-system
+                - external-dns
+                - external-secrets
+                - grafana
+                - kube-state-metrics
+                - kyverno
+                - node-exporter
+                - opencost
+                - traefik
+                - trivy-system
+                - velero
       validate:
         message: "Containers must not run in privileged mode."
         foreach:

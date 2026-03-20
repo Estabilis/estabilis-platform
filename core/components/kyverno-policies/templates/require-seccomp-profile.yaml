@@ -24,8 +24,19 @@ spec:
           - resources:
               namespaces:
                 - kube-system
-                - node-exporter
+                - argocd
+                - cert-manager
+                - cnpg-system
+                - external-dns
+                - external-secrets
                 - grafana
+                - kube-state-metrics
+                - kyverno
+                - node-exporter
+                - opencost
+                - traefik
+                - trivy-system
+                - velero
       validate:
         message: "Pods must set seccompProfile.type to RuntimeDefault or Localhost."
         foreach:
@@ -57,8 +68,19 @@ spec:
           - resources:
               namespaces:
                 - kube-system
-                - node-exporter
+                - argocd
+                - cert-manager
+                - cnpg-system
+                - external-dns
+                - external-secrets
                 - grafana
+                - kube-state-metrics
+                - kyverno
+                - node-exporter
+                - opencost
+                - traefik
+                - trivy-system
+                - velero
       validate:
         message: "Pods must set seccompProfile.type to RuntimeDefault or Localhost."
         foreach:
@@ -87,8 +109,19 @@ spec:
           - resources:
               namespaces:
                 - kube-system
-                - node-exporter
+                - argocd
+                - cert-manager
+                - cnpg-system
+                - external-dns
+                - external-secrets
                 - grafana
+                - kube-state-metrics
+                - kyverno
+                - node-exporter
+                - opencost
+                - traefik
+                - trivy-system
+                - velero
       validate:
         message: "Pods must set seccompProfile.type to RuntimeDefault or Localhost."
         foreach:
