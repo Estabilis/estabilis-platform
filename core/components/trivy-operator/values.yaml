@@ -51,6 +51,8 @@ operator:
 trivyOperator:
   scanJobPodTemplatePodSecurityContext:
     runAsNonRoot: false
+    seccompProfile:
+      type: RuntimeDefault
   scanJobPodTemplateContainerSecurityContext:
     allowPrivilegeEscalation: false
     capabilities:
@@ -59,6 +61,8 @@ trivyOperator:
     privileged: false
     readOnlyRootFilesystem: true
     runAsNonRoot: false
+    seccompProfile:
+      type: RuntimeDefault
 
 tolerations:
   - key: "estabilis.io/workload-type"
