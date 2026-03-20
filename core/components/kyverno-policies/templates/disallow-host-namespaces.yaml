@@ -19,6 +19,7 @@ spec:
           - resources:
               kinds:
                 - Pod
+{{ include "kyverno-policies.platform-exclude" . }}
       validate:
         message: "Pods must not use host PID, IPC, or network namespaces."
         pattern:
@@ -35,6 +36,7 @@ spec:
                 - StatefulSet
                 - DaemonSet
                 - Job
+{{ include "kyverno-policies.platform-exclude" . }}
       validate:
         message: "Pods must not use host PID, IPC, or network namespaces."
         pattern:
@@ -50,6 +52,7 @@ spec:
           - resources:
               kinds:
                 - CronJob
+{{ include "kyverno-policies.platform-exclude" . }}
       validate:
         message: "Pods must not use host PID, IPC, or network namespaces."
         pattern:

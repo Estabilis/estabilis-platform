@@ -22,6 +22,7 @@ spec:
                 - Pod
               namespaces:
                 - "app-*"
+{{ include "kyverno-policies.platform-exclude" . }}
       validate:
         message: "Pods must explicitly set automountServiceAccountToken to false."
         pattern:
@@ -37,6 +38,7 @@ spec:
                 - DaemonSet
               namespaces:
                 - "app-*"
+{{ include "kyverno-policies.platform-exclude" . }}
       validate:
         message: "Pods must explicitly set automountServiceAccountToken to false."
         pattern:
@@ -52,6 +54,7 @@ spec:
                 - CronJob
               namespaces:
                 - "app-*"
+{{ include "kyverno-policies.platform-exclude" . }}
       validate:
         message: "Pods must explicitly set automountServiceAccountToken to false."
         pattern:

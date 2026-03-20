@@ -17,6 +17,7 @@ spec:
           - resources:
               kinds:
                 - Pod
+{{ include "kyverno-policies.platform-exclude" . }}
       validate:
         message: "Containers must set allowPrivilegeEscalation=false and runAsNonRoot=true."
         pattern:
@@ -33,6 +34,7 @@ spec:
                 - Deployment
                 - StatefulSet
                 - DaemonSet
+{{ include "kyverno-policies.platform-exclude" . }}
       validate:
         message: "Containers must set allowPrivilegeEscalation=false and runAsNonRoot=true."
         pattern:
@@ -49,6 +51,7 @@ spec:
           - resources:
               kinds:
                 - CronJob
+{{ include "kyverno-policies.platform-exclude" . }}
       validate:
         message: "Containers must set allowPrivilegeEscalation=false and runAsNonRoot=true."
         pattern:

@@ -17,6 +17,7 @@ spec:
           - resources:
               kinds:
                 - Pod
+{{ include "kyverno-policies.platform-exclude" . }}
       validate:
         message: "An image tag is required. Images must not use ':latest' or omit the tag."
         foreach:
@@ -39,6 +40,7 @@ spec:
                 - StatefulSet
                 - DaemonSet
                 - Job
+{{ include "kyverno-policies.platform-exclude" . }}
       validate:
         message: "An image tag is required. Images must not use ':latest' or omit the tag."
         foreach:
@@ -58,6 +60,7 @@ spec:
           - resources:
               kinds:
                 - CronJob
+{{ include "kyverno-policies.platform-exclude" . }}
       validate:
         message: "An image tag is required. Images must not use ':latest' or omit the tag."
         foreach:

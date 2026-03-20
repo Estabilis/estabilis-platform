@@ -23,6 +23,7 @@ spec:
                 - StatefulSet
               namespaces:
                 - "app-*"
+{{ include "kyverno-policies.platform-exclude" . }}
       validate:
         message: "All containers must define livenessProbe and readinessProbe."
         foreach:

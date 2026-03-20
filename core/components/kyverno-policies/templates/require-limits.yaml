@@ -17,6 +17,7 @@ spec:
           - resources:
               kinds:
                 - Pod
+{{ include "kyverno-policies.platform-exclude" . }}
       validate:
         message: "All containers must have CPU and memory requests and limits defined."
         pattern:
@@ -38,6 +39,7 @@ spec:
                 - StatefulSet
                 - DaemonSet
                 - Job
+{{ include "kyverno-policies.platform-exclude" . }}
       validate:
         message: "All containers must have CPU and memory requests and limits defined."
         pattern:
@@ -58,6 +60,7 @@ spec:
           - resources:
               kinds:
                 - CronJob
+{{ include "kyverno-policies.platform-exclude" . }}
       validate:
         message: "All containers must have CPU and memory requests and limits defined."
         pattern:

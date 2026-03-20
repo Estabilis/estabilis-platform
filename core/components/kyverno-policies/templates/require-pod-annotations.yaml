@@ -23,6 +23,7 @@ spec:
                 - DaemonSet
               namespaces:
                 - "app-*"
+{{ include "kyverno-policies.platform-exclude" . }}
       validate:
         message: >-
           The annotations estabilis.io/owner and estabilis.io/contact are

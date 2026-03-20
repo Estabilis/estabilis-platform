@@ -19,6 +19,7 @@ spec:
           - resources:
               kinds:
                 - Pod
+{{ include "kyverno-policies.platform-exclude" . }}
       validate:
         message: "Pods must not use hostPath volumes."
         pattern:
@@ -34,6 +35,7 @@ spec:
                 - StatefulSet
                 - DaemonSet
                 - Job
+{{ include "kyverno-policies.platform-exclude" . }}
       validate:
         message: "Pods must not use hostPath volumes."
         pattern:
@@ -48,6 +50,7 @@ spec:
           - resources:
               kinds:
                 - CronJob
+{{ include "kyverno-policies.platform-exclude" . }}
       validate:
         message: "Pods must not use hostPath volumes."
         pattern:

@@ -19,6 +19,7 @@ spec:
           - resources:
               kinds:
                 - Pod
+{{ include "kyverno-policies.platform-exclude" . }}
       validate:
         message: "Only configMap, secret, emptyDir, persistentVolumeClaim, downwardAPI, and projected volume types are allowed."
         foreach:
@@ -45,6 +46,7 @@ spec:
                 - StatefulSet
                 - DaemonSet
                 - Job
+{{ include "kyverno-policies.platform-exclude" . }}
       validate:
         message: "Only configMap, secret, emptyDir, persistentVolumeClaim, downwardAPI, and projected volume types are allowed."
         foreach:
@@ -68,6 +70,7 @@ spec:
           - resources:
               kinds:
                 - CronJob
+{{ include "kyverno-policies.platform-exclude" . }}
       validate:
         message: "Only configMap, secret, emptyDir, persistentVolumeClaim, downwardAPI, and projected volume types are allowed."
         foreach:

@@ -19,6 +19,7 @@ spec:
           - resources:
               kinds:
                 - Pod
+{{ include "kyverno-policies.platform-exclude" . }}
       validate:
         message: "Containers must not bind to host ports."
         foreach:
@@ -40,6 +41,7 @@ spec:
                 - StatefulSet
                 - DaemonSet
                 - Job
+{{ include "kyverno-policies.platform-exclude" . }}
       validate:
         message: "Containers must not bind to host ports."
         foreach:
@@ -58,6 +60,7 @@ spec:
           - resources:
               kinds:
                 - CronJob
+{{ include "kyverno-policies.platform-exclude" . }}
       validate:
         message: "Containers must not bind to host ports."
         foreach:

@@ -19,6 +19,7 @@ spec:
           - resources:
               kinds:
                 - Pod
+{{ include "kyverno-policies.platform-exclude" . }}
       validate:
         message: "Pods must set seccompProfile.type to RuntimeDefault or Localhost."
         foreach:
@@ -45,6 +46,7 @@ spec:
                 - StatefulSet
                 - DaemonSet
                 - Job
+{{ include "kyverno-policies.platform-exclude" . }}
       validate:
         message: "Pods must set seccompProfile.type to RuntimeDefault or Localhost."
         foreach:
@@ -68,6 +70,7 @@ spec:
           - resources:
               kinds:
                 - CronJob
+{{ include "kyverno-policies.platform-exclude" . }}
       validate:
         message: "Pods must set seccompProfile.type to RuntimeDefault or Localhost."
         foreach:

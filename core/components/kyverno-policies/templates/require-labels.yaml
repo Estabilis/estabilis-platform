@@ -25,6 +25,7 @@ spec:
                 - CronJob
               namespaces:
                 - "app-*"
+{{ include "kyverno-policies.platform-exclude" . }}
       validate:
         message: >-
           The following labels are required: app, team,

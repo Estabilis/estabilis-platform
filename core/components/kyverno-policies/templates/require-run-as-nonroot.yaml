@@ -18,6 +18,7 @@ spec:
           - resources:
               kinds:
                 - Pod
+{{ include "kyverno-policies.platform-exclude" . }}
       validate:
         message: "Containers must set runAsNonRoot to true."
         pattern:
@@ -33,6 +34,7 @@ spec:
                 - Deployment
                 - StatefulSet
                 - DaemonSet
+{{ include "kyverno-policies.platform-exclude" . }}
       validate:
         message: "Containers must set runAsNonRoot to true."
         pattern:
@@ -48,6 +50,7 @@ spec:
           - resources:
               kinds:
                 - CronJob
+{{ include "kyverno-policies.platform-exclude" . }}
       validate:
         message: "Containers must set runAsNonRoot to true."
         pattern:
