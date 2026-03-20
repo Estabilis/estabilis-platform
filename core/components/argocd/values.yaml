@@ -66,6 +66,8 @@ repoServer:
         memory: 64Mi
 
 redis:
+  serviceAccount:
+    create: true
   resources:
     requests:
       cpu: 50m
