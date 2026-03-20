@@ -1,0 +1,5 @@
+apiVersion: v2
+name: opencost-presync
+description: PreSync hook to wait for Mimir gateway before OpenCost starts
+type: application
+version: 0.1.0
