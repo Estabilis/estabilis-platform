@@ -1,0 +1,66 @@
+# Grafana Pyroscope — continuous profiling backend
+# https://grafana.com/docs/pyroscope/latest/
+#
+# Monolithic mode (single binary). The chart ships with an embedded Alloy
+# agent enabled by default — we disable it because the platform already
+# runs its own Alloy DaemonSet that collects profiles via eBPF.
+
+commonLabels:
+  estabilis.io/managed-by: platform
+  estabilis.io/component: pyroscope
+
+# Disable the bundled Alloy agent — we use the platform-wide Alloy
+alloy:
+  enabled: false
+
+# Disable MinIO — monolithic mode uses local disk
+minio:
+  enabled: false
+
+pyroscope:
+  replicaCount: 1
+
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 200m
+      memory: 512Mi
+
+  podSecurityContext:
+    fsGroup: 10001
+    runAsUser: 10001
+    runAsNonRoot: true
+
+  securityContext:
+    allowPrivilegeEscalation: false
+    runAsNonRoot: true
+    capabilities:
+      drop: [ALL]
+
+persistence:
+  enabled: true
+  size: 4Gi
+
+tolerations:
+  - key: "estabilis.io/workload-type"
+    operator: "Equal"
+    value: "platform"
+    effect: "NoSchedule"
+
+affinity:
+  nodeAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        preference:
+          matchExpressions:
+            - key: "estabilis.io/pool-type"
+              operator: In
+              values: ["spot"]
+      - weight: 10
+        preference:
+          matchExpressions:
+            - key: "estabilis.io/pool-type"
+              operator: In
+              values: ["regular"]

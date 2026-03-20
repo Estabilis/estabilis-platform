@@ -60,6 +60,13 @@ metrics:
     addEntryPointsLabels: true
     addServicesLabels: true
 
+tracing:
+  otlp:
+    enabled: true
+    grpc:
+      endpoint: "grafana-alloy.grafana.svc.cluster.local:4317"
+      insecure: true
+
 ports:
   web:
     port: 8000

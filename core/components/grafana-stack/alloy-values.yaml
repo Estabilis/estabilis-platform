@@ -3,6 +3,15 @@ commonLabels:
   estabilis.io/component: alloy
 
 alloy:
+  extraPorts:
+    - name: otlp-grpc
+      port: 4317
+      targetPort: 4317
+      protocol: TCP
+    - name: otlp-http
+      port: 4318
+      targetPort: 4318
+      protocol: TCP
   clustering:
     enabled: true
   mounts:
@@ -10,11 +19,9 @@ alloy:
       - name: tmp
         mountPath: /tmp
   securityContext:
+    privileged: true
     runAsUser: 0
-    runAsNonRoot: false
-    allowPrivilegeEscalation: false
-    capabilities:
-      drop: [ALL]
+    runAsGroup: 0
   resources:
     requests:
       cpu: 50m
@@ -709,6 +716,80 @@ alloy:
         forward_to = [prometheus.remote_write.mimir.receiver]
       }
 
+      // =====================================================================
+      // Trace collection (OTLP → Tempo)
+      // =====================================================================
+
+      // Receive traces via OTLP (gRPC :4317 and HTTP :4318)
+      otelcol.receiver.otlp "default" {
+        grpc {
+          endpoint = "0.0.0.0:4317"
+        }
+        http {
+          endpoint = "0.0.0.0:4318"
+        }
+        output {
+          traces = [otelcol.processor.batch.default.input]
+        }
+      }
+
+      // Batch traces before sending to Tempo
+      otelcol.processor.batch "default" {
+        timeout         = "5s"
+        send_batch_size = 1024
+        output {
+          traces = [otelcol.exporter.otlp.tempo.input]
+        }
+      }
+
+      // Export traces to Tempo
+      otelcol.exporter.otlp "tempo" {
+        client {
+          endpoint = "grafana-tempo.grafana.svc.cluster.local:4317"
+          tls {
+            insecure             = true
+            insecure_skip_verify = true
+          }
+        }
+      }
+
+      // =====================================================================
+      // Continuous profiling (eBPF → Pyroscope)
+      // =====================================================================
+
+      // Discover pods on the same node for eBPF profiling
+      discovery.kubernetes "profile_pods" {
+        role = "pod"
+        selectors {
+          field = "spec.nodeName=" + sys.env("HOSTNAME")
+          role  = "pod"
+        }
+      }
+
+      discovery.relabel "profile_pods" {
+        targets = discovery.kubernetes.profile_pods.targets
+
+        rule {
+          action        = "replace"
+          source_labels = ["__meta_kubernetes_namespace", "__meta_kubernetes_pod_container_name"]
+          separator     = "/"
+          target_label  = "service_name"
+        }
+      }
+
+      // Collect CPU profiles via eBPF (no application changes needed)
+      pyroscope.ebpf "local" {
+        targets    = discovery.relabel.profile_pods.output
+        forward_to = [pyroscope.write.default.receiver]
+      }
+
+      // Forward profiles to Pyroscope
+      pyroscope.write "default" {
+        endpoint {
+          url = "http://grafana-pyroscope.grafana.svc.cluster.local:4040"
+        }
+      }
+
       // Forward metrics to Mimir
       prometheus.remote_write "mimir" {
         external_labels = {
@@ -721,6 +802,7 @@ alloy:
 
 controller:
   type: daemonset
+  hostPID: true
   volumes:
     extra:
       - name: tmp

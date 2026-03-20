@@ -293,6 +293,49 @@ spec:
       - CreateNamespace=true
 {{- end }}
 ---
+{{- /* observability: downstream can disable via components.pyroscope: false */ -}}
+{{- if ne (index .Values.components "pyroscope") false }}
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: grafana-pyroscope
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "7"
+spec:
+  project: platform
+  sources:
+    - repoURL: https://grafana.github.io/helm-charts
+      chart: pyroscope
+      targetRevision: "1.19.0"
+      helm:
+        valueFiles:
+          - $values/core/components/grafana-stack/pyroscope-values.yaml
+          - $values/core/components/grafana-stack/pyroscope-values-{{ .Values.global.provider }}.yaml
+          {{- include "platform-root.overrideValueFile" (dict "component" "pyroscope" "root" $) | nindent 10 }}
+        {{- include "platform-root.ignoreMissingValueFiles" $ | nindent 8 }}
+    - repoURL: {{ .Values.platformRepoUrl }}
+      targetRevision: {{ .Values.platformVersion }}
+      ref: values
+    {{- include "platform-root.overrideSource" . | nindent 4 }}
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: grafana
+  syncPolicy:
+    {{- include "platform-root.managedNamespaceMetadataExcluded" . | nindent 4 }}
+    automated:
+      prune: true
+      selfHeal: true
+    retry:
+      limit: 10
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 3m
+    syncOptions:
+      - CreateNamespace=true
+{{- end }}
+---
 {{- /* observability: downstream can disable via components.mimir-rules: false */ -}}
 {{- if ne (index .Values.components "mimir-rules") false }}
 {{- if ne (index .Values.components "mimir") false }}

@@ -44,10 +44,17 @@ datasources:
             datasourceUid: loki
           tracesToMetrics:
             datasourceUid: mimir
+          tracesToProfiles:
+            datasourceUid: pyroscope
           serviceMap:
             datasourceUid: mimir
           nodeGraph:
             enabled: true
+      - name: Pyroscope
+        uid: pyroscope
+        type: grafana-pyroscope-datasource
+        access: proxy
+        url: http://grafana-pyroscope.grafana.svc.cluster.local:4040
 
 sidecar:
   securityContext:

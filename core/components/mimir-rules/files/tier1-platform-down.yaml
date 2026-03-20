@@ -136,3 +136,14 @@ groups:
     annotations:
       summary: Tempo is down
       description: Tempo has zero ready replicas. Distributed tracing is not functioning.
+  - alert: PyroscopeDown
+    expr: kube_deployment_status_replicas_available{namespace="grafana", deployment="grafana-pyroscope"}
+      == 0
+    for: 3m
+    labels:
+      severity: critical
+      tier: '1'
+      component: pyroscope
+    annotations:
+      summary: Pyroscope is down
+      description: Pyroscope has zero available replicas. Continuous profiling is not functioning.
