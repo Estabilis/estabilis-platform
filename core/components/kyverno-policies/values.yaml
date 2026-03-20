@@ -1,3 +1,26 @@
+# ---------------------------------------------------------------------------
+# Kyverno Policies Configuration
+# ---------------------------------------------------------------------------
+#
+# Namespace exclusions in validate policies:
+#
+# Permanently excluded (by design — cannot be made compliant):
+#   - kube-system      : managed by AKS, not under our control
+#   - node-exporter    : requires hostPath, hostNetwork, hostPorts, runs as root
+#   - trivy-system     : scan jobs require root for container image access
+#   - grafana          : Alloy DaemonSet requires root for log collection
+#   - kyverno          : webhook/controller have special security requirements
+#
+# Temporarily whitelisted (have securityContext configured, pending validation):
+#   - argocd, cert-manager, cnpg-system, external-dns, external-secrets,
+#     kube-state-metrics, opencost, traefik, velero
+#
+# TODO: validate each whitelisted namespace with kyverno CLI, then remove
+# from whitelist one by one. Track in platform issue #48.
+#
+# App namespaces (app-*) are always validated — no exclusions.
+# ---------------------------------------------------------------------------
+
 policies:
   default_deny_network_policy:
     enabled: true
