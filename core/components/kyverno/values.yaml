@@ -15,10 +15,10 @@ commonLabels:
 # ---------------------------------------------------------------------------
 config:
   webhooks:
-    - namespaceSelector:
-        matchExpressions:
-          - key: kyverno.io/exclude
-            operator: DoesNotExist
+    namespaceSelector:
+      matchExpressions:
+        - key: kyverno.io/exclude
+          operator: DoesNotExist
 
 admissionController:
   replicas: 1
