@@ -26,24 +26,18 @@ spec:
                 - trivy-system
           - resources:
               namespaces:
-                - kube-system
                 - grafana
               selector:
                 matchLabels:
                   estabilis.io/component: alloy
       validate:
         message: "Containers must set allowPrivilegeEscalation=false and runAsNonRoot=true."
-        foreach:
-          - list: "request.object.spec.[containers, initContainers, ephemeralContainers][]"
-            deny:
-              conditions:
-                any:
-                  - key: "{{`{{ element.securityContext.allowPrivilegeEscalation || 'true' }}`}}"
-                    operator: Equals
-                    value: "true"
-                  - key: "{{`{{ element.securityContext.runAsNonRoot || 'false' }}`}}"
-                    operator: Equals
-                    value: "false"
+        pattern:
+          spec:
+            containers:
+              - securityContext:
+                  allowPrivilegeEscalation: false
+                  runAsNonRoot: true
     - name: deny-privilege-escalation-controllers
       match:
         any:
@@ -52,7 +46,6 @@ spec:
                 - Deployment
                 - StatefulSet
                 - DaemonSet
-                - Job
       exclude:
         any:
           - resources:
@@ -62,24 +55,20 @@ spec:
                 - trivy-system
           - resources:
               namespaces:
-                - kube-system
                 - grafana
               selector:
                 matchLabels:
                   estabilis.io/component: alloy
       validate:
         message: "Containers must set allowPrivilegeEscalation=false and runAsNonRoot=true."
-        foreach:
-          - list: "request.object.spec.template.spec.[containers, initContainers, ephemeralContainers][]"
-            deny:
-              conditions:
-                any:
-                  - key: "{{`{{ element.securityContext.allowPrivilegeEscalation || 'true' }}`}}"
-                    operator: Equals
-                    value: "true"
-                  - key: "{{`{{ element.securityContext.runAsNonRoot || 'false' }}`}}"
-                    operator: Equals
-                    value: "false"
+        pattern:
+          spec:
+            template:
+              spec:
+                containers:
+                  - securityContext:
+                      allowPrivilegeEscalation: false
+                      runAsNonRoot: true
     - name: deny-privilege-escalation-cronjob
       match:
         any:
@@ -95,22 +84,20 @@ spec:
                 - trivy-system
           - resources:
               namespaces:
-                - kube-system
                 - grafana
               selector:
                 matchLabels:
                   estabilis.io/component: alloy
       validate:
         message: "Containers must set allowPrivilegeEscalation=false and runAsNonRoot=true."
-        foreach:
-          - list: "request.object.spec.jobTemplate.spec.template.spec.[containers, initContainers, ephemeralContainers][]"
-            deny:
-              conditions:
-                any:
-                  - key: "{{`{{ element.securityContext.allowPrivilegeEscalation || 'true' }}`}}"
-                    operator: Equals
-                    value: "true"
-                  - key: "{{`{{ element.securityContext.runAsNonRoot || 'false' }}`}}"
-                    operator: Equals
-                    value: "false"
+        pattern:
+          spec:
+            jobTemplate:
+              spec:
+                template:
+                  spec:
+                    containers:
+                      - securityContext:
+                          allowPrivilegeEscalation: false
+                          runAsNonRoot: true
 {{- end }}
