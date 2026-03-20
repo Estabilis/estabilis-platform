@@ -19,12 +19,6 @@ spec:
           - resources:
               kinds:
                 - Pod
-      exclude:
-        any:
-          - resources:
-              namespaces:
-                - kube-system
-                - node-exporter
       validate:
         message: "Pods must not use host PID, IPC, or network namespaces."
         pattern:
@@ -41,12 +35,6 @@ spec:
                 - StatefulSet
                 - DaemonSet
                 - Job
-      exclude:
-        any:
-          - resources:
-              namespaces:
-                - kube-system
-                - node-exporter
       validate:
         message: "Pods must not use host PID, IPC, or network namespaces."
         pattern:
@@ -62,12 +50,6 @@ spec:
           - resources:
               kinds:
                 - CronJob
-      exclude:
-        any:
-          - resources:
-              namespaces:
-                - kube-system
-                - node-exporter
       validate:
         message: "Pods must not use host PID, IPC, or network namespaces."
         pattern:

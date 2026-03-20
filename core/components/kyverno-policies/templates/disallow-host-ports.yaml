@@ -19,12 +19,6 @@ spec:
           - resources:
               kinds:
                 - Pod
-      exclude:
-        any:
-          - resources:
-              namespaces:
-                - kube-system
-                - node-exporter
       validate:
         message: "Containers must not bind to host ports."
         foreach:
@@ -46,12 +40,6 @@ spec:
                 - StatefulSet
                 - DaemonSet
                 - Job
-      exclude:
-        any:
-          - resources:
-              namespaces:
-                - kube-system
-                - node-exporter
       validate:
         message: "Containers must not bind to host ports."
         foreach:
@@ -70,12 +58,6 @@ spec:
           - resources:
               kinds:
                 - CronJob
-      exclude:
-        any:
-          - resources:
-              namespaces:
-                - kube-system
-                - node-exporter
       validate:
         message: "Containers must not bind to host ports."
         foreach:

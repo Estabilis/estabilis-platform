@@ -17,23 +17,6 @@ spec:
           - resources:
               kinds:
                 - Pod
-      exclude:
-        any:
-          - resources:
-              namespaces:
-                - kube-system
-                - cert-manager
-                - cnpg-system
-                - external-dns
-                - external-secrets
-                - grafana
-                - kube-state-metrics
-                - kyverno
-                - node-exporter
-                - opencost
-                - traefik
-                - trivy-system
-                - velero
       validate:
         message: "All containers must have CPU and memory requests and limits defined."
         pattern:
@@ -55,23 +38,6 @@ spec:
                 - StatefulSet
                 - DaemonSet
                 - Job
-      exclude:
-        any:
-          - resources:
-              namespaces:
-                - kube-system
-                - cert-manager
-                - cnpg-system
-                - external-dns
-                - external-secrets
-                - grafana
-                - kube-state-metrics
-                - kyverno
-                - node-exporter
-                - opencost
-                - traefik
-                - trivy-system
-                - velero
       validate:
         message: "All containers must have CPU and memory requests and limits defined."
         pattern:
@@ -92,23 +58,6 @@ spec:
           - resources:
               kinds:
                 - CronJob
-      exclude:
-        any:
-          - resources:
-              namespaces:
-                - kube-system
-                - cert-manager
-                - cnpg-system
-                - external-dns
-                - external-secrets
-                - grafana
-                - kube-state-metrics
-                - kyverno
-                - node-exporter
-                - opencost
-                - traefik
-                - trivy-system
-                - velero
       validate:
         message: "All containers must have CPU and memory requests and limits defined."
         pattern:

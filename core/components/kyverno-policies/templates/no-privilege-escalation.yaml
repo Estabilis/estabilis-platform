@@ -17,23 +17,6 @@ spec:
           - resources:
               kinds:
                 - Pod
-      exclude:
-        any:
-          - resources:
-              namespaces:
-                - kube-system
-                - cert-manager
-                - cnpg-system
-                - external-dns
-                - external-secrets
-                - grafana
-                - kube-state-metrics
-                - kyverno
-                - node-exporter
-                - opencost
-                - traefik
-                - trivy-system
-                - velero
       validate:
         message: "Containers must set allowPrivilegeEscalation=false and runAsNonRoot=true."
         pattern:
@@ -50,23 +33,6 @@ spec:
                 - Deployment
                 - StatefulSet
                 - DaemonSet
-      exclude:
-        any:
-          - resources:
-              namespaces:
-                - kube-system
-                - cert-manager
-                - cnpg-system
-                - external-dns
-                - external-secrets
-                - grafana
-                - kube-state-metrics
-                - kyverno
-                - node-exporter
-                - opencost
-                - traefik
-                - trivy-system
-                - velero
       validate:
         message: "Containers must set allowPrivilegeEscalation=false and runAsNonRoot=true."
         pattern:
@@ -83,23 +49,6 @@ spec:
           - resources:
               kinds:
                 - CronJob
-      exclude:
-        any:
-          - resources:
-              namespaces:
-                - kube-system
-                - cert-manager
-                - cnpg-system
-                - external-dns
-                - external-secrets
-                - grafana
-                - kube-state-metrics
-                - kyverno
-                - node-exporter
-                - opencost
-                - traefik
-                - trivy-system
-                - velero
       validate:
         message: "Containers must set allowPrivilegeEscalation=false and runAsNonRoot=true."
         pattern:

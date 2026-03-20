@@ -25,22 +25,6 @@ spec:
                 - CronJob
               namespaces:
                 - "app-*"
-      exclude:
-        any:
-          - resources:
-              namespaces:
-                - cert-manager
-                - cnpg-system
-                - external-dns
-                - external-secrets
-                - grafana
-                - kube-state-metrics
-                - kyverno
-                - node-exporter
-                - opencost
-                - traefik
-                - trivy-system
-                - velero
       validate:
         message: >-
           The following labels are required: app, team,

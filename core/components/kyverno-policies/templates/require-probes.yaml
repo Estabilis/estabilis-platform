@@ -23,22 +23,6 @@ spec:
                 - StatefulSet
               namespaces:
                 - "app-*"
-      exclude:
-        any:
-          - resources:
-              namespaces:
-                - cert-manager
-                - cnpg-system
-                - external-dns
-                - external-secrets
-                - grafana
-                - kube-state-metrics
-                - kyverno
-                - node-exporter
-                - opencost
-                - traefik
-                - trivy-system
-                - velero
       validate:
         message: "All containers must define livenessProbe and readinessProbe."
         foreach:

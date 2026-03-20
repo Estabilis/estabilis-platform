@@ -22,7 +22,6 @@ spec:
         any:
           - resources:
               namespaces:
-                - kube-system
                 - kube-public
                 - kube-node-lease
                 - default

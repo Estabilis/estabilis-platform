@@ -19,23 +19,6 @@ spec:
           - resources:
               kinds:
                 - Pod
-      exclude:
-        any:
-          - resources:
-              namespaces:
-                - kube-system
-                - cert-manager
-                - cnpg-system
-                - external-dns
-                - external-secrets
-                - grafana
-                - kube-state-metrics
-                - kyverno
-                - node-exporter
-                - opencost
-                - traefik
-                - trivy-system
-                - velero
       validate:
         message: "Pods must set seccompProfile.type to RuntimeDefault or Localhost."
         foreach:
@@ -62,23 +45,6 @@ spec:
                 - StatefulSet
                 - DaemonSet
                 - Job
-      exclude:
-        any:
-          - resources:
-              namespaces:
-                - kube-system
-                - cert-manager
-                - cnpg-system
-                - external-dns
-                - external-secrets
-                - grafana
-                - kube-state-metrics
-                - kyverno
-                - node-exporter
-                - opencost
-                - traefik
-                - trivy-system
-                - velero
       validate:
         message: "Pods must set seccompProfile.type to RuntimeDefault or Localhost."
         foreach:
@@ -102,23 +68,6 @@ spec:
           - resources:
               kinds:
                 - CronJob
-      exclude:
-        any:
-          - resources:
-              namespaces:
-                - kube-system
-                - cert-manager
-                - cnpg-system
-                - external-dns
-                - external-secrets
-                - grafana
-                - kube-state-metrics
-                - kyverno
-                - node-exporter
-                - opencost
-                - traefik
-                - trivy-system
-                - velero
       validate:
         message: "Pods must set seccompProfile.type to RuntimeDefault or Localhost."
         foreach:
