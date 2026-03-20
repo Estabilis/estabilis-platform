@@ -38,6 +38,7 @@ spec:
               kinds:
                 - Namespace
               names:
+                - grafana
                 - node-exporter
                 - trivy-system
       mutate:
