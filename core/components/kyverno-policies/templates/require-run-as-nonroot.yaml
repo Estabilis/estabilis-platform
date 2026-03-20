@@ -27,11 +27,7 @@ spec:
                 - trivy-system
           - resources:
               namespaces:
-                - kube-system
                 - grafana
-              selector:
-                matchLabels:
-                  estabilis.io/component: alloy
       validate:
         message: "Containers must set runAsNonRoot to true."
         foreach:
@@ -63,11 +59,7 @@ spec:
                 - trivy-system
           - resources:
               namespaces:
-                - kube-system
                 - grafana
-              selector:
-                matchLabels:
-                  estabilis.io/component: alloy
       validate:
         message: "Containers must set runAsNonRoot to true."
         foreach:
@@ -96,11 +88,7 @@ spec:
                 - trivy-system
           - resources:
               namespaces:
-                - kube-system
                 - grafana
-              selector:
-                matchLabels:
-                  estabilis.io/component: alloy
       validate:
         message: "Containers must set runAsNonRoot to true."
         foreach:

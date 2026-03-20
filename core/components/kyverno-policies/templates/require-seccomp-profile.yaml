@@ -25,6 +25,7 @@ spec:
               namespaces:
                 - kube-system
                 - node-exporter
+                - grafana
       validate:
         message: "Pods must set seccompProfile.type to RuntimeDefault or Localhost."
         foreach:
@@ -57,6 +58,7 @@ spec:
               namespaces:
                 - kube-system
                 - node-exporter
+                - grafana
       validate:
         message: "Pods must set seccompProfile.type to RuntimeDefault or Localhost."
         foreach:
@@ -86,6 +88,7 @@ spec:
               namespaces:
                 - kube-system
                 - node-exporter
+                - grafana
       validate:
         message: "Pods must set seccompProfile.type to RuntimeDefault or Localhost."
         foreach:
