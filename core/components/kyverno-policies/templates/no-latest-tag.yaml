@@ -17,6 +17,11 @@ spec:
           - resources:
               kinds:
                 - Pod
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - kube-system
       validate:
         message: "An image tag is required. Images must not use ':latest' or omit the tag."
         foreach:
@@ -39,6 +44,11 @@ spec:
                 - StatefulSet
                 - DaemonSet
                 - Job
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - kube-system
       validate:
         message: "An image tag is required. Images must not use ':latest' or omit the tag."
         foreach:
@@ -58,6 +68,11 @@ spec:
           - resources:
               kinds:
                 - CronJob
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - kube-system
       validate:
         message: "An image tag is required. Images must not use ':latest' or omit the tag."
         foreach:

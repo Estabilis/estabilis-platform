@@ -17,6 +17,11 @@ spec:
           - resources:
               kinds:
                 - Pod
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - kube-system
       validate:
         message: "All containers must have CPU and memory requests and limits defined."
         pattern:
@@ -38,6 +43,11 @@ spec:
                 - StatefulSet
                 - DaemonSet
                 - Job
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - kube-system
       validate:
         message: "All containers must have CPU and memory requests and limits defined."
         pattern:
@@ -58,6 +68,11 @@ spec:
           - resources:
               kinds:
                 - CronJob
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - kube-system
       validate:
         message: "All containers must have CPU and memory requests and limits defined."
         pattern:

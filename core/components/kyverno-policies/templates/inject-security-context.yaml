@@ -18,6 +18,11 @@ spec:
           - resources:
               kinds:
                 - Pod
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - kube-system
       mutate:
         foreach:
           - list: "request.object.spec.containers[]"
@@ -42,6 +47,11 @@ spec:
                 - Deployment
                 - StatefulSet
                 - DaemonSet
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - kube-system
       mutate:
         foreach:
           - list: "request.object.spec.template.spec.containers[]"
@@ -66,6 +76,11 @@ spec:
           - resources:
               kinds:
                 - CronJob
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - kube-system
       mutate:
         foreach:
           - list: "request.object.spec.jobTemplate.spec.template.spec.containers[]"
