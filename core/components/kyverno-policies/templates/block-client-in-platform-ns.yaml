@@ -21,7 +21,6 @@ spec:
                 - StatefulSet
                 - DaemonSet
               namespaces:
-                - argocd
                 - cert-manager
                 - kyverno
                 - external-secrets

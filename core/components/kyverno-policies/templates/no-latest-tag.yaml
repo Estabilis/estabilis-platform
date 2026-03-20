@@ -22,7 +22,6 @@ spec:
           - resources:
               namespaces:
                 - kube-system
-                - argocd
                 - cert-manager
                 - cnpg-system
                 - external-dns
@@ -62,7 +61,6 @@ spec:
           - resources:
               namespaces:
                 - kube-system
-                - argocd
                 - cert-manager
                 - cnpg-system
                 - external-dns
@@ -99,7 +97,6 @@ spec:
           - resources:
               namespaces:
                 - kube-system
-                - argocd
                 - cert-manager
                 - cnpg-system
                 - external-dns

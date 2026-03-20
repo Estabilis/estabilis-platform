@@ -26,7 +26,6 @@ spec:
                 - kube-public
                 - kube-node-lease
                 - default
-                - argocd
       context:
         - name: quotaCount
           apiCall:

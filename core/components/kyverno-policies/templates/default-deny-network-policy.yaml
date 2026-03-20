@@ -25,7 +25,6 @@ spec:
                 - kube-system
                 - kube-public
                 - kube-node-lease
-                - argocd
       generate:
         generateExisting: true
         synchronize: true

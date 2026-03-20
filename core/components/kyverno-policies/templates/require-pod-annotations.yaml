@@ -27,7 +27,6 @@ spec:
         any:
           - resources:
               namespaces:
-                - argocd
                 - cert-manager
                 - cnpg-system
                 - external-dns
