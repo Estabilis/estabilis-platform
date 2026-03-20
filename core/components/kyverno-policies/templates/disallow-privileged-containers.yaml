@@ -39,11 +39,14 @@ spec:
                 - velero
       validate:
         message: "Containers must not run in privileged mode."
-        pattern:
-          spec:
-            containers:
-              - securityContext:
-                  privileged: false
+        foreach:
+          - list: "request.object.spec.[containers, initContainers, ephemeralContainers][]"
+            deny:
+              conditions:
+                any:
+                  - key: "{{`{{ element.securityContext.privileged || false }}`}}"
+                    operator: Equals
+                    value: true
     - name: privileged-controllers
       match:
         any:
@@ -72,13 +75,14 @@ spec:
                 - velero
       validate:
         message: "Containers must not run in privileged mode."
-        pattern:
-          spec:
-            template:
-              spec:
-                containers:
-                  - securityContext:
-                      privileged: false
+        foreach:
+          - list: "request.object.spec.template.spec.[containers, initContainers, ephemeralContainers][]"
+            deny:
+              conditions:
+                any:
+                  - key: "{{`{{ element.securityContext.privileged || false }}`}}"
+                    operator: Equals
+                    value: true
     - name: privileged-cronjob
       match:
         any:
@@ -105,13 +109,12 @@ spec:
                 - velero
       validate:
         message: "Containers must not run in privileged mode."
-        pattern:
-          spec:
-            jobTemplate:
-              spec:
-                template:
-                  spec:
-                    containers:
-                      - securityContext:
-                          privileged: false
+        foreach:
+          - list: "request.object.spec.jobTemplate.spec.template.spec.[containers, initContainers, ephemeralContainers][]"
+            deny:
+              conditions:
+                any:
+                  - key: "{{`{{ element.securityContext.privileged || false }}`}}"
+                    operator: Equals
+                    value: true
 {{- end }}
