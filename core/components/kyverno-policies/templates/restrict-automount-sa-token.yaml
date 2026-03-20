@@ -22,31 +22,11 @@ spec:
                 - Pod
               namespaces:
                 - "app-*"
-      exclude:
-        any:
-          - resources:
-              namespaces:
-                - argocd
-                - cert-manager
-                - cnpg-system
-                - external-dns
-                - external-secrets
-                - grafana
-                - kube-state-metrics
-                - kyverno
-                - node-exporter
-                - opencost
-                - traefik
-                - trivy-system
-                - velero
       validate:
         message: "Pods must explicitly set automountServiceAccountToken to false."
-        deny:
-          conditions:
-            any:
-              - key: "{{`{{ request.object.spec.automountServiceAccountToken || 'true' }}`}}"
-                operator: Equals
-                value: "true"
+        pattern:
+          spec:
+            automountServiceAccountToken: false
     - name: automount-sa-controllers
       match:
         any:
@@ -55,34 +35,15 @@ spec:
                 - Deployment
                 - StatefulSet
                 - DaemonSet
-                - Job
               namespaces:
                 - "app-*"
-      exclude:
-        any:
-          - resources:
-              namespaces:
-                - argocd
-                - cert-manager
-                - cnpg-system
-                - external-dns
-                - external-secrets
-                - grafana
-                - kube-state-metrics
-                - kyverno
-                - node-exporter
-                - opencost
-                - traefik
-                - trivy-system
-                - velero
       validate:
         message: "Pods must explicitly set automountServiceAccountToken to false."
-        deny:
-          conditions:
-            any:
-              - key: "{{`{{ request.object.spec.template.spec.automountServiceAccountToken || 'true' }}`}}"
-                operator: Equals
-                value: "true"
+        pattern:
+          spec:
+            template:
+              spec:
+                automountServiceAccountToken: false
     - name: automount-sa-cronjob
       match:
         any:
@@ -91,29 +52,13 @@ spec:
                 - CronJob
               namespaces:
                 - "app-*"
-      exclude:
-        any:
-          - resources:
-              namespaces:
-                - argocd
-                - cert-manager
-                - cnpg-system
-                - external-dns
-                - external-secrets
-                - grafana
-                - kube-state-metrics
-                - kyverno
-                - node-exporter
-                - opencost
-                - traefik
-                - trivy-system
-                - velero
       validate:
         message: "Pods must explicitly set automountServiceAccountToken to false."
-        deny:
-          conditions:
-            any:
-              - key: "{{`{{ request.object.spec.jobTemplate.spec.template.spec.automountServiceAccountToken || 'true' }}`}}"
-                operator: Equals
-                value: "true"
+        pattern:
+          spec:
+            jobTemplate:
+              spec:
+                template:
+                  spec:
+                    automountServiceAccountToken: false
 {{- end }}
