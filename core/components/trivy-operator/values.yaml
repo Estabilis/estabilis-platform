@@ -20,19 +20,50 @@ securityContext:
 containerSecurityContext:
   allowPrivilegeEscalation: false
   runAsNonRoot: true
+  readOnlyRootFilesystem: true
   capabilities:
     drop: [ALL]
+  seccompProfile:
+    type: RuntimeDefault
 
+# --- Trivy server mode ---
+# Server keeps DB in memory, scan jobs are lightweight clients.
+# No repeated DB downloads, no mirror.gcr.io dependency during scans.
 trivy:
+  mode: ClientServer
+  serverURL: "http://trivy-server.trivy-system:4954"
   ignoreUnfixed: true
   resources:
     requests:
-      cpu: 100m
-      memory: 128Mi
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+
+server:
+  replicas: 1
+  podSecurityContext:
+    runAsNonRoot: true
+    seccompProfile:
+      type: RuntimeDefault
+  securityContext:
+    allowPrivilegeEscalation: false
+    runAsNonRoot: true
+    readOnlyRootFilesystem: true
+    capabilities:
+      drop: [ALL]
+    seccompProfile:
+      type: RuntimeDefault
+  resources:
+    requests:
+      cpu: 50m
+      memory: 256Mi
     limits:
       cpu: 500m
       memory: 512Mi
 
+# --- Operator ---
 resources:
   requests:
     cpu: 20m
@@ -50,6 +81,7 @@ operator:
   rbacAssessmentScannerEnabled: true
   infraAssessmentScannerEnabled: false
 
+# --- Scan job security (scan jobs run as root for image access) ---
 trivyOperator:
   scanJobPodTemplatePodSecurityContext:
     runAsNonRoot: false
