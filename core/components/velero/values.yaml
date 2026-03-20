@@ -20,6 +20,11 @@ configuration:
 
 upgradeCRDs: false
 
+kubectl:
+  image:
+    repository: alpine/k8s
+    tag: "1.32.3"
+
 podSecurityContext:
   runAsNonRoot: true
   seccompProfile:
