@@ -64,3 +64,16 @@ cainjector:
     limits:
       cpu: 100m
       memory: 256Mi
+
+startupapicheck:
+  securityContext:
+    runAsNonRoot: true
+    seccompProfile:
+      type: RuntimeDefault
+  containerSecurityContext:
+    allowPrivilegeEscalation: false
+    runAsNonRoot: true
+    capabilities:
+      drop: [ALL]
+    seccompProfile:
+      type: RuntimeDefault

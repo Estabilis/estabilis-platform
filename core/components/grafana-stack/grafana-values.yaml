@@ -50,6 +50,13 @@ datasources:
             enabled: true
 
 sidecar:
+  securityContext:
+    allowPrivilegeEscalation: false
+    runAsNonRoot: true
+    capabilities:
+      drop: [ALL]
+    seccompProfile:
+      type: RuntimeDefault
   resources:
     requests:
       cpu: 10m
@@ -127,6 +134,8 @@ containerSecurityContext:
   runAsNonRoot: true
   capabilities:
     drop: [ALL]
+  seccompProfile:
+    type: RuntimeDefault
 
 serviceAccount:
   create: true

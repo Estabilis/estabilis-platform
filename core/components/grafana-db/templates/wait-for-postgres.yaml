@@ -1,16 +1,16 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: wait-for-secrets
+  name: wait-for-postgres
   namespace: cnpg-system
   annotations:
     argocd.argoproj.io/hook: PreSync
     argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
 spec:
-  backoffLimit: 30
+  backoffLimit: 60
   template:
     spec:
-      serviceAccountName: wait-for-secrets
+      serviceAccountName: wait-for-postgres
       securityContext:
         runAsNonRoot: true
         seccompProfile:
@@ -23,19 +23,14 @@ spec:
             - sh
             - -c
             - |
-              echo "Waiting for ExternalSecrets to sync..."
+              echo "Waiting for PostgreSQL cluster to be ready..."
               while true; do
-                READY=true
-                for secret in grafana-db-credentials; do
-                  if ! kubectl get secret "$secret" -n cnpg-system > /dev/null 2>&1; then
-                    echo "Secret $secret not found yet..."
-                    READY=false
-                  fi
-                done
-                if [ "$READY" = "true" ]; then
-                  echo "All secrets are available."
+                STATUS=$(kubectl get cluster platform-postgres -n cnpg-system -o jsonpath='{.status.phase}' 2>/dev/null)
+                if [ "$STATUS" = "Cluster in healthy state" ]; then
+                  echo "PostgreSQL cluster is healthy."
                   exit 0
                 fi
+                echo "Status: $STATUS — waiting..."
                 sleep 5
               done
           securityContext:
@@ -56,7 +51,7 @@ spec:
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: wait-for-secrets
+  name: wait-for-postgres
   namespace: cnpg-system
   annotations:
     argocd.argoproj.io/hook: PreSync
@@ -65,29 +60,29 @@ metadata:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  name: wait-for-secrets
+  name: wait-for-postgres
   namespace: cnpg-system
   annotations:
     argocd.argoproj.io/hook: PreSync
     argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
 rules:
-  - apiGroups: [""]
-    resources: ["secrets"]
+  - apiGroups: ["postgresql.cnpg.io"]
+    resources: ["clusters"]
     verbs: ["get"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: wait-for-secrets
+  name: wait-for-postgres
   namespace: cnpg-system
   annotations:
     argocd.argoproj.io/hook: PreSync
     argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
 subjects:
   - kind: ServiceAccount
-    name: wait-for-secrets
+    name: wait-for-postgres
     namespace: cnpg-system
 roleRef:
   kind: Role
-  name: wait-for-secrets
+  name: wait-for-postgres
   apiGroup: rbac.authorization.k8s.io
