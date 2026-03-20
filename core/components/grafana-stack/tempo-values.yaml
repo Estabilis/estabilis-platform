@@ -5,6 +5,11 @@ commonLabels:
   estabilis.io/managed-by: platform
   estabilis.io/component: tempo
 
+securityContext:
+  runAsNonRoot: true
+  seccompProfile:
+    type: RuntimeDefault
+
 tempo:
   retention: 720h
   resources:
@@ -16,6 +21,10 @@ tempo:
       memory: 512Mi
   securityContext:
     readOnlyRootFilesystem: false
+    allowPrivilegeEscalation: false
+    runAsNonRoot: true
+    capabilities:
+      drop: [ALL]
 
 persistence:
   enabled: true

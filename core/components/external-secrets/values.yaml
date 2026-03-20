@@ -4,6 +4,14 @@ commonLabels:
 
 replicaCount: 1
 
+securityContext:
+  allowPrivilegeEscalation: false
+  runAsNonRoot: true
+  capabilities:
+    drop: [ALL]
+  seccompProfile:
+    type: RuntimeDefault
+
 resources:
   requests:
     cpu: 20m
@@ -17,6 +25,13 @@ serviceAccount:
 
 webhook:
   replicaCount: 1
+  securityContext:
+    allowPrivilegeEscalation: false
+    runAsNonRoot: true
+    capabilities:
+      drop: [ALL]
+    seccompProfile:
+      type: RuntimeDefault
   resources:
     requests:
       cpu: 20m
@@ -27,6 +42,13 @@ webhook:
 
 certController:
   replicaCount: 1
+  securityContext:
+    allowPrivilegeEscalation: false
+    runAsNonRoot: true
+    capabilities:
+      drop: [ALL]
+    seccompProfile:
+      type: RuntimeDefault
   resources:
     requests:
       cpu: 10m

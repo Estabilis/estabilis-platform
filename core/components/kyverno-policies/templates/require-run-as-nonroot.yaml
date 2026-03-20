@@ -18,6 +18,17 @@ spec:
           - resources:
               kinds:
                 - Pod
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - node-exporter
+          - resources:
+              namespaces:
+                - grafana
+              selector:
+                matchLabels:
+                  estabilis.io/component: alloy
       validate:
         message: "Containers must set runAsNonRoot to true."
         foreach:
@@ -40,6 +51,17 @@ spec:
                 - StatefulSet
                 - DaemonSet
                 - Job
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - node-exporter
+          - resources:
+              namespaces:
+                - grafana
+              selector:
+                matchLabels:
+                  estabilis.io/component: alloy
       validate:
         message: "Containers must set runAsNonRoot to true."
         foreach:
@@ -59,6 +81,17 @@ spec:
           - resources:
               kinds:
                 - CronJob
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - node-exporter
+          - resources:
+              namespaces:
+                - grafana
+              selector:
+                matchLabels:
+                  estabilis.io/component: alloy
       validate:
         message: "Containers must set runAsNonRoot to true."
         foreach:

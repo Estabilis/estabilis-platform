@@ -27,6 +27,14 @@ affinity:
               operator: In
               values: ["regular"]
 
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  runAsNonRoot: true
+  capabilities:
+    drop: [ALL]
+  seccompProfile:
+    type: RuntimeDefault
+
 resources:
   requests:
     cpu: 10m

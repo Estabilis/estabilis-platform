@@ -117,6 +117,17 @@ affinity:
               operator: In
               values: ["regular"]
 
+securityContext:
+  runAsNonRoot: true
+  seccompProfile:
+    type: RuntimeDefault
+
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  runAsNonRoot: true
+  capabilities:
+    drop: [ALL]
+
 serviceAccount:
   create: true
 

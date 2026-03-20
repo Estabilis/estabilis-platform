@@ -54,6 +54,13 @@ singleBinary:
     limits:
       cpu: 1000m
       memory: 2Gi
+  securityContext:
+    allowPrivilegeEscalation: false
+    runAsNonRoot: true
+    capabilities:
+      drop: [ALL]
+    seccompProfile:
+      type: RuntimeDefault
   tolerations:
     - key: "estabilis.io/workload-type"
       operator: "Equal"

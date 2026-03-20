@@ -9,6 +9,7 @@ metadata:
       Prevents pods from automatically mounting the service account token.
       Most workloads do not need to interact with the Kubernetes API and
       auto-mounted tokens can be exploited in case of container compromise.
+      Only applies to client application namespaces.
 spec:
   validationFailureAction: {{ .Values.policies.restrict_automount_sa_token.action | default "Audit" }}
   background: true
@@ -19,6 +20,25 @@ spec:
           - resources:
               kinds:
                 - Pod
+              namespaces:
+                - "app-*"
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - argocd
+                - cert-manager
+                - cnpg-system
+                - external-dns
+                - external-secrets
+                - grafana
+                - kube-state-metrics
+                - kyverno
+                - node-exporter
+                - opencost
+                - traefik
+                - trivy-system
+                - velero
       validate:
         message: "Pods must explicitly set automountServiceAccountToken to false."
         deny:
@@ -36,6 +56,25 @@ spec:
                 - StatefulSet
                 - DaemonSet
                 - Job
+              namespaces:
+                - "app-*"
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - argocd
+                - cert-manager
+                - cnpg-system
+                - external-dns
+                - external-secrets
+                - grafana
+                - kube-state-metrics
+                - kyverno
+                - node-exporter
+                - opencost
+                - traefik
+                - trivy-system
+                - velero
       validate:
         message: "Pods must explicitly set automountServiceAccountToken to false."
         deny:
@@ -50,6 +89,25 @@ spec:
           - resources:
               kinds:
                 - CronJob
+              namespaces:
+                - "app-*"
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - argocd
+                - cert-manager
+                - cnpg-system
+                - external-dns
+                - external-secrets
+                - grafana
+                - kube-state-metrics
+                - kyverno
+                - node-exporter
+                - opencost
+                - traefik
+                - trivy-system
+                - velero
       validate:
         message: "Pods must explicitly set automountServiceAccountToken to false."
         deny:

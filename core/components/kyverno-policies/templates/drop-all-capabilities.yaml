@@ -19,6 +19,11 @@ spec:
           - resources:
               kinds:
                 - Pod
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - node-exporter
       validate:
         message: "Containers must drop ALL capabilities."
         foreach:
@@ -38,6 +43,11 @@ spec:
                 - StatefulSet
                 - DaemonSet
                 - Job
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - node-exporter
       validate:
         message: "Containers must drop ALL capabilities."
         foreach:
@@ -54,6 +64,11 @@ spec:
           - resources:
               kinds:
                 - CronJob
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - node-exporter
       validate:
         message: "Containers must drop ALL capabilities."
         foreach:
