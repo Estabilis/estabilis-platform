@@ -23,6 +23,7 @@ spec:
         any:
           - resources:
               namespaces:
+                - kube-system
                 - node-exporter
       validate:
         message: "Only configMap, secret, emptyDir, persistentVolumeClaim, downwardAPI, and projected volume types are allowed."
@@ -54,6 +55,7 @@ spec:
         any:
           - resources:
               namespaces:
+                - kube-system
                 - node-exporter
       validate:
         message: "Only configMap, secret, emptyDir, persistentVolumeClaim, downwardAPI, and projected volume types are allowed."
@@ -82,6 +84,7 @@ spec:
         any:
           - resources:
               namespaces:
+                - kube-system
                 - node-exporter
       validate:
         message: "Only configMap, secret, emptyDir, persistentVolumeClaim, downwardAPI, and projected volume types are allowed."

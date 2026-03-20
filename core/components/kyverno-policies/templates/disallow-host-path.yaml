@@ -23,6 +23,7 @@ spec:
         any:
           - resources:
               namespaces:
+                - kube-system
                 - node-exporter
       validate:
         message: "Pods must not use hostPath volumes."
@@ -43,6 +44,7 @@ spec:
         any:
           - resources:
               namespaces:
+                - kube-system
                 - node-exporter
       validate:
         message: "Pods must not use hostPath volumes."
@@ -62,6 +64,7 @@ spec:
         any:
           - resources:
               namespaces:
+                - kube-system
                 - node-exporter
       validate:
         message: "Pods must not use hostPath volumes."

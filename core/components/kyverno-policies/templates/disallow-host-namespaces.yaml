@@ -23,6 +23,7 @@ spec:
         any:
           - resources:
               namespaces:
+                - kube-system
                 - node-exporter
       validate:
         message: "Pods must not use host PID, IPC, or network namespaces."
@@ -44,6 +45,7 @@ spec:
         any:
           - resources:
               namespaces:
+                - kube-system
                 - node-exporter
       validate:
         message: "Pods must not use host PID, IPC, or network namespaces."
@@ -64,6 +66,7 @@ spec:
         any:
           - resources:
               namespaces:
+                - kube-system
                 - node-exporter
       validate:
         message: "Pods must not use host PID, IPC, or network namespaces."

@@ -23,6 +23,7 @@ spec:
         any:
           - resources:
               namespaces:
+                - kube-system
                 - node-exporter
       validate:
         message: "Pods must set seccompProfile.type to RuntimeDefault or Localhost."
@@ -54,6 +55,7 @@ spec:
         any:
           - resources:
               namespaces:
+                - kube-system
                 - node-exporter
       validate:
         message: "Pods must set seccompProfile.type to RuntimeDefault or Localhost."
@@ -82,6 +84,7 @@ spec:
         any:
           - resources:
               namespaces:
+                - kube-system
                 - node-exporter
       validate:
         message: "Pods must set seccompProfile.type to RuntimeDefault or Localhost."

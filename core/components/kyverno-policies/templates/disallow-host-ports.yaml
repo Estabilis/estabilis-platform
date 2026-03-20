@@ -23,6 +23,7 @@ spec:
         any:
           - resources:
               namespaces:
+                - kube-system
                 - node-exporter
       validate:
         message: "Containers must not bind to host ports."
@@ -49,6 +50,7 @@ spec:
         any:
           - resources:
               namespaces:
+                - kube-system
                 - node-exporter
       validate:
         message: "Containers must not bind to host ports."
@@ -72,6 +74,7 @@ spec:
         any:
           - resources:
               namespaces:
+                - kube-system
                 - node-exporter
       validate:
         message: "Containers must not bind to host ports."

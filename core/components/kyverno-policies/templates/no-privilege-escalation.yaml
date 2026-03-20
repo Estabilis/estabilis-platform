@@ -21,10 +21,12 @@ spec:
         any:
           - resources:
               namespaces:
+                - kube-system
                 - node-exporter
                 - trivy-system
           - resources:
               namespaces:
+                - kube-system
                 - grafana
               selector:
                 matchLabels:
@@ -55,10 +57,12 @@ spec:
         any:
           - resources:
               namespaces:
+                - kube-system
                 - node-exporter
                 - trivy-system
           - resources:
               namespaces:
+                - kube-system
                 - grafana
               selector:
                 matchLabels:
@@ -86,10 +90,12 @@ spec:
         any:
           - resources:
               namespaces:
+                - kube-system
                 - node-exporter
                 - trivy-system
           - resources:
               namespaces:
+                - kube-system
                 - grafana
               selector:
                 matchLabels:
