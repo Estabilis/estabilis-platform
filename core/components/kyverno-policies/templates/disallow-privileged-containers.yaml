@@ -39,14 +39,11 @@ spec:
                 - velero
       validate:
         message: "Containers must not run in privileged mode."
-        foreach:
-          - list: "request.object.spec.[containers, initContainers, ephemeralContainers][]"
-            deny:
-              conditions:
-                any:
-                  - key: "{{`{{ element.securityContext.privileged || 'false' }}`}}"
-                    operator: Equals
-                    value: "true"
+        pattern:
+          spec:
+            containers:
+              - securityContext:
+                  privileged: false
     - name: privileged-controllers
       match:
         any:
@@ -55,7 +52,6 @@ spec:
                 - Deployment
                 - StatefulSet
                 - DaemonSet
-                - Job
       exclude:
         any:
           - resources:
@@ -76,14 +72,13 @@ spec:
                 - velero
       validate:
         message: "Containers must not run in privileged mode."
-        foreach:
-          - list: "request.object.spec.template.spec.[containers, initContainers, ephemeralContainers][]"
-            deny:
-              conditions:
-                any:
-                  - key: "{{`{{ element.securityContext.privileged || 'false' }}`}}"
-                    operator: Equals
-                    value: "true"
+        pattern:
+          spec:
+            template:
+              spec:
+                containers:
+                  - securityContext:
+                      privileged: false
     - name: privileged-cronjob
       match:
         any:
@@ -110,12 +105,13 @@ spec:
                 - velero
       validate:
         message: "Containers must not run in privileged mode."
-        foreach:
-          - list: "request.object.spec.jobTemplate.spec.template.spec.[containers, initContainers, ephemeralContainers][]"
-            deny:
-              conditions:
-                any:
-                  - key: "{{`{{ element.securityContext.privileged || 'false' }}`}}"
-                    operator: Equals
-                    value: "true"
+        pattern:
+          spec:
+            jobTemplate:
+              spec:
+                template:
+                  spec:
+                    containers:
+                      - securityContext:
+                          privileged: false
 {{- end }}

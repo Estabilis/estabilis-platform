@@ -38,17 +38,11 @@ spec:
                 - velero
       validate:
         message: "Containers must set runAsNonRoot to true."
-        foreach:
-          - list: "request.object.spec.[containers, initContainers, ephemeralContainers][]"
-            deny:
-              conditions:
-                all:
-                  - key: "{{`{{ element.securityContext.runAsNonRoot || 'unset' }}`}}"
-                    operator: NotEquals
-                    value: true
-                  - key: "{{`{{ request.object.spec.securityContext.runAsNonRoot || 'unset' }}`}}"
-                    operator: NotEquals
-                    value: true
+        pattern:
+          spec:
+            containers:
+              - securityContext:
+                  runAsNonRoot: true
     - name: run-as-nonroot-controllers
       match:
         any:
@@ -57,7 +51,6 @@ spec:
                 - Deployment
                 - StatefulSet
                 - DaemonSet
-                - Job
       exclude:
         any:
           - resources:
@@ -78,17 +71,13 @@ spec:
                 - velero
       validate:
         message: "Containers must set runAsNonRoot to true."
-        foreach:
-          - list: "request.object.spec.template.spec.[containers, initContainers, ephemeralContainers][]"
-            deny:
-              conditions:
-                all:
-                  - key: "{{`{{ element.securityContext.runAsNonRoot || 'unset' }}`}}"
-                    operator: NotEquals
-                    value: true
-                  - key: "{{`{{ request.object.spec.template.spec.securityContext.runAsNonRoot || 'unset' }}`}}"
-                    operator: NotEquals
-                    value: true
+        pattern:
+          spec:
+            template:
+              spec:
+                containers:
+                  - securityContext:
+                      runAsNonRoot: true
     - name: run-as-nonroot-cronjob
       match:
         any:
@@ -115,15 +104,13 @@ spec:
                 - velero
       validate:
         message: "Containers must set runAsNonRoot to true."
-        foreach:
-          - list: "request.object.spec.jobTemplate.spec.template.spec.[containers, initContainers, ephemeralContainers][]"
-            deny:
-              conditions:
-                all:
-                  - key: "{{`{{ element.securityContext.runAsNonRoot || 'unset' }}`}}"
-                    operator: NotEquals
-                    value: true
-                  - key: "{{`{{ request.object.spec.jobTemplate.spec.template.spec.securityContext.runAsNonRoot || 'unset' }}`}}"
-                    operator: NotEquals
-                    value: true
+        pattern:
+          spec:
+            jobTemplate:
+              spec:
+                template:
+                  spec:
+                    containers:
+                      - securityContext:
+                          runAsNonRoot: true
 {{- end }}
