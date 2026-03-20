@@ -24,6 +24,7 @@ admissionController:
 
 backgroundController:
   enabled: true
+  backgroundScanInterval: 5m
   container:
     securityContext:
       allowPrivilegeEscalation: false
