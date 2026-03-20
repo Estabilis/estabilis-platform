@@ -56,6 +56,9 @@ datasources:
         access: proxy
         url: http://grafana-pyroscope.grafana.svc.cluster.local:4040
 
+plugins:
+  - grafana-llm-app
+
 sidecar:
   securityContext:
     allowPrivilegeEscalation: false
