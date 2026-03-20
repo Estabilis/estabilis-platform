@@ -2,23 +2,33 @@
 # Kyverno Policies Configuration
 # ---------------------------------------------------------------------------
 #
-# Namespace exclusions in validate policies:
+# Exclusion architecture (3 layers):
 #
-# Permanently excluded (by design — cannot be made compliant):
-#   - kube-system      : managed by AKS, not under our control
-#   - node-exporter    : requires hostPath, hostNetwork, hostPorts, runs as root
-#   - trivy-system     : scan jobs require root for container image access
-#   - grafana          : Alloy DaemonSet requires root for log collection
-#   - kyverno          : webhook/controller have special security requirements
+# 1. GLOBAL (webhook namespaceSelector):
+#    Namespaces with label kyverno.io/exclude=true are completely ignored
+#    by Kyverno. Configured in core/components/kyverno/values.yaml.
+#    Labels applied via managedNamespaceMetadataExcluded helper in _helpers.tpl.
+#    kube-system labeled via kyverno-exceptions component.
 #
-# Temporarily whitelisted (have securityContext configured, pending validation):
-#   - argocd, cert-manager, cnpg-system, external-dns, external-secrets,
-#     kube-state-metrics, opencost, traefik, velero
+# 2. EXCEPTION (PolicyException CRDs):
+#    Per-resource, per-policy exceptions for specific cases.
+#    Managed via core/components/kyverno-exceptions/values.yaml.
+#    Downstream can add exceptions via overrides.
 #
-# TODO: validate each whitelisted namespace with kyverno CLI, then remove
-# from whitelist one by one. Track in platform issue #48.
+# 3. POLICY MATCH (per-policy):
+#    Some policies match only app-* namespaces (require-labels,
+#    require-pod-annotations, require-probes, restrict-automount-sa-token).
+#    Semantic excludes kept in: default-deny-network-policy, inject-pss-labels,
+#    require-limit-ranges, require-resource-quotas.
 #
-# App namespaces (app-*) are always validated — no exclusions.
+# Excluded namespaces (kyverno.io/exclude=true):
+#   Permanent: kube-system, kyverno (self), node-exporter, trivy-system, grafana
+#   Temporary: argocd, cert-manager, cnpg-system, external-dns, external-secrets,
+#              kube-state-metrics, opencost, traefik, velero
+#   TODO: validate temporary namespaces with kyverno CLI (issue #48),
+#         then remove label to enable validation.
+#
+# App namespaces (app-*) never get the exclude label — always validated.
 # ---------------------------------------------------------------------------
 
 policies:
