@@ -24,7 +24,4 @@ justfile
 CLAUDE.md
 bootstrap/secrets.env.example
 example-downstream/
-prompt-v0-alpha.md
-prompt-agents.md
-PROMPT-*.md
 pyproject.toml
