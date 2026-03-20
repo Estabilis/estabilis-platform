@@ -19,6 +19,7 @@ spec:
           - resources:
               kinds:
                 - Namespace
+{{ include "kyverno-policies.platform-exclude-namespaces" . }}
       validate:
         message: "Namespace name must be lowercase alphanumeric with hyphens only (regex: ^[a-z0-9]([a-z0-9-]*[a-z0-9])?$)."
         deny:

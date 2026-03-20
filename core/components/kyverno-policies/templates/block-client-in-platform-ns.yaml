@@ -21,19 +21,21 @@ spec:
                 - StatefulSet
                 - DaemonSet
               namespaces:
+                - argocd
                 - cert-manager
-                - kyverno
-                - external-secrets
+                - cnpg-system
                 - external-dns
+                - external-secrets
                 - grafana
+                - kube-node-lease
+                - kube-public
+                - kube-state-metrics
+                - kyverno
+                - node-exporter
+                - opencost
                 - traefik
                 - trivy-system
-                - opencost
-                - cnpg-system
                 - velero
-                - kube-state-metrics
-                - node-exporter
-                - policy-reporter
       validate:
         message: "Client workloads (estabilis.io/managed-by=client) cannot be deployed in platform namespaces. Use app-* namespaces."
         deny:

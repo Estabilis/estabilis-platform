@@ -64,11 +64,8 @@ spec:
                 - node-exporter
                 - trivy-system
           - resources:
-              namespaces:
-                - kube-system
-                - kube-public
-                - kube-node-lease
-                - kyverno
+              names:
+{{ include "kyverno-policies.excluded-namespace-list" . }}
       mutate:
         patchStrategicMerge:
           metadata:

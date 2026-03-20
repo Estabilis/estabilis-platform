@@ -18,13 +18,7 @@ spec:
           - resources:
               kinds:
                 - Namespace
-      exclude:
-        any:
-          - resources:
-              namespaces:
-                - kube-system
-                - kube-public
-                - kube-node-lease
+{{ include "kyverno-policies.platform-exclude-namespaces" . }}
       generate:
         generateExisting: true
         synchronize: true

@@ -18,6 +18,7 @@ spec:
           - resources:
               kinds:
                 - Deployment
+{{ include "kyverno-policies.platform-exclude" . }}
       preconditions:
         all:
           - key: "{{`{{ request.object.spec.replicas || '1' }}`}}"
