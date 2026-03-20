@@ -1,0 +1,9 @@
+{{- range .Values.namespacesToLabel }}
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ . }}
+  labels:
+    kyverno.io/exclude: "true"
+{{- end }}

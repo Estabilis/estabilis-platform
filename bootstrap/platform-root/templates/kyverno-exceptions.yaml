@@ -1,0 +1,38 @@
+{{- /* core: Kyverno namespace labels and PolicyException CRDs */ -}}
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kyverno-exceptions
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "4"
+spec:
+  project: platform
+  sources:
+    - repoURL: {{ .Values.platformRepoUrl }}
+      targetRevision: {{ .Values.platformVersion }}
+      path: core/components/kyverno-exceptions
+      helm:
+        valueFiles:
+          - $values/core/components/kyverno-exceptions/values.yaml
+          {{- include "platform-root.overrideValueFile" (dict "component" "kyverno-exceptions" "root" $) | nindent 10 }}
+        {{- include "platform-root.ignoreMissingValueFiles" $ | nindent 8 }}
+    - repoURL: {{ .Values.platformRepoUrl }}
+      targetRevision: {{ .Values.platformVersion }}
+      ref: values
+    {{- include "platform-root.overrideSource" . | nindent 4 }}
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kyverno
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    retry:
+      limit: 10
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 3m
+    syncOptions:
+      - ServerSideApply=true

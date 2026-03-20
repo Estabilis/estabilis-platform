@@ -12,6 +12,19 @@ managedNamespaceMetadata:
 {{- end -}}
 
 {{/*
+Excluded namespace metadata — same as standard but adds kyverno.io/exclude=true
+so Kyverno webhook skips the namespace entirely.
+*/}}
+{{- define "platform-root.managedNamespaceMetadataExcluded" -}}
+managedNamespaceMetadata:
+  labels:
+    estabilis.io/managed-by: platform
+    kyverno.io/exclude: "true"
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/enforce-version: latest
+{{- end -}}
+
+{{/*
 Privileged namespace metadata — for components requiring host-level access
 (e.g. node-exporter needs hostPID, hostNetwork).
 */}}
@@ -62,6 +75,18 @@ ignoreMissingValueFiles: true
 managedNamespaceMetadata:
   labels:
     estabilis.io/managed-by: platform
+    pod-security.kubernetes.io/enforce: privileged
+    pod-security.kubernetes.io/enforce-version: latest
+{{- end -}}
+
+{{/*
+Excluded privileged namespace metadata — privileged PSA + kyverno.io/exclude=true.
+*/}}
+{{- define "platform-root.managedNamespaceMetadataExcludedPrivileged" -}}
+managedNamespaceMetadata:
+  labels:
+    estabilis.io/managed-by: platform
+    kyverno.io/exclude: "true"
     pod-security.kubernetes.io/enforce: privileged
     pod-security.kubernetes.io/enforce-version: latest
 {{- end -}}

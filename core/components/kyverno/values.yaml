@@ -2,6 +2,24 @@ commonLabels:
   estabilis.io/managed-by: platform
   estabilis.io/component: kyverno
 
+# ---------------------------------------------------------------------------
+# Global namespace exclusion via webhook namespaceSelector
+# Namespaces with label kyverno.io/exclude=true are completely ignored
+# by Kyverno — no admission, no validation, no mutation.
+#
+# Permanently excluded:
+#   kube-system, kyverno, node-exporter, trivy-system, grafana
+# Temporarily excluded (pending validation):
+#   argocd, cert-manager, cnpg-system, external-dns, external-secrets,
+#   kube-state-metrics, opencost, traefik, velero
+# ---------------------------------------------------------------------------
+config:
+  webhooks:
+    - namespaceSelector:
+        matchExpressions:
+          - key: kyverno.io/exclude
+            operator: DoesNotExist
+
 admissionController:
   replicas: 1
   container:
