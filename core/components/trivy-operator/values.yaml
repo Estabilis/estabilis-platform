@@ -43,6 +43,8 @@ resources:
 
 operator:
   scanJobsConcurrentLimit: 1
+  scanJobRetryAfter: 30s
+  scanJobBackoffLimit: 10
   vulnerabilityScannerEnabled: true
   configAuditScannerEnabled: true
   rbacAssessmentScannerEnabled: true
