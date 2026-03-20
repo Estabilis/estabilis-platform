@@ -254,6 +254,7 @@ spec:
 # =============================================================================
 # trivy-system namespace
 # Needs broad egress: container registries for scanning
+# Ingress: scan jobs connect to trivy-server (port 4954) in same namespace
 # =============================================================================
 {{- if (index .Values.policies "trivy-system").enabled }}
 apiVersion: networking.k8s.io/v1
@@ -264,10 +265,17 @@ metadata:
 spec:
   podSelector: {}
   policyTypes:
+    - Ingress
     - Egress
+  ingress:
+    # Internal: scan jobs → trivy-server (server mode)
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: trivy-system
   egress:
 {{ include "network-policies.dns-egress" . }}
-    # All egress (container registries for scanning)
+    # All egress (container registries, trivy-db download)
     - to: []
 {{- end }}
 ---
