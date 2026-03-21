@@ -19,7 +19,7 @@ spec:
       azure.workload.identity/use: "true"
 
   # PostgreSQL version
-  imageName: ghcr.io/cloudnative-pg/postgresql:16.6
+  imageName: ghcr.io/cloudnative-pg/postgresql:18.1
 
   # Storage
   storage:
@@ -30,8 +30,14 @@ spec:
     initdb:
       database: app
       owner: app
+      postInitApplicationSQLRefs:
+        secretRefs:
+          - name: grafana-db-credentials
+            key: password
+        postInitApplicationSQL:
+          - CREATE ROLE grafana WITH LOGIN INHERIT CONNECTION LIMIT -1 PASSWORD :'password'
 
-  # Roles managed declaratively (databases are provisioned by each component via kind: Database CRD)
+  # Roles managed declaratively (ensures role stays in sync after bootstrap)
   managed:
     roles:
       - name: grafana
