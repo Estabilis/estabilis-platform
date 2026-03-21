@@ -27,6 +27,24 @@ configs:
     policy.default: "role:readonly"
     scopes: "[groups]"
   cm:
+    resource.customizations.health.postgresql.cnpg.io_Cluster: |
+      hs = {}
+      if obj.status == nil or obj.status.phase == nil then
+        hs.status = "Progressing"
+        hs.message = "Waiting for cluster initialization"
+        return hs
+      end
+      if obj.status.phase == "Cluster in healthy state" then
+        hs.status = "Healthy"
+        hs.message = "Cluster is healthy"
+      elseif obj.status.phase == "Setting up primary" or obj.status.phase == "Creating primary" then
+        hs.status = "Progressing"
+        hs.message = obj.status.phase
+      else
+        hs.status = "Progressing"
+        hs.message = obj.status.phase or "Cluster not ready"
+      end
+      return hs
     resource.customizations.health.postgresql.cnpg.io_Database: |
       hs = {}
       if obj.status == nil or obj.status.applied == nil then
