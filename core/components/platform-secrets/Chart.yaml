@@ -1,0 +1,5 @@
+apiVersion: v2
+name: platform-secrets
+description: All platform ExternalSecrets — consolidated from per-component charts
+version: 0.1.0
+type: application

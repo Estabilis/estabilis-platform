@@ -1,0 +1,23 @@
+# grafana-db-credentials in cnpg-system — CNPG managed role secret
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: grafana-db-credentials
+  namespace: cnpg-system
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: platform-secret-store
+    kind: ClusterSecretStore
+  target:
+    name: grafana-db-credentials
+    creationPolicy: Owner
+    template:
+      data:
+        username: grafana
+        password: |-
+          {{`{{ .password }}`}}
+  data:
+    - secretKey: password
+      remoteRef:
+        key: {{ .Values.kvSecrets.grafanaDbPassword | quote }}

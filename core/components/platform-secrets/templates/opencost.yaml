@@ -1,0 +1,43 @@
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: opencost-cloud-integration
+  namespace: opencost
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: platform-secret-store
+    kind: ClusterSecretStore
+  target:
+    name: opencost-cloud-integration
+    creationPolicy: Owner
+    template:
+      data:
+        cloud-integration.json: |-
+          {{`{{ .cloudIntegration }}`}}
+  data:
+    - secretKey: cloudIntegration
+      remoteRef:
+        key: {{ .Values.kvSecrets.opencostCloudIntegration | quote }}
+---
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: opencost-cloud-service-key
+  namespace: opencost
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: platform-secret-store
+    kind: ClusterSecretStore
+  target:
+    name: opencost-cloud-service-key
+    creationPolicy: Owner
+    template:
+      data:
+        service-key.json: |-
+          {{`{{ .serviceKey }}`}}
+  data:
+    - secretKey: serviceKey
+      remoteRef:
+        key: {{ .Values.kvSecrets.opencostServiceKey | quote }}

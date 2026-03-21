@@ -1,0 +1,79 @@
+# grafana-db-credentials in grafana — Grafana reads GF_DATABASE_PASSWORD env var
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: grafana-db-credentials
+  namespace: grafana
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: platform-secret-store
+    kind: ClusterSecretStore
+  target:
+    name: grafana-db-credentials
+    creationPolicy: Owner
+  data:
+    - secretKey: GF_DATABASE_PASSWORD
+      remoteRef:
+        key: {{ .Values.kvSecrets.grafanaDbPassword | quote }}
+---
+# grafana-admin-credentials — persistent admin password from Key Vault
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: grafana-admin-credentials
+  namespace: grafana
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: platform-secret-store
+    kind: ClusterSecretStore
+  target:
+    name: grafana-admin-credentials
+    creationPolicy: Owner
+    template:
+      data:
+        admin-user: admin
+        admin-password: '{{ "{{ .password }}" }}'
+  data:
+    - secretKey: password
+      remoteRef:
+        key: {{ .Values.kvSecrets.grafanaAdminPassword | quote }}
+---
+# grafana-llm-credentials — OpenAI API key for Grafana LLM plugin
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: grafana-llm-credentials
+  namespace: grafana
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: platform-secret-store
+    kind: ClusterSecretStore
+  target:
+    name: grafana-llm-credentials
+    creationPolicy: Owner
+  data:
+    - secretKey: OPENAI_API_KEY
+      remoteRef:
+        key: {{ .Values.kvSecrets.openaiApiKey | quote }}
+---
+# ConfigMap for Grafana LLM plugin provisioning
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-llm-provisioning
+  namespace: grafana
+data:
+  llm.yaml: |
+    apiVersion: 1
+    apps:
+      - type: grafana-llm-app
+        disabled: false
+        jsonData:
+          openAI:
+            provider: openai
+            url: https://api.openai.com
+        secureJsonData:
+          openAIKey: ${OPENAI_API_KEY}

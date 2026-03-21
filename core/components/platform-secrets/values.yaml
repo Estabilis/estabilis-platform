@@ -1,0 +1,11 @@
+# Config repo credentials — only created when configRepoUrl is set
+configRepoUrl: ""
+
+# Key Vault secret names — must exist in Key Vault before platform deploy
+kvSecrets:
+  configRepoToken: "platform-config-repo-token"
+  grafanaDbPassword: "platform-grafana-db-password"
+  grafanaAdminPassword: "platform-grafana-admin-password"
+  openaiApiKey: "platform-openai-api-key"
+  opencostServiceKey: "platform-opencost-service-key"
+  opencostCloudIntegration: "platform-opencost-cloud-integration"
