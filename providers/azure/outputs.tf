@@ -62,6 +62,36 @@ output "cert_manager_client_id" {
   value       = azurerm_user_assigned_identity.cert_manager.client_id
 }
 
+output "external_dns_client_id" {
+  description = "Client ID of the external-dns managed identity."
+  value       = azurerm_user_assigned_identity.external_dns.client_id
+}
+
+output "external_secrets_client_id" {
+  description = "Client ID of the external-secrets managed identity."
+  value       = azurerm_user_assigned_identity.external_secrets.client_id
+}
+
+output "loki_client_id" {
+  description = "Client ID of the Loki managed identity."
+  value       = azurerm_user_assigned_identity.loki.client_id
+}
+
+output "mimir_client_id" {
+  description = "Client ID of the Mimir managed identity."
+  value       = azurerm_user_assigned_identity.mimir.client_id
+}
+
+output "cnpg_client_id" {
+  description = "Client ID of the CNPG managed identity."
+  value       = azurerm_user_assigned_identity.cnpg.client_id
+}
+
+output "velero_client_id" {
+  description = "Client ID of the Velero managed identity."
+  value       = azurerm_user_assigned_identity.velero.client_id
+}
+
 output "nat_gateway_public_ip" {
   description = "Static outbound IP address (NAT Gateway). Use this for external allowlists."
   value       = var.nat_gateway_enabled ? azurerm_public_ip.nat_gateway[0].ip_address : null
