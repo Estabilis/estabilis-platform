@@ -19,7 +19,7 @@ spec:
       azure.workload.identity/use: "true"
 
   # PostgreSQL version
-  imageName: ghcr.io/cloudnative-pg/postgresql:18.1
+  imageName: ghcr.io/cloudnative-pg/postgresql:16.8
 
   # Storage
   storage:
