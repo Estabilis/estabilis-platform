@@ -26,6 +26,22 @@ configs:
   rbac:
     policy.default: "role:readonly"
     scopes: "[groups]"
+  cm:
+    resource.customizations.health.postgresql.cnpg.io_Database: |
+      hs = {}
+      if obj.status == nil or obj.status.applied == nil then
+        hs.status = "Progressing"
+        hs.message = "Waiting for database reconciliation"
+        return hs
+      end
+      if obj.status.applied then
+        hs.status = "Healthy"
+        hs.message = obj.status.message or "Database is ready"
+      else
+        hs.status = "Degraded"
+        hs.message = obj.status.message or "Database reconciliation failed"
+      end
+      return hs
 
 server:
   replicas: 1
