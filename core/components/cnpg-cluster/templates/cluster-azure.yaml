@@ -30,14 +30,8 @@ spec:
     initdb:
       database: app
       owner: app
-      postInitApplicationSQLRefs:
-        secretRefs:
-          - name: grafana-db-credentials
-            key: password
-        postInitApplicationSQL:
-          - CREATE ROLE grafana WITH LOGIN INHERIT CONNECTION LIMIT -1 PASSWORD :'password'
 
-  # Roles managed declaratively (ensures role stays in sync after bootstrap)
+  # Roles managed declaratively
   managed:
     roles:
       - name: grafana
