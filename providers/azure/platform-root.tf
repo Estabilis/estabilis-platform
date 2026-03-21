@@ -18,6 +18,9 @@ resource "kubectl_manifest" "platform_root" {
     metadata = {
       name      = "platform-root"
       namespace = "argocd"
+      annotations = {
+        "estabilis.io/deployed-by" = "terraform"
+      }
     }
     spec = {
       project = "default"
