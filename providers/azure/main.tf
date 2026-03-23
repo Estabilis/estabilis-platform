@@ -61,6 +61,19 @@ locals {
 }
 
 # ---------------------------------------------------------------------------
+# Operator IP — auto-detected for AKS API + Key Vault firewall access
+# ---------------------------------------------------------------------------
+
+data "http" "operator_ip" {
+  url = "https://ifconfig.me/ip"
+}
+
+locals {
+  operator_ip    = "${chomp(data.http.operator_ip.response_body)}/32"
+  authorized_ips = distinct(concat(var.authorized_ip_ranges, [local.operator_ip]))
+}
+
+# ---------------------------------------------------------------------------
 # Random suffix for globally-unique storage account name
 # ---------------------------------------------------------------------------
 
