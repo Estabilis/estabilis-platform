@@ -113,5 +113,11 @@ reportsController:
   metricsService:
     create: true
 
+# Disable pre-delete hooks — they fail on clean installs because they reference
+# the admission-controller ServiceAccount before the chart creates it.
+# Webhook cleanup is handled by the resync nuke phase instead.
+webhooksCleanup:
+  enabled: false
+
 grafana:
   enabled: false
