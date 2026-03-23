@@ -65,7 +65,7 @@ locals {
 # ---------------------------------------------------------------------------
 
 data "http" "operator_ip" {
-  url = "https://ifconfig.me/ip"
+  url = "https://api.ipify.org" # IPv4 only
 }
 
 locals {
