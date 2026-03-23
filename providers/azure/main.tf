@@ -50,6 +50,17 @@ resource "azurerm_resource_group" "platform" {
 }
 
 # ---------------------------------------------------------------------------
+# Effective domain — computed from host_pattern + environment + domain
+# ---------------------------------------------------------------------------
+# subdomain: dev.acme.com (prod uses bare domain: acme.com)
+# prefix/suffix: acme.com (environment is in the hostname, not the domain)
+
+locals {
+  is_prod_env      = contains(["prod", "prd", "production"], var.environment)
+  effective_domain = var.host_pattern == "subdomain" && !local.is_prod_env ? "${var.environment}.${var.domain}" : var.domain
+}
+
+# ---------------------------------------------------------------------------
 # Random suffix for globally-unique storage account name
 # ---------------------------------------------------------------------------
 

@@ -90,3 +90,37 @@ managedNamespaceMetadata:
     pod-security.kubernetes.io/enforce: privileged
     pod-security.kubernetes.io/enforce-version: latest
 {{- end -}}
+
+{{/*
+estabilis.host — constructs a hostname based on the host_pattern.
+
+Usage (from component templates that receive global values):
+  {{ include "estabilis.host" (dict "app" "grafana" "global" .Values.global) }}
+
+Patterns:
+  subdomain: app.effectiveDomain  (effectiveDomain already includes env for non-prod)
+  prefix:    env-app.domain       (prod: app.domain)
+  suffix:    app-env.domain       (prod: app.domain)
+*/}}
+{{- define "estabilis.host" -}}
+{{- $app := .app -}}
+{{- $g := .global -}}
+{{- $isProd := or (eq $g.environment "prod") (eq $g.environment "prd") (eq $g.environment "production") -}}
+{{- if eq $g.hostPattern "subdomain" -}}
+{{ $app }}.{{ $g.effectiveDomain }}
+{{- else if eq $g.hostPattern "prefix" -}}
+{{- if $isProd -}}
+{{ $app }}.{{ $g.domain }}
+{{- else -}}
+{{ $g.environment }}-{{ $app }}.{{ $g.domain }}
+{{- end -}}
+{{- else if eq $g.hostPattern "suffix" -}}
+{{- if $isProd -}}
+{{ $app }}.{{ $g.domain }}
+{{- else -}}
+{{ $app }}-{{ $g.environment }}.{{ $g.domain }}
+{{- end -}}
+{{- else -}}
+{{ $app }}.{{ $g.effectiveDomain }}
+{{- end -}}
+{{- end -}}

@@ -1,5 +1,7 @@
 global:
   domain: ""
+  effectiveDomain: ""
+  host: ""
 
 kvSecrets:
   lokiIngressAuth: "platform-loki-ingress-auth"

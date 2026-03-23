@@ -4,6 +4,7 @@ global:
   subscriptionId: ""
   resourceGroup: ""
   domain: ""
+  effectiveDomain: ""
 identity:
   certManager:
     clientId: ""

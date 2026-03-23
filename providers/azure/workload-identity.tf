@@ -23,9 +23,9 @@ resource "azurerm_federated_identity_credential" "external_dns" {
   subject   = "system:serviceaccount:external-dns:external-dns"
 }
 
-# DNS Zone — created here for the platform domain
+# DNS Zone — uses effective_domain (includes env subdomain when host_pattern=subdomain)
 resource "azurerm_dns_zone" "platform" {
-  name                = var.domain
+  name                = local.effective_domain
   resource_group_name = azurerm_resource_group.platform.name
   tags                = var.tags
 }

@@ -21,6 +21,10 @@ spec:
         parameters:
           - name: global.domain
             value: "{{ .Values.global.domain }}"
+          - name: global.effectiveDomain
+            value: "{{ .Values.global.effectiveDomain }}"
+          - name: global.host
+            value: {{ include "estabilis.host" (dict "app" "loki" "global" .Values.global) | quote }}
           - name: allowedCidrs
             value: "{{ .Values.global.lokiAllowedCidrs }}"
     - repoURL: {{ .Values.platformRepoUrl }}

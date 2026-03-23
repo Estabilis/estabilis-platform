@@ -70,7 +70,7 @@ spec:
         {{- include "platform-root.ignoreMissingValueFiles" $ | nindent 8 }}
         parameters:
           - name: domainFilters[0]
-            value: "{{ .Values.global.domain }}"
+            value: "{{ .Values.global.effectiveDomain }}"
           - name: txtOwnerId
             value: "{{ .Values.global.clusterName }}"
           {{- if eq .Values.global.provider "azure" }}

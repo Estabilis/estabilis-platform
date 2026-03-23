@@ -57,6 +57,14 @@ resource "kubectl_manifest" "platform_root" {
                   value = var.domain
                 },
                 {
+                  name  = "global.effectiveDomain"
+                  value = local.effective_domain
+                },
+                {
+                  name  = "global.hostPattern"
+                  value = var.host_pattern
+                },
+                {
                   name  = "global.environment"
                   value = var.environment
                 },

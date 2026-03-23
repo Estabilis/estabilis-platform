@@ -52,6 +52,11 @@ output "velero_backup_storage_account_name" {
   value       = azurerm_storage_account.velero_backup.name
 }
 
+output "dns_zone_name" {
+  description = "Name of the DNS zone (effective_domain, may include env subdomain)."
+  value       = azurerm_dns_zone.platform.name
+}
+
 output "dns_zone_name_servers" {
   description = "Name servers for the DNS zone — configure these at your domain registrar"
   value       = azurerm_dns_zone.platform.name_servers

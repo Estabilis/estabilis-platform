@@ -15,14 +15,25 @@ variable "domain" {
   type        = string
 }
 
+variable "host_pattern" {
+  description = "How application hostnames are constructed: subdomain (app.env.domain), prefix (env-app.domain), suffix (app-env.domain)."
+  type        = string
+  default     = "subdomain"
+
+  validation {
+    condition     = contains(["subdomain", "prefix", "suffix"], var.host_pattern)
+    error_message = "host_pattern must be one of: subdomain, prefix, suffix."
+  }
+}
+
 variable "environment" {
   description = "Deployment environment identifier."
   type        = string
-  default     = "homolog"
+  default     = "prod"
 
   validation {
-    condition     = contains(["dev", "homolog", "staging", "production"], var.environment)
-    error_message = "Environment must be one of: dev, homolog, staging, production."
+    condition     = contains(["dev", "uat", "hml", "stg", "prd", "prod"], var.environment)
+    error_message = "Environment must be one of: dev, uat, hml, stg, prd, prod."
   }
 }
 
