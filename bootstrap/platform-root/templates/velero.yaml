@@ -51,9 +51,6 @@ spec:
     namespace: velero
   syncPolicy:
     {{- include "platform-root.managedNamespaceMetadataExcluded" . | nindent 4 }}
-    automated:
-      prune: true
-      selfHeal: true
     retry:
       limit: 10
       backoff:
@@ -84,9 +81,6 @@ spec:
     server: https://kubernetes.default.svc
     namespace: velero
   syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
     retry:
       limit: 10
       backoff:

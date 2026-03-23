@@ -27,9 +27,6 @@ spec:
     namespace: cnpg-system
   syncPolicy:
     {{- include "platform-root.managedNamespaceMetadataExcluded" . | nindent 4 }}
-    automated:
-      prune: true
-      selfHeal: true
     retry:
       limit: 10
       backoff:
@@ -75,9 +72,6 @@ spec:
     namespace: cnpg-system
   syncPolicy:
     {{- include "platform-root.managedNamespaceMetadataExcluded" . | nindent 4 }}
-    automated:
-      prune: true
-      selfHeal: true
     retry:
       limit: 10
       backoff:

@@ -35,9 +35,6 @@ spec:
         - .webhooks[]?.clientConfig.caBundle
   syncPolicy:
     {{- include "platform-root.managedNamespaceMetadataExcluded" . | nindent 4 }}
-    automated:
-      prune: true
-      selfHeal: true
     retry:
       limit: 10
       backoff:

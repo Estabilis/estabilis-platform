@@ -16,6 +16,8 @@ alloy:
 # Disable MinIO — monolithic mode uses local disk
 minio:
   enabled: false
+  persistence:
+    size: 4Gi
 
 pyroscope:
   replicaCount: 1

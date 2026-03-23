@@ -32,9 +32,6 @@ spec:
         - .metadata.labels
   syncPolicy:
     {{- include "platform-root.managedNamespaceMetadata" . | nindent 4 }}
-    automated:
-      prune: true
-      selfHeal: true
     retry:
       limit: 10
       backoff:
@@ -72,9 +69,6 @@ spec:
     server: https://kubernetes.default.svc
     namespace: kyverno
   syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
     retry:
       limit: 10
       backoff:

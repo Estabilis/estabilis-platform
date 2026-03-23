@@ -18,9 +18,6 @@ spec:
     namespace: grafana
   syncPolicy:
     {{- include "platform-root.managedNamespaceMetadata" . | nindent 4 }}
-    automated:
-      prune: true
-      selfHeal: true
     retry:
       limit: 10
       backoff:

@@ -29,9 +29,6 @@ spec:
         {{- if $app.owner }}
         estabilis.io/owner: {{ $app.owner | quote }}
         {{- end }}
-    automated:
-      prune: true
-      selfHeal: true
     retry:
       limit: 10
       backoff:
