@@ -1,4 +1,46 @@
 {{- /* core: this component cannot be disabled — platform depends on it */ -}}
+{{- /*
+  Split into two Applications:
+  1. cnpg-crds: installs only CRDs (no controller pods)
+  2. cnpg-operator: installs controller (CRDs already exist)
+  This avoids chicken-and-egg: controller needs CRDs to start, but CRDs
+  are installed by the same chart.
+*/ -}}
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cnpg-crds
+  namespace: argocd
+spec:
+  project: platform
+  sources:
+    - repoURL: https://cloudnative-pg.github.io/charts
+      chart: cloudnative-pg
+      targetRevision: "0.27.1"
+      helm:
+        parameters:
+          - name: crds.create
+            value: "true"
+          - name: replicaCount
+            value: "0"
+    - repoURL: {{ .Values.platformRepoUrl }}
+      targetRevision: {{ .Values.platformVersion }}
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: cnpg-system
+  syncPolicy:
+    {{- include "platform-root.managedNamespaceMetadataExcluded" . | nindent 4 }}
+    retry:
+      limit: 10
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 3m
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+---
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -18,6 +60,9 @@ spec:
           - $values/core/components/cnpg/values-{{ .Values.global.provider }}.yaml
           {{- include "platform-root.overrideValueFile" (dict "component" "cnpg" "root" $) | nindent 10 }}
         {{- include "platform-root.ignoreMissingValueFiles" $ | nindent 8 }}
+        parameters:
+          - name: crds.create
+            value: "false"
     - repoURL: {{ .Values.platformRepoUrl }}
       targetRevision: {{ .Values.platformVersion }}
       ref: values
