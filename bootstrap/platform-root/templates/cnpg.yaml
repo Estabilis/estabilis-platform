@@ -5,7 +5,7 @@ metadata:
   name: cnpg-operator
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "2"
+    argocd.argoproj.io/sync-wave: "4"
 spec:
   project: platform
   sources:

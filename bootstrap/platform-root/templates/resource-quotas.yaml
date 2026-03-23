@@ -5,7 +5,7 @@ metadata:
   name: resource-quotas
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "1"
+    argocd.argoproj.io/sync-wave: "10"
 spec:
   project: platform
   sources:

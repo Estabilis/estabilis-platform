@@ -6,7 +6,7 @@ metadata:
   name: grafana-db
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "7"
+    argocd.argoproj.io/sync-wave: "8"
 spec:
   project: platform
   source:
@@ -33,7 +33,7 @@ metadata:
   name: grafana
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "7"
+    argocd.argoproj.io/sync-wave: "8"
 spec:
   project: platform
   sources:
@@ -76,7 +76,7 @@ metadata:
   name: grafana-loki
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "7"
+    argocd.argoproj.io/sync-wave: "8"
 spec:
   project: platform
   sources:
@@ -132,7 +132,7 @@ metadata:
   name: grafana-mimir
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "7"
+    argocd.argoproj.io/sync-wave: "8"
 spec:
   project: platform
   sources:
@@ -188,7 +188,7 @@ metadata:
   name: alloy-rbac
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "7"
+    argocd.argoproj.io/sync-wave: "9"
 spec:
   project: platform
   source:
@@ -215,7 +215,7 @@ metadata:
   name: grafana-alloy
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "7"
+    argocd.argoproj.io/sync-wave: "8"
 spec:
   project: platform
   sources:
@@ -258,7 +258,7 @@ metadata:
   name: grafana-tempo
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "7"
+    argocd.argoproj.io/sync-wave: "8"
 spec:
   project: platform
   sources:
@@ -301,7 +301,7 @@ metadata:
   name: grafana-pyroscope
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "7"
+    argocd.argoproj.io/sync-wave: "8"
 spec:
   project: platform
   sources:

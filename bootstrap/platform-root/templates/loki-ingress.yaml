@@ -6,7 +6,7 @@ metadata:
   name: loki-ingress
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "8"
+    argocd.argoproj.io/sync-wave: "9"
 spec:
   project: platform
   sources:
