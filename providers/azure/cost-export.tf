@@ -2,11 +2,9 @@
 # Cost Management Export – Azure billing data for OpenCost Cloud Costs
 # ---------------------------------------------------------------------------
 
-# The Cost Management Export API requires this resource provider to be
-# registered on the subscription before exports can be created.
-resource "azurerm_resource_provider_registration" "cost_management_exports" {
-  name = "Microsoft.CostManagementExports"
-}
+# The Cost Management Export API requires Microsoft.CostManagementExports
+# to be registered. This is handled by `estabilis register-providers`
+# (run once per subscription) and verified by `estabilis apply`.
 
 resource "azurerm_storage_account" "cost_exports" {
   name                            = "st${var.name_prefix}costs${random_string.storage_suffix.result}"
@@ -126,7 +124,6 @@ resource "azurerm_subscription_cost_management_export" "daily" {
   }
 
   depends_on = [
-    azurerm_resource_provider_registration.cost_management_exports,
     azurerm_role_assignment.terraform_cost_exports_owner,
   ]
 }
