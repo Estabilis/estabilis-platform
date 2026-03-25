@@ -25,10 +25,10 @@ alloy:
   resources:
     requests:
       cpu: 50m
-      memory: 128Mi
+      memory: 256Mi
     limits:
-      cpu: 200m
-      memory: 512Mi
+      cpu: 500m
+      memory: 1Gi
   configMap:
     content: |
       // Discover Kubernetes pods for log collection
