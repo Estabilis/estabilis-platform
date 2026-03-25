@@ -32,11 +32,6 @@ output "storage_account_name" {
   value       = azurerm_storage_account.observability.name
 }
 
-output "argocd_namespace" {
-  description = "Kubernetes namespace where ArgoCD is installed."
-  value       = helm_release.argocd.namespace
-}
-
 output "tfstate_storage_account_name" {
   description = "Storage account name for Terraform state backend (use in backend.tf)"
   value       = azurerm_storage_account.tfstate.name
