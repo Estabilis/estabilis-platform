@@ -33,9 +33,9 @@ mimir:
       alertmanager_url: http://grafana-mimir-alertmanager-headless.grafana.svc.cluster.local:8080/alertmanager
       rule_path: /data/ruler
     ruler_storage:
-      backend: filesystem
-      filesystem:
-        dir: /data/rules
+      backend: local
+      local:
+        directory: /data/rules
     alertmanager:
       data_dir: /data/am-data
     alertmanager_storage:
