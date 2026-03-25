@@ -1,1 +1,2 @@
-mimirGatewayUrl: "http://grafana-mimir-gateway.grafana.svc.cluster.local/ready"
+# opencost-presync — no values needed
+# PreSync hook was removed; upstart wave ordering handles dependency.

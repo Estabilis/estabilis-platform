@@ -1,7 +1,3 @@
-mimirGatewayUrl: "http://grafana-mimir-gateway.grafana.svc.cluster.local"
-tenantId: "anonymous"
-rulesNamespace: "platform"
-
 # Rule groups — each can be enabled/disabled by the client
 ruleGroups:
   platformDown:

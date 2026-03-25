@@ -85,32 +85,17 @@ alertmanager:
 ruler:
   enabled: true
   replicas: 1
-  directories:
-    anonymous:
-      platform-alerts.yaml: |
-        groups:
-          - name: node-health
-            interval: 1m
-            rules:
-              - alert: NodeNotReady
-                expr: kube_node_status_condition{condition="Ready",status="true"} == 0
-                for: 5m
-                labels:
-                  severity: critical
-                  component: kubernetes
-                annotations:
-                  summary: "Node {{ $labels.node }} is not ready"
-                  description: "Node has been in NotReady state for more than 5 minutes."
-
-              - alert: NodeHighMemoryUsage
-                expr: (1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) > 0.9
-                for: 10m
-                labels:
-                  severity: warning
-                  component: kubernetes
-                annotations:
-                  summary: "Node {{ $labels.instance }} memory usage above 90%"
-                  description: "Memory usage is {{ $value | humanizePercentage }}."
+  # Rules are loaded from ConfigMap mimir-alerting-rules (created by mimir-rules component)
+  # mounted at /data/rules/anonymous/ — matches ruler_storage.filesystem.dir + tenant ID
+  extraVolumes:
+    - name: alerting-rules
+      configMap:
+        name: mimir-alerting-rules
+        optional: true
+  extraVolumeMounts:
+    - name: alerting-rules
+      mountPath: /data/rules/anonymous
+      readOnly: true
 
               - alert: NodeHighCPUUsage
                 expr: (1 - avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m]))) > 0.9
