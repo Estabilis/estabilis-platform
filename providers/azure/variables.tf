@@ -104,7 +104,7 @@ variable "subscription_id" {
 variable "system_vm_size" {
   description = "VM size for the system node pool."
   type        = string
-  default     = "Standard_D2s_v5"
+  default     = "Standard_D2s_v3"
 }
 
 variable "system_node_count" {
@@ -156,7 +156,7 @@ variable "workload_spot_enabled" {
 variable "workload_vm_size" {
   description = "VM size for the workload node pool."
   type        = string
-  default     = "Standard_D2s_v5"
+  default     = "Standard_D2s_v3"
 }
 
 variable "workload_os_disk_size_gb" {
