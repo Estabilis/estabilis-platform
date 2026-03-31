@@ -55,6 +55,24 @@ variable "sku_tier" {
   default     = "Free"
 }
 
+variable "run_command_enabled" {
+  description = "Enable Azure run command on AKS. Disable to reduce attack surface."
+  type        = bool
+  default     = false
+}
+
+variable "image_cleaner_enabled" {
+  description = "Enable automatic image cleaner on AKS nodes to remove unused images."
+  type        = bool
+  default     = true
+}
+
+variable "image_cleaner_interval_hours" {
+  description = "Interval in hours for the image cleaner scan."
+  type        = number
+  default     = 48
+}
+
 variable "platform_repo_url" {
   description = "Git repository URL for the platform manifests."
   type        = string
@@ -132,9 +150,15 @@ variable "system_max_count" {
 }
 
 variable "system_os_disk_size_gb" {
-  description = "OS disk size (GB) for system nodes."
+  description = "OS disk size (GB) for system nodes. Must fit VM cache disk for ephemeral OS (D2s_v3=50GB, D4s_v3=100GB)."
   type        = number
   default     = 50
+}
+
+variable "system_max_surge" {
+  description = "Max surge for system node pool upgrades (percentage or absolute number)."
+  type        = string
+  default     = "10%"
 }
 
 # ---------------------------------------------------------------------------
@@ -160,9 +184,9 @@ variable "workload_vm_size" {
 }
 
 variable "workload_os_disk_size_gb" {
-  description = "OS disk size (GB) for workload nodes."
+  description = "OS disk size (GB) for workload nodes. Align to Azure managed disk tiers to avoid overpaying: 32 (P4 ~$1.54/mo), 64 (P6 ~$2.85/mo), 128 (P10 ~$3.80/mo), 256 (P15 ~$7.26/mo)."
   type        = number
-  default     = 50
+  default     = 64
 }
 
 variable "workload_spot_max_count" {
@@ -175,6 +199,30 @@ variable "workload_regular_max_count" {
   description = "Maximum nodes in the Regular (fallback) workload pool."
   type        = number
   default     = 2
+}
+
+variable "workload_max_surge" {
+  description = "Max surge for workload regular node pool upgrades (percentage or absolute number)."
+  type        = string
+  default     = "10%"
+}
+
+variable "workload_drain_timeout_in_minutes" {
+  description = "Timeout for draining workload nodes during upgrades. 0 = no timeout."
+  type        = number
+  default     = 0
+}
+
+variable "workload_node_soak_duration_in_minutes" {
+  description = "Duration to wait after draining a workload node before upgrading the next. 0 = no wait."
+  type        = number
+  default     = 0
+}
+
+variable "spot_max_price" {
+  description = "Max price per hour for Spot node pool. -1 = market price (no limit)."
+  type        = number
+  default     = -1
 }
 
 # ---------------------------------------------------------------------------
@@ -217,8 +265,14 @@ variable "pod_cidr" {
   default     = "10.244.0.0/16"
 }
 
-variable "os_disk_type" {
-  description = "OS disk type for AKS node pools. Ephemeral uses local SSD (faster, no extra cost). Managed uses network-attached disk."
+variable "system_os_disk_type" {
+  description = "OS disk type for system node pool. Ephemeral uses VM local SSD (faster, no cost, limited by cache size)."
+  type        = string
+  default     = "Ephemeral"
+}
+
+variable "workload_os_disk_type" {
+  description = "OS disk type for workload node pools. Managed allows larger disks (128GB default). Ephemeral is limited by VM cache."
   type        = string
   default     = "Managed"
 }
