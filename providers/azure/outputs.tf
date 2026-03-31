@@ -12,6 +12,11 @@ output "aks_cluster_name" {
   value       = azurerm_kubernetes_cluster.platform.name
 }
 
+output "hub_api_server_url" {
+  description = "API server URL of the platform AKS cluster. Used by workload Terraform modules to configure provider kubernetes.hub for WorkloadCluster registration."
+  value       = azurerm_kubernetes_cluster.platform.kube_config[0].host
+}
+
 output "aks_oidc_issuer_url" {
   description = "OIDC issuer URL for workload identity federation."
   value       = azurerm_kubernetes_cluster.platform.oidc_issuer_url
