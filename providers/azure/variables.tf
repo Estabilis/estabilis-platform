@@ -425,6 +425,30 @@ variable "storage_replication_type_cost_exports" {
   default     = ""
 }
 
+variable "storage_firewall_enabled" {
+  description = "Enable network firewall (Deny by default) on storage accounts. When false, storage accounts are publicly accessible (authenticated only)."
+  type        = bool
+  default     = true
+}
+
+variable "storage_tfstate_extra_allowed_ips" {
+  description = "Additional IP ranges allowed on tfstate storage only (on top of operator IP and NAT Gateway)."
+  type        = list(string)
+  default     = []
+}
+
+variable "storage_cnpg_extra_allowed_ips" {
+  description = "Additional IP ranges allowed on CNPG backup storage only (on top of operator IP and NAT Gateway)."
+  type        = list(string)
+  default     = []
+}
+
+variable "storage_velero_extra_allowed_ips" {
+  description = "Additional IP ranges allowed on Velero backup storage only (on top of operator IP and NAT Gateway)."
+  type        = list(string)
+  default     = []
+}
+
 variable "storage_soft_delete_enabled" {
   description = "Enable blob and container soft delete on all storage accounts."
   type        = bool
