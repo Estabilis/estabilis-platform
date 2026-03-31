@@ -21,6 +21,16 @@ resource "azurerm_kubernetes_cluster" "platform" {
 
   workload_identity_enabled = true
   oidc_issuer_enabled       = true
+  local_account_disabled    = var.local_account_disabled
+
+  # --- Azure AD integration -----------------------------------------------
+  dynamic "azure_active_directory_role_based_access_control" {
+    for_each = var.aad_managed_enabled ? [1] : []
+    content {
+      azure_rbac_enabled     = var.azure_rbac_enabled
+      admin_group_object_ids = var.aad_admin_group_ids
+    }
+  }
 
   # --- Default (system) node pool ----------------------------------------
   default_node_pool {
@@ -172,4 +182,22 @@ resource "azurerm_kubernetes_cluster_node_pool" "platform_regular" {
     "estabilis.io/workload-type=platform:NoSchedule",
   ]
   tags = var.tags
+}
+
+# ---------------------------------------------------------------------------
+# Azure RBAC — role assignments on the AKS cluster
+# Available roles:
+#   - Azure Kubernetes Service Cluster Admin Role (full access)
+#   - Azure Kubernetes Service Cluster User Role (get credentials)
+#   - Azure Kubernetes Service RBAC Admin (manage K8s RBAC)
+#   - Azure Kubernetes Service RBAC Cluster Admin (cluster-admin via RBAC)
+#   - Azure Kubernetes Service RBAC Reader (read-only K8s resources)
+#   - Azure Kubernetes Service RBAC Writer (read + write K8s resources)
+# ---------------------------------------------------------------------------
+
+resource "azurerm_role_assignment" "aks_rbac" {
+  count                = var.aad_managed_enabled && var.azure_rbac_enabled ? length(var.aks_role_assignments) : 0
+  scope                = azurerm_kubernetes_cluster.platform.id
+  role_definition_name = var.aks_role_assignments[count.index].role
+  principal_id         = var.aks_role_assignments[count.index].principal_id
 }

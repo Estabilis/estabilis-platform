@@ -283,6 +283,48 @@ variable "availability_zones" {
   default     = ["1", "2", "3"]
 }
 
+# ---------------------------------------------------------------------------
+# AKS – Azure AD & RBAC
+# ---------------------------------------------------------------------------
+
+variable "aad_managed_enabled" {
+  description = "Enable Azure AD managed integration for AKS authentication."
+  type        = bool
+  default     = true
+}
+
+variable "azure_rbac_enabled" {
+  description = "Enable Azure RBAC for Kubernetes authorization. Requires aad_managed_enabled."
+  type        = bool
+  default     = true
+}
+
+variable "local_account_disabled" {
+  description = "Disable local accounts (certificate-based access). Requires aad_managed_enabled and aad_admin_group_ids configured."
+  type        = bool
+  default     = false
+}
+
+variable "aad_admin_group_ids" {
+  description = "List of Azure AD group object IDs that receive cluster-admin role. Required when local_account_disabled = true."
+  type        = list(string)
+  default     = []
+
+  validation {
+    condition     = !var.local_account_disabled || length(var.aad_admin_group_ids) > 0
+    error_message = "Cannot disable local accounts without configuring aad_admin_group_ids. Add at least one AAD group before setting local_account_disabled = true."
+  }
+}
+
+variable "aks_role_assignments" {
+  description = "List of Azure RBAC role assignments on the AKS cluster. Each entry needs principal_id and role name."
+  type = list(object({
+    principal_id = string
+    role         = string
+  }))
+  default = []
+}
+
 variable "maintenance_window_day" {
   description = "Day of week for AKS planned maintenance window (e.g., Saturday)."
   type        = string
