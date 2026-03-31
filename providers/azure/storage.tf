@@ -3,7 +3,7 @@
 # ---------------------------------------------------------------------------
 
 resource "azurerm_storage_account" "observability" {
-  name                            = "st${var.name_prefix}obs${random_string.storage_suffix.result}"
+  name                            = "st${var.name_prefix}${local.env_code}obs${random_string.storage_suffix.result}"
   resource_group_name             = azurerm_resource_group.platform.name
   location                        = azurerm_resource_group.platform.location
   account_tier                    = "Standard"
@@ -33,14 +33,14 @@ resource "azurerm_storage_account" "observability" {
 # ---------------------------------------------------------------------------
 
 resource "azurerm_private_endpoint" "observability_blob" {
-  name                = "pe-${var.name_prefix}-obs-blob"
+  name                = "pe-${local.base_name}-obs-blob"
   location            = azurerm_resource_group.platform.location
   resource_group_name = azurerm_resource_group.platform.name
   subnet_id           = azurerm_subnet.aks_nodes.id
   tags                = var.tags
 
   private_service_connection {
-    name                           = "psc-${var.name_prefix}-obs-blob"
+    name                           = "psc-${local.base_name}-obs-blob"
     private_connection_resource_id = azurerm_storage_account.observability.id
     subresource_names              = ["blob"]
     is_manual_connection           = false
@@ -59,7 +59,7 @@ resource "azurerm_private_dns_zone" "blob" {
 }
 
 resource "azurerm_private_dns_zone_virtual_network_link" "blob" {
-  name                  = "vnetlink-${var.name_prefix}-blob"
+  name                  = "vnetlink-${local.base_name}-blob"
   resource_group_name   = azurerm_resource_group.platform.name
   private_dns_zone_name = azurerm_private_dns_zone.blob.name
   virtual_network_id    = azurerm_virtual_network.platform.id
@@ -92,7 +92,7 @@ resource "azurerm_storage_container" "mimir_blocks" {
 # ---------------------------------------------------------------------------
 
 resource "azurerm_storage_account" "cnpg_backup" {
-  name                            = "st${var.name_prefix}cnpg${random_string.storage_suffix.result}"
+  name                            = "st${var.name_prefix}${local.env_code}cnpg${random_string.storage_suffix.result}"
   resource_group_name             = azurerm_resource_group.platform.name
   location                        = azurerm_resource_group.platform.location
   account_tier                    = "Standard"
@@ -137,7 +137,7 @@ resource "azurerm_storage_container" "cnpg_backup" {
 # ---------------------------------------------------------------------------
 
 resource "azurerm_storage_account" "velero_backup" {
-  name                            = "st${var.name_prefix}velero${random_string.storage_suffix.result}"
+  name                            = "st${var.name_prefix}${local.env_code}vlr${random_string.storage_suffix.result}"
   resource_group_name             = azurerm_resource_group.platform.name
   location                        = azurerm_resource_group.platform.location
   account_tier                    = "Standard"

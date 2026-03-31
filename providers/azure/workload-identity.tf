@@ -9,14 +9,14 @@ locals {
 # ========================== external-dns ==================================
 
 resource "azurerm_user_assigned_identity" "external_dns" {
-  name                = "mi-${var.name_prefix}-external-dns"
+  name                = "mi-${local.base_name}-external-dns"
   location            = azurerm_resource_group.platform.location
   resource_group_name = azurerm_resource_group.platform.name
   tags                = var.tags
 }
 
 resource "azurerm_federated_identity_credential" "external_dns" {
-  name      = "fic-${var.name_prefix}-external-dns"
+  name      = "fic-${local.base_name}-external-dns"
   parent_id = azurerm_user_assigned_identity.external_dns.id
   audience  = ["api://AzureADTokenExchange"]
   issuer    = local.aks_oidc_issuer_url
@@ -39,14 +39,14 @@ resource "azurerm_role_assignment" "external_dns_dns_contributor" {
 # ========================== external-secrets ==============================
 
 resource "azurerm_user_assigned_identity" "external_secrets" {
-  name                = "mi-${var.name_prefix}-external-secrets"
+  name                = "mi-${local.base_name}-external-secrets"
   location            = azurerm_resource_group.platform.location
   resource_group_name = azurerm_resource_group.platform.name
   tags                = var.tags
 }
 
 resource "azurerm_federated_identity_credential" "external_secrets" {
-  name      = "fic-${var.name_prefix}-external-secrets"
+  name      = "fic-${local.base_name}-external-secrets"
   parent_id = azurerm_user_assigned_identity.external_secrets.id
   audience  = ["api://AzureADTokenExchange"]
   issuer    = local.aks_oidc_issuer_url
@@ -62,14 +62,14 @@ resource "azurerm_role_assignment" "external_secrets_kv_reader" {
 # ========================== loki ==========================================
 
 resource "azurerm_user_assigned_identity" "loki" {
-  name                = "mi-${var.name_prefix}-loki"
+  name                = "mi-${local.base_name}-loki"
   location            = azurerm_resource_group.platform.location
   resource_group_name = azurerm_resource_group.platform.name
   tags                = var.tags
 }
 
 resource "azurerm_federated_identity_credential" "loki" {
-  name      = "fic-${var.name_prefix}-loki"
+  name      = "fic-${local.base_name}-loki"
   parent_id = azurerm_user_assigned_identity.loki.id
   audience  = ["api://AzureADTokenExchange"]
   issuer    = local.aks_oidc_issuer_url
@@ -85,14 +85,14 @@ resource "azurerm_role_assignment" "loki_storage_contributor" {
 # ========================== mimir =========================================
 
 resource "azurerm_user_assigned_identity" "mimir" {
-  name                = "mi-${var.name_prefix}-mimir"
+  name                = "mi-${local.base_name}-mimir"
   location            = azurerm_resource_group.platform.location
   resource_group_name = azurerm_resource_group.platform.name
   tags                = var.tags
 }
 
 resource "azurerm_federated_identity_credential" "mimir" {
-  name      = "fic-${var.name_prefix}-mimir"
+  name      = "fic-${local.base_name}-mimir"
   parent_id = azurerm_user_assigned_identity.mimir.id
   audience  = ["api://AzureADTokenExchange"]
   issuer    = local.aks_oidc_issuer_url
@@ -108,14 +108,14 @@ resource "azurerm_role_assignment" "mimir_storage_contributor" {
 # ========================== cloudnativepg ==================================
 
 resource "azurerm_user_assigned_identity" "cnpg" {
-  name                = "mi-${var.name_prefix}-cnpg"
+  name                = "mi-${local.base_name}-cnpg"
   location            = azurerm_resource_group.platform.location
   resource_group_name = azurerm_resource_group.platform.name
   tags                = var.tags
 }
 
 resource "azurerm_federated_identity_credential" "cnpg" {
-  name      = "fic-${var.name_prefix}-cnpg"
+  name      = "fic-${local.base_name}-cnpg"
   parent_id = azurerm_user_assigned_identity.cnpg.id
   audience  = ["api://AzureADTokenExchange"]
   issuer    = local.aks_oidc_issuer_url
@@ -131,14 +131,14 @@ resource "azurerm_role_assignment" "cnpg_storage_contributor" {
 # ========================== cert-manager ==================================
 
 resource "azurerm_user_assigned_identity" "cert_manager" {
-  name                = "mi-${var.name_prefix}-cert-manager"
+  name                = "mi-${local.base_name}-cert-manager"
   location            = azurerm_resource_group.platform.location
   resource_group_name = azurerm_resource_group.platform.name
   tags                = var.tags
 }
 
 resource "azurerm_federated_identity_credential" "cert_manager" {
-  name      = "fic-${var.name_prefix}-cert-manager"
+  name      = "fic-${local.base_name}-cert-manager"
   parent_id = azurerm_user_assigned_identity.cert_manager.id
   audience  = ["api://AzureADTokenExchange"]
   issuer    = local.aks_oidc_issuer_url
@@ -154,14 +154,14 @@ resource "azurerm_role_assignment" "cert_manager_dns_contributor" {
 # ========================== velero ========================================
 
 resource "azurerm_user_assigned_identity" "velero" {
-  name                = "mi-${var.name_prefix}-velero"
+  name                = "mi-${local.base_name}-velero"
   location            = azurerm_resource_group.platform.location
   resource_group_name = azurerm_resource_group.platform.name
   tags                = var.tags
 }
 
 resource "azurerm_federated_identity_credential" "velero" {
-  name      = "fic-${var.name_prefix}-velero"
+  name      = "fic-${local.base_name}-velero"
   parent_id = azurerm_user_assigned_identity.velero.id
   audience  = ["api://AzureADTokenExchange"]
   issuer    = local.aks_oidc_issuer_url
@@ -216,7 +216,7 @@ locals {
 }
 
 resource "azuread_application" "opencost" {
-  display_name = "sp-${var.name_prefix}-opencost"
+  display_name = "sp-${local.base_name}-opencost"
 }
 
 resource "azuread_service_principal" "opencost" {
@@ -235,7 +235,7 @@ resource "azuread_service_principal_password" "opencost" {
 }
 
 resource "azurerm_role_definition" "opencost" {
-  name        = "OpenCost Reader - ${var.name_prefix}"
+  name        = "OpenCost Reader - ${local.base_name}"
   scope       = "/subscriptions/${var.subscription_id}"
   description = "Minimal read-only role for OpenCost Azure RateCard pricing integration"
 

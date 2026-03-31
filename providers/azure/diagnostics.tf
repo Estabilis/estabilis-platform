@@ -5,7 +5,7 @@
 
 resource "azurerm_log_analytics_workspace" "platform" {
   count               = var.diagnostics_enabled ? 1 : 0
-  name                = "law-${var.name_prefix}-platform"
+  name                = "law-${local.base_name}-platform"
   location            = azurerm_resource_group.platform.location
   resource_group_name = azurerm_resource_group.platform.name
   sku                 = "PerGB2018"
@@ -15,7 +15,7 @@ resource "azurerm_log_analytics_workspace" "platform" {
 
 resource "azurerm_monitor_diagnostic_setting" "aks" {
   count                      = var.diagnostics_enabled ? 1 : 0
-  name                       = "diag-${var.name_prefix}-aks"
+  name                       = "diag-${local.base_name}-aks"
   target_resource_id         = azurerm_kubernetes_cluster.platform.id
   log_analytics_workspace_id = azurerm_log_analytics_workspace.platform[0].id
 

@@ -3,10 +3,10 @@
 # ---------------------------------------------------------------------------
 
 resource "azurerm_kubernetes_cluster" "platform" {
-  name                         = "aks-${var.name_prefix}-platform"
+  name                         = "aks-${local.base_name}"
   location                     = azurerm_resource_group.platform.location
   resource_group_name          = azurerm_resource_group.platform.name
-  dns_prefix                   = "aks-${var.name_prefix}-platform"
+  dns_prefix                   = "aks-${local.base_name}"
   kubernetes_version           = var.kubernetes_version
   sku_tier                     = var.sku_tier
   automatic_upgrade_channel    = var.auto_upgrade_channel

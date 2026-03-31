@@ -20,7 +20,7 @@ provider "azuread" {
 # ---------------------------------------------------------------------------
 
 resource "azurerm_resource_group" "platform" {
-  name     = "rg-${var.name_prefix}-platform"
+  name     = "rg-${local.base_name}"
   location = var.location
   tags     = var.tags
 }
@@ -34,6 +34,18 @@ resource "azurerm_resource_group" "platform" {
 locals {
   is_prod_env      = contains(["prod", "prd", "production"], var.environment)
   effective_domain = var.host_pattern == "subdomain" && !local.is_prod_env ? "${var.environment}.${var.domain}" : var.domain
+
+  # CAF naming — {type}-{prefix}-platform-{env}-{region}
+  env_code = {
+    dev  = "dev"
+    uat  = "uat"
+    hml  = "hml"
+    stg  = "stg"
+    prd  = "prd"
+    prod = "prd"
+  }[var.environment]
+
+  base_name = "${var.name_prefix}-platform-${local.env_code}-${var.location}"
 }
 
 # ---------------------------------------------------------------------------

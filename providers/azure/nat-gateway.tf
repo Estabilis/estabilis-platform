@@ -5,7 +5,7 @@
 
 resource "azurerm_public_ip" "nat_gateway" {
   count               = var.nat_gateway_enabled ? 1 : 0
-  name                = "pip-${var.name_prefix}-natgw"
+  name                = "pip-${local.base_name}-natgw"
   location            = azurerm_resource_group.platform.location
   resource_group_name = azurerm_resource_group.platform.name
   allocation_method   = "Static"
@@ -15,7 +15,7 @@ resource "azurerm_public_ip" "nat_gateway" {
 
 resource "azurerm_nat_gateway" "platform" {
   count                   = var.nat_gateway_enabled ? 1 : 0
-  name                    = "natgw-${var.name_prefix}-platform"
+  name                    = "natgw-${local.base_name}"
   location                = azurerm_resource_group.platform.location
   resource_group_name     = azurerm_resource_group.platform.name
   sku_name                = "Standard"

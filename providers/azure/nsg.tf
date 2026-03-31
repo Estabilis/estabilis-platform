@@ -5,7 +5,7 @@
 
 resource "azurerm_network_security_group" "aks_nodes" {
   count               = var.nsg_enabled ? 1 : 0
-  name                = "nsg-${var.name_prefix}-aks-nodes"
+  name                = "nsg-${local.base_name}"
   location            = azurerm_resource_group.platform.location
   resource_group_name = azurerm_resource_group.platform.name
   tags                = var.tags

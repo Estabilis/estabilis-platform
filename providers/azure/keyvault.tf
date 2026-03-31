@@ -3,7 +3,7 @@
 # ---------------------------------------------------------------------------
 
 resource "azurerm_key_vault" "platform" {
-  name                       = "kv-${var.name_prefix}-${random_string.storage_suffix.result}"
+  name                       = "kv-${var.name_prefix}-${local.env_code}-${random_string.storage_suffix.result}"
   location                   = azurerm_resource_group.platform.location
   resource_group_name        = azurerm_resource_group.platform.name
   tenant_id                  = var.tenant_id

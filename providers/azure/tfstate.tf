@@ -4,13 +4,13 @@
 # ---------------------------------------------------------------------------
 
 resource "azurerm_resource_group" "tfstate" {
-  name     = "rg-${var.name_prefix}-tfstate"
+  name     = "rg-${local.base_name}-tfstate"
   location = var.location
   tags     = var.tags
 }
 
 resource "azurerm_storage_account" "tfstate" {
-  name                            = "st${var.name_prefix}tfstate${random_string.storage_suffix.result}"
+  name                            = "st${var.name_prefix}${local.env_code}tfst${random_string.storage_suffix.result}"
   resource_group_name             = azurerm_resource_group.tfstate.name
   location                        = azurerm_resource_group.tfstate.location
   account_tier                    = "Standard"

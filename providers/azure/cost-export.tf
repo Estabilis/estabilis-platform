@@ -7,7 +7,7 @@
 # (run once per subscription) and verified by `estabilis apply`.
 
 resource "azurerm_storage_account" "cost_exports" {
-  name                            = "st${var.name_prefix}costs${random_string.storage_suffix.result}"
+  name                            = "st${var.name_prefix}${local.env_code}cst${random_string.storage_suffix.result}"
   resource_group_name             = azurerm_resource_group.platform.name
   location                        = azurerm_resource_group.platform.location
   account_tier                    = "Standard"
@@ -67,14 +67,14 @@ resource "azurerm_storage_container" "cost_exports" {
 # ---------------------------------------------------------------------------
 
 resource "azurerm_private_endpoint" "cost_exports_blob" {
-  name                = "pe-${var.name_prefix}-costs-blob"
+  name                = "pe-${local.base_name}-costs-blob"
   location            = azurerm_resource_group.platform.location
   resource_group_name = azurerm_resource_group.platform.name
   subnet_id           = azurerm_subnet.aks_nodes.id
   tags                = var.tags
 
   private_service_connection {
-    name                           = "psc-${var.name_prefix}-costs-blob"
+    name                           = "psc-${local.base_name}-costs-blob"
     private_connection_resource_id = azurerm_storage_account.cost_exports.id
     subresource_names              = ["blob"]
     is_manual_connection           = false
@@ -103,7 +103,7 @@ resource "azurerm_role_assignment" "terraform_cost_exports_owner" {
 # ---------------------------------------------------------------------------
 
 resource "azurerm_subscription_cost_management_export" "daily" {
-  name                         = "opencost-daily-${var.name_prefix}"
+  name                         = "opencost-daily-${local.base_name}"
   subscription_id              = data.azurerm_subscription.current.id
   recurrence_type              = "Daily"
   recurrence_period_start_date = "${formatdate("YYYY-MM-DD", plantimestamp())}T00:00:00Z"
