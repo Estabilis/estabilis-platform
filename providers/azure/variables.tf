@@ -283,8 +283,14 @@ variable "workload_os_disk_type" {
   default     = "Managed"
 }
 
-variable "availability_zones" {
-  description = "Availability zones for AKS node pools. Use [1,2,3] for production. Empty list disables zones."
+variable "system_availability_zones" {
+  description = "Availability zones for the system node pool."
+  type        = list(string)
+  default     = ["1", "2", "3"]
+}
+
+variable "workload_availability_zones" {
+  description = "Availability zones for workload node pools."
   type        = list(string)
   default     = ["1", "2", "3"]
 }

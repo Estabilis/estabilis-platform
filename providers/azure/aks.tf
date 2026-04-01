@@ -40,7 +40,7 @@ resource "azurerm_kubernetes_cluster" "platform" {
     vnet_subnet_id               = azurerm_subnet.aks_nodes.id
     os_disk_size_gb              = var.system_os_disk_size_gb
     os_disk_type                 = var.system_os_disk_type
-    zones                        = var.availability_zones
+    zones                        = var.system_availability_zones
     auto_scaling_enabled         = var.system_auto_scaling_enabled
     min_count                    = var.system_auto_scaling_enabled ? var.system_min_count : null
     max_count                    = var.system_auto_scaling_enabled ? var.system_max_count : null
@@ -119,7 +119,7 @@ resource "azurerm_kubernetes_cluster_node_pool" "platform_spot" {
   vnet_subnet_id              = azurerm_subnet.aks_nodes.id
   os_disk_size_gb             = var.workload_os_disk_size_gb
   os_disk_type                = var.workload_os_disk_type
-  zones                       = var.availability_zones
+  zones                       = var.workload_availability_zones
   temporary_name_for_rotation = "platspttmp"
 
   priority        = "Spot"
@@ -160,7 +160,7 @@ resource "azurerm_kubernetes_cluster_node_pool" "platform_regular" {
   vnet_subnet_id              = azurerm_subnet.aks_nodes.id
   os_disk_size_gb             = var.workload_os_disk_size_gb
   os_disk_type                = var.workload_os_disk_type
-  zones                       = var.availability_zones
+  zones                       = var.workload_availability_zones
   temporary_name_for_rotation = "platrgtmp"
 
   priority = "Regular"
