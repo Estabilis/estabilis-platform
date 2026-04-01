@@ -498,6 +498,107 @@ variable "cost_export_enabled" {
 }
 
 # ---------------------------------------------------------------------------
+# ACR (Azure Container Registry)
+# ---------------------------------------------------------------------------
+
+variable "acr_enabled" {
+  description = "Enable Azure Container Registry for private images and/or proxy cache."
+  type        = bool
+  default     = false
+}
+
+variable "acr_sku" {
+  description = "ACR SKU. Basic (~$5/mo), Standard (~$10/mo), Premium (~$50/mo, supports private endpoint + geo-replication)."
+  type        = string
+  default     = "Basic"
+
+  validation {
+    condition     = contains(["Basic", "Standard", "Premium"], var.acr_sku)
+    error_message = "ACR SKU must be one of: Basic, Standard, Premium."
+  }
+}
+
+variable "acr_aks_attach_enabled" {
+  description = "Attach ACR to AKS with AcrPull role. Disable if using external ACR or CI-only registry."
+  type        = bool
+  default     = true
+}
+
+variable "acr_cache_enabled" {
+  description = "Enable cache rules for public registries (Docker Hub, GHCR, Quay, etc.). Requires acr_enabled."
+  type        = bool
+  default     = true
+}
+
+variable "acr_cache_dockerhub_enabled" {
+  description = "Enable Docker Hub cache rule. Requires acr_dockerhub_username and acr_dockerhub_token."
+  type        = bool
+  default     = false
+}
+
+variable "acr_dockerhub_username" {
+  description = "Docker Hub username for authenticated cache pulls. Required when acr_cache_dockerhub_enabled = true."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "acr_dockerhub_token" {
+  description = "Docker Hub Personal Access Token for authenticated cache pulls. Required when acr_cache_dockerhub_enabled = true."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "acr_firewall_enabled" {
+  description = "Enable network firewall on ACR (Deny all + allow operator IP and AKS). Requires Premium SKU."
+  type        = bool
+  default     = true
+}
+
+variable "acr_content_trust_enabled" {
+  description = "Enable content trust (image signing verification). Requires Premium SKU."
+  type        = bool
+  default     = false
+}
+
+variable "acr_retention_days" {
+  description = "Days to retain untagged manifests. 0 = disabled. Requires Premium SKU."
+  type        = number
+  default     = 30
+}
+
+variable "acr_private_endpoint_enabled" {
+  description = "Enable private endpoint for ACR (no public access). Requires Premium SKU."
+  type        = bool
+  default     = false
+}
+
+variable "acr_georeplications" {
+  description = "List of Azure regions for geo-replication. Requires Premium SKU."
+  type        = list(string)
+  default     = []
+}
+
+variable "acr_push_principal_ids" {
+  description = "List of Azure AD principal IDs (users, groups, service principals) to grant AcrPush."
+  type        = list(string)
+  default     = []
+}
+
+variable "acr_ci_identity_enabled" {
+  description = "Create a dedicated managed identity for CI/CD push to ACR. Outputs client_id for federated credential setup."
+  type        = bool
+  default     = false
+}
+
+variable "acr_extra_allowed_ips" {
+  description = "Additional IP ranges allowed on ACR only (on top of global firewall rules). Requires Premium SKU."
+  type        = list(string)
+  default     = []
+}
+
+# ---------------------------------------------------------------------------
 # Resource Firewall (centralized network access control)
 # ---------------------------------------------------------------------------
 

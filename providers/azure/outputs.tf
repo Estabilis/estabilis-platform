@@ -97,6 +97,25 @@ output "velero_client_id" {
   value       = azurerm_user_assigned_identity.velero.client_id
 }
 
+# --- ACR ---
+
+output "acr_login_server" {
+  description = "ACR login server URL (empty if disabled)."
+  value       = var.acr_enabled ? azurerm_container_registry.platform[0].login_server : ""
+}
+
+output "acr_name" {
+  description = "ACR name (empty if disabled)."
+  value       = var.acr_enabled ? azurerm_container_registry.platform[0].name : ""
+}
+
+output "acr_ci_client_id" {
+  description = "Client ID of the CI/CD managed identity for ACR push (empty if disabled)."
+  value       = var.acr_enabled && var.acr_ci_identity_enabled ? azurerm_user_assigned_identity.acr_ci[0].client_id : ""
+}
+
+# --- Network ---
+
 output "nat_gateway_public_ip" {
   description = "Static outbound IP address (NAT Gateway). Use this for external allowlists."
   value       = var.nat_gateway_enabled ? azurerm_public_ip.nat_gateway[0].ip_address : null

@@ -107,6 +107,7 @@ locals {
 
   # Per-resource firewall IPs (base + extras)
   firewall_keyvault_ips = distinct(concat(local.firewall_base_ips, var.keyvault_extra_allowed_ips))
+  firewall_acr_ips      = distinct(concat(local.firewall_base_ips, var.acr_extra_allowed_ips))
   firewall_tfstate_ips  = distinct(concat(local.firewall_base_ips_bare, [for ip in var.storage_tfstate_extra_allowed_ips : replace(ip, "/32", "")]))
   firewall_cnpg_ips     = distinct(concat(local.firewall_base_ips_bare, [for ip in var.storage_cnpg_extra_allowed_ips : replace(ip, "/32", "")]))
   firewall_velero_ips   = distinct(concat(local.firewall_base_ips_bare, [for ip in var.storage_velero_extra_allowed_ips : replace(ip, "/32", "")]))
