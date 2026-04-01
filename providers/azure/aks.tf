@@ -34,17 +34,18 @@ resource "azurerm_kubernetes_cluster" "platform" {
 
   # --- Default (system) node pool ----------------------------------------
   default_node_pool {
-    name                        = "system"
-    node_count                  = var.system_auto_scaling_enabled ? null : var.system_node_count
-    vm_size                     = var.system_vm_size
-    vnet_subnet_id              = azurerm_subnet.aks_nodes.id
-    os_disk_size_gb             = var.system_os_disk_size_gb
-    os_disk_type                = var.system_os_disk_type
-    zones                       = var.availability_zones
-    auto_scaling_enabled        = var.system_auto_scaling_enabled
-    min_count                   = var.system_auto_scaling_enabled ? var.system_min_count : null
-    max_count                   = var.system_auto_scaling_enabled ? var.system_max_count : null
-    temporary_name_for_rotation = "systemtmp"
+    name                         = "system"
+    node_count                   = var.system_auto_scaling_enabled ? null : var.system_node_count
+    vm_size                      = var.system_vm_size
+    vnet_subnet_id               = azurerm_subnet.aks_nodes.id
+    os_disk_size_gb              = var.system_os_disk_size_gb
+    os_disk_type                 = var.system_os_disk_type
+    zones                        = var.availability_zones
+    auto_scaling_enabled         = var.system_auto_scaling_enabled
+    min_count                    = var.system_auto_scaling_enabled ? var.system_min_count : null
+    max_count                    = var.system_auto_scaling_enabled ? var.system_max_count : null
+    only_critical_addons_enabled = var.only_critical_addons_enabled
+    temporary_name_for_rotation  = "systemtmp"
 
     upgrade_settings {
       max_surge = var.system_max_surge
@@ -148,7 +149,7 @@ resource "azurerm_kubernetes_cluster_node_pool" "platform_spot" {
 }
 
 # ---------------------------------------------------------------------------
-# Additional node pool – Regular (fallback, always has min 1 node)
+# Additional node pool – Regular (platform components run here)
 # ---------------------------------------------------------------------------
 
 resource "azurerm_kubernetes_cluster_node_pool" "platform_regular" {
@@ -178,9 +179,6 @@ resource "azurerm_kubernetes_cluster_node_pool" "platform_regular" {
     "estabilis.io/workload-type" = "platform"
     "estabilis.io/pool-type"     = "regular"
   }
-  node_taints = [
-    "estabilis.io/workload-type=platform:NoSchedule",
-  ]
   tags = local.tags
 }
 

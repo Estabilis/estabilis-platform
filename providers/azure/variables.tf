@@ -120,9 +120,15 @@ variable "subscription_id" {
 # ---------------------------------------------------------------------------
 
 variable "system_vm_size" {
-  description = "VM size for the system node pool."
+  description = "VM size for the system node pool. B2s (4GB) is sufficient when only_critical_addons_enabled = true."
   type        = string
-  default     = "Standard_D2s_v3"
+  default     = "Standard_B2s"
+}
+
+variable "only_critical_addons_enabled" {
+  description = "Taint system pool with CriticalAddonsOnly. Only AKS system components can run on it. Requires a workload pool for platform components."
+  type        = bool
+  default     = true
 }
 
 variable "system_node_count" {
@@ -150,9 +156,9 @@ variable "system_max_count" {
 }
 
 variable "system_os_disk_size_gb" {
-  description = "OS disk size (GB) for system nodes. Must fit VM cache disk for ephemeral OS (D2s_v3=50GB, D4s_v3=100GB)."
+  description = "OS disk size (GB) for system nodes. Must fit VM cache disk for ephemeral OS (B2s=30GB, D2s_v3=50GB, D4s_v3=100GB)."
   type        = number
-  default     = 50
+  default     = 30
 }
 
 variable "system_max_surge" {
@@ -166,9 +172,9 @@ variable "system_max_surge" {
 # ---------------------------------------------------------------------------
 
 variable "workload_regular_enabled" {
-  description = "Enable the regular workload node pool."
+  description = "Enable the regular workload node pool. Required when only_critical_addons_enabled = true."
   type        = bool
-  default     = false
+  default     = true
 }
 
 variable "workload_spot_enabled" {
