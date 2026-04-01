@@ -15,6 +15,7 @@ output "aks_cluster_name" {
 output "hub_api_server_url" {
   description = "API server URL of the platform AKS cluster. Used by workload Terraform modules to configure provider kubernetes.hub for WorkloadCluster registration."
   value       = azurerm_kubernetes_cluster.platform.kube_config[0].host
+  sensitive   = true
 }
 
 output "aks_oidc_issuer_url" {
