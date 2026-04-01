@@ -32,6 +32,7 @@ containerSecurityContext:
 # Server keeps DB in memory, scan jobs are lightweight clients.
 trivy:
   ignoreUnfixed: true
+  storageSize: "4Gi"
   resources:
     requests:
       cpu: 50m
