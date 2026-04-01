@@ -87,23 +87,29 @@ data "http" "operator_ip" {
 
 locals {
   operator_ip    = "${chomp(data.http.operator_ip.response_body)}/32"
+  nat_gateway_ip = var.nat_gateway_enabled ? "${azurerm_public_ip.nat_gateway[0].ip_address}/32" : null
   authorized_ips = distinct(concat(var.authorized_ip_ranges, [local.operator_ip]))
 
-  # Centralized storage firewall rules — auto-detected + global + per-resource
-  nat_gateway_ip = var.nat_gateway_enabled ? "${azurerm_public_ip.nat_gateway[0].ip_address}/32" : ""
-
-  storage_firewall_base_ips = distinct(concat(
+  # Centralized firewall rules — auto-detected + global + per-resource
+  firewall_base_ips = distinct(concat(
     [local.operator_ip],
     var.nat_gateway_enabled ? [local.nat_gateway_ip] : [],
+    var.firewall_allowed_ips,
+  ))
+
+  firewall_base_subnet_ids = distinct(concat(
+    [azurerm_subnet.aks_nodes.id],
+    var.firewall_allowed_subnet_ids,
   ))
 
   # Storage accounts require IPs without /32 (max /30 or bare IP)
-  storage_firewall_base_ips_bare = [for ip in local.storage_firewall_base_ips : replace(ip, "/32", "")]
+  firewall_base_ips_bare = [for ip in local.firewall_base_ips : replace(ip, "/32", "")]
 
   # Per-resource firewall IPs (base + extras)
-  storage_firewall_tfstate_ips = distinct(concat(local.storage_firewall_base_ips_bare, [for ip in var.storage_tfstate_extra_allowed_ips : replace(ip, "/32", "")]))
-  storage_firewall_cnpg_ips    = distinct(concat(local.storage_firewall_base_ips_bare, [for ip in var.storage_cnpg_extra_allowed_ips : replace(ip, "/32", "")]))
-  storage_firewall_velero_ips  = distinct(concat(local.storage_firewall_base_ips_bare, [for ip in var.storage_velero_extra_allowed_ips : replace(ip, "/32", "")]))
+  firewall_keyvault_ips = distinct(concat(local.firewall_base_ips, var.keyvault_extra_allowed_ips))
+  firewall_tfstate_ips  = distinct(concat(local.firewall_base_ips_bare, [for ip in var.storage_tfstate_extra_allowed_ips : replace(ip, "/32", "")]))
+  firewall_cnpg_ips     = distinct(concat(local.firewall_base_ips_bare, [for ip in var.storage_cnpg_extra_allowed_ips : replace(ip, "/32", "")]))
+  firewall_velero_ips   = distinct(concat(local.firewall_base_ips_bare, [for ip in var.storage_velero_extra_allowed_ips : replace(ip, "/32", "")]))
 }
 
 # ---------------------------------------------------------------------------

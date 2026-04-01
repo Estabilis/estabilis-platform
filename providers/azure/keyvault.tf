@@ -12,11 +12,14 @@ resource "azurerm_key_vault" "platform" {
   soft_delete_retention_days = var.keyvault_soft_delete_days
   purge_protection_enabled   = var.keyvault_purge_protection
 
-  network_acls {
-    default_action             = "Deny"
-    bypass                     = "AzureServices"
-    ip_rules                   = local.authorized_ips
-    virtual_network_subnet_ids = [azurerm_subnet.aks_nodes.id, azurerm_subnet.aks_pods.id]
+  dynamic "network_acls" {
+    for_each = var.firewall_enabled ? [1] : []
+    content {
+      default_action             = "Deny"
+      bypass                     = "AzureServices"
+      ip_rules                   = local.firewall_keyvault_ips
+      virtual_network_subnet_ids = concat(local.firewall_base_subnet_ids, [azurerm_subnet.aks_pods.id])
+    }
   }
 
   tags = local.tags

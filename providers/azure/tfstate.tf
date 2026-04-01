@@ -32,12 +32,12 @@ resource "azurerm_storage_account" "tfstate" {
   }
 
   dynamic "network_rules" {
-    for_each = var.storage_firewall_enabled ? [1] : []
+    for_each = var.firewall_enabled ? [1] : []
     content {
       default_action             = "Deny"
       bypass                     = ["AzureServices"]
-      ip_rules                   = local.storage_firewall_tfstate_ips
-      virtual_network_subnet_ids = [azurerm_subnet.aks_nodes.id]
+      ip_rules                   = local.firewall_tfstate_ips
+      virtual_network_subnet_ids = local.firewall_base_subnet_ids
     }
   }
 

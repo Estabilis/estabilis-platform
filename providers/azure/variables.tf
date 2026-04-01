@@ -467,26 +467,48 @@ variable "storage_replication_type_cost_exports" {
   default     = ""
 }
 
-variable "storage_firewall_enabled" {
-  description = "Enable network firewall (Deny by default) on storage accounts. When false, storage accounts are publicly accessible (authenticated only)."
+# ---------------------------------------------------------------------------
+# Resource Firewall (centralized network access control)
+# ---------------------------------------------------------------------------
+
+variable "firewall_enabled" {
+  description = "Enable network firewall on all resources (Key Vault, Storage). When false, all resources are publicly accessible (authenticated only)."
   type        = bool
   default     = true
 }
 
+variable "firewall_allowed_ips" {
+  description = "IP ranges allowed on ALL firewalled resources (VPN, CI/CD, office IPs). Operator IP and NAT Gateway IP are always included automatically."
+  type        = list(string)
+  default     = []
+}
+
+variable "firewall_allowed_subnet_ids" {
+  description = "Subnet IDs allowed on ALL firewalled resources. AKS node subnet is always included automatically."
+  type        = list(string)
+  default     = []
+}
+
+variable "keyvault_extra_allowed_ips" {
+  description = "Additional IP ranges allowed on Key Vault only (on top of global firewall rules)."
+  type        = list(string)
+  default     = []
+}
+
 variable "storage_tfstate_extra_allowed_ips" {
-  description = "Additional IP ranges allowed on tfstate storage only (on top of operator IP and NAT Gateway)."
+  description = "Additional IP ranges allowed on tfstate storage only (on top of global firewall rules)."
   type        = list(string)
   default     = []
 }
 
 variable "storage_cnpg_extra_allowed_ips" {
-  description = "Additional IP ranges allowed on CNPG backup storage only (on top of operator IP and NAT Gateway)."
+  description = "Additional IP ranges allowed on CNPG backup storage only (on top of global firewall rules)."
   type        = list(string)
   default     = []
 }
 
 variable "storage_velero_extra_allowed_ips" {
-  description = "Additional IP ranges allowed on Velero backup storage only (on top of operator IP and NAT Gateway)."
+  description = "Additional IP ranges allowed on Velero backup storage only (on top of global firewall rules)."
   type        = list(string)
   default     = []
 }
