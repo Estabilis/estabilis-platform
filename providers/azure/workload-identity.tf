@@ -189,6 +189,7 @@ resource "azurerm_role_assignment" "velero_disk_snapshot" {
 # ========================== opencost ========================================
 # OpenCost requires a Service Principal (not Workload Identity) because it
 # uses the legacy Azure ADAL SDK which does not support federated credentials.
+# Toggle via: cost_export_enabled = false
 
 data "azurerm_subscription" "current" {
   subscription_id = var.subscription_id
@@ -216,25 +217,30 @@ locals {
 }
 
 resource "azuread_application" "opencost" {
+  count        = var.cost_export_enabled ? 1 : 0
   display_name = "sp-${local.base_name}-opencost"
 }
 
 resource "azuread_service_principal" "opencost" {
-  client_id = azuread_application.opencost.client_id
+  count     = var.cost_export_enabled ? 1 : 0
+  client_id = azuread_application.opencost[0].client_id
 }
 
 resource "time_rotating" "opencost_password" {
+  count         = var.cost_export_enabled ? 1 : 0
   rotation_days = 330
 }
 
 resource "azuread_service_principal_password" "opencost" {
-  service_principal_id = azuread_service_principal.opencost.id
+  count                = var.cost_export_enabled ? 1 : 0
+  service_principal_id = azuread_service_principal.opencost[0].id
   rotate_when_changed = {
-    rotation = time_rotating.opencost_password.id
+    rotation = time_rotating.opencost_password[0].id
   }
 }
 
 resource "azurerm_role_definition" "opencost" {
+  count       = var.cost_export_enabled ? 1 : 0
   name        = "OpenCost Reader - ${local.base_name}"
   scope       = "/subscriptions/${var.subscription_id}"
   description = "Minimal read-only role for OpenCost Azure RateCard pricing integration"
@@ -254,7 +260,8 @@ resource "azurerm_role_definition" "opencost" {
 }
 
 resource "azurerm_role_assignment" "opencost_custom_reader" {
+  count              = var.cost_export_enabled ? 1 : 0
   scope              = "/subscriptions/${var.subscription_id}"
-  role_definition_id = azurerm_role_definition.opencost.role_definition_resource_id
-  principal_id       = azuread_service_principal.opencost.object_id
+  role_definition_id = azurerm_role_definition.opencost[0].role_definition_resource_id
+  principal_id       = azuread_service_principal.opencost[0].object_id
 }

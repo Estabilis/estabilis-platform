@@ -1,5 +1,6 @@
 # ---------------------------------------------------------------------------
 # Cost Management Export – Azure billing data for OpenCost Cloud Costs
+# Toggle via: cost_export_enabled = false
 # ---------------------------------------------------------------------------
 
 # The Cost Management Export API requires Microsoft.CostManagementExports
@@ -7,6 +8,7 @@
 # (run once per subscription) and verified by `estabilis apply`.
 
 resource "azurerm_storage_account" "cost_exports" {
+  count                           = var.cost_export_enabled ? 1 : 0
   name                            = "st${var.name_prefix}${local.env_code}cst${random_string.storage_suffix.result}"
   resource_group_name             = azurerm_resource_group.platform.name
   location                        = azurerm_resource_group.platform.location
@@ -49,7 +51,8 @@ resource "azurerm_storage_account" "cost_exports" {
 # identity then works behind the firewall via trusted Azure services bypass.
 # See: https://learn.microsoft.com/azure/cost-management-billing/costs/tutorial-improved-exports
 resource "azurerm_storage_account_network_rules" "cost_exports" {
-  storage_account_id = azurerm_storage_account.cost_exports.id
+  count              = var.cost_export_enabled ? 1 : 0
+  storage_account_id = azurerm_storage_account.cost_exports[0].id
   default_action     = "Deny"
   bypass             = ["AzureServices"]
 
@@ -57,8 +60,9 @@ resource "azurerm_storage_account_network_rules" "cost_exports" {
 }
 
 resource "azurerm_storage_container" "cost_exports" {
+  count                 = var.cost_export_enabled ? 1 : 0
   name                  = "cost-exports"
-  storage_account_id    = azurerm_storage_account.cost_exports.id
+  storage_account_id    = azurerm_storage_account.cost_exports[0].id
   container_access_type = "private"
 }
 
@@ -67,6 +71,7 @@ resource "azurerm_storage_container" "cost_exports" {
 # ---------------------------------------------------------------------------
 
 resource "azurerm_private_endpoint" "cost_exports_blob" {
+  count               = var.cost_export_enabled ? 1 : 0
   name                = "pe-${local.base_name}-costs-blob"
   location            = azurerm_resource_group.platform.location
   resource_group_name = azurerm_resource_group.platform.name
@@ -75,7 +80,7 @@ resource "azurerm_private_endpoint" "cost_exports_blob" {
 
   private_service_connection {
     name                           = "psc-${local.base_name}-costs-blob"
-    private_connection_resource_id = azurerm_storage_account.cost_exports.id
+    private_connection_resource_id = azurerm_storage_account.cost_exports[0].id
     subresource_names              = ["blob"]
     is_manual_connection           = false
   }
@@ -93,7 +98,8 @@ resource "azurerm_private_endpoint" "cost_exports_blob" {
 # ---------------------------------------------------------------------------
 
 resource "azurerm_role_assignment" "terraform_cost_exports_owner" {
-  scope                = azurerm_storage_account.cost_exports.id
+  count                = var.cost_export_enabled ? 1 : 0
+  scope                = azurerm_storage_account.cost_exports[0].id
   role_definition_name = "Owner"
   principal_id         = data.azurerm_client_config.current.object_id
 }
@@ -103,6 +109,7 @@ resource "azurerm_role_assignment" "terraform_cost_exports_owner" {
 # ---------------------------------------------------------------------------
 
 resource "azurerm_subscription_cost_management_export" "daily" {
+  count                        = var.cost_export_enabled ? 1 : 0
   name                         = "opencost-daily-${local.base_name}"
   subscription_id              = data.azurerm_subscription.current.id
   recurrence_type              = "Daily"
@@ -110,7 +117,7 @@ resource "azurerm_subscription_cost_management_export" "daily" {
   recurrence_period_end_date   = "${formatdate("YYYY", plantimestamp()) + 10}-${formatdate("MM-DD", plantimestamp())}T00:00:00Z"
 
   export_data_storage_location {
-    container_id     = azurerm_storage_container.cost_exports.id
+    container_id     = azurerm_storage_container.cost_exports[0].id
     root_folder_path = "/cost-exports"
   }
 

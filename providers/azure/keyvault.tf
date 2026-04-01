@@ -71,18 +71,19 @@ resource "azurerm_key_vault_secret" "grafana_db_password" {
 }
 
 resource "azurerm_key_vault_secret" "opencost_cloud_integration" {
-  name = "platform-opencost-cloud-integration"
+  count = var.cost_export_enabled ? 1 : 0
+  name  = "platform-opencost-cloud-integration"
   value = jsonencode({
     azure = {
       storage = [{
         subscriptionID = var.subscription_id
-        account        = azurerm_storage_account.cost_exports.name
-        container      = azurerm_storage_container.cost_exports.name
+        account        = azurerm_storage_account.cost_exports[0].name
+        container      = azurerm_storage_container.cost_exports[0].name
         path           = "cost-exports"
         cloud          = "public"
         authorizer = {
-          accessKey      = azurerm_storage_account.cost_exports.primary_access_key
-          account        = azurerm_storage_account.cost_exports.name
+          accessKey      = azurerm_storage_account.cost_exports[0].primary_access_key
+          account        = azurerm_storage_account.cost_exports[0].name
           authorizerType = "AzureAccessKey"
         }
       }]
@@ -94,12 +95,13 @@ resource "azurerm_key_vault_secret" "opencost_cloud_integration" {
 }
 
 resource "azurerm_key_vault_secret" "opencost_service_key" {
-  name = "platform-opencost-service-key"
+  count = var.cost_export_enabled ? 1 : 0
+  name  = "platform-opencost-service-key"
   value = jsonencode({
     subscriptionId = var.subscription_id
     serviceKey = {
-      appId    = azuread_application.opencost.client_id
-      password = azuread_service_principal_password.opencost.value
+      appId    = azuread_application.opencost[0].client_id
+      password = azuread_service_principal_password.opencost[0].value
       tenant   = var.tenant_id
     }
   })

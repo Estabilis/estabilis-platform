@@ -491,6 +491,12 @@ variable "storage_replication_type_cost_exports" {
   default     = ""
 }
 
+variable "cost_export_enabled" {
+  description = "Enable Azure Cost Management export and OpenCost integration. Disable if not using OpenCost or if another export already covers this subscription."
+  type        = bool
+  default     = true
+}
+
 # ---------------------------------------------------------------------------
 # Resource Firewall (centralized network access control)
 # ---------------------------------------------------------------------------
