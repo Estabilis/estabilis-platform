@@ -166,7 +166,7 @@ resource "azurerm_kubernetes_cluster_node_pool" "platform_regular" {
   priority = "Regular"
 
   auto_scaling_enabled = true
-  min_count            = 1
+  min_count            = var.workload_regular_min_count
   max_count            = var.workload_regular_max_count
 
   upgrade_settings {

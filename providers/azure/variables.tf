@@ -201,10 +201,16 @@ variable "workload_spot_max_count" {
   default     = 3
 }
 
-variable "workload_regular_max_count" {
-  description = "Maximum nodes in the Regular (fallback) workload pool."
+variable "workload_regular_min_count" {
+  description = "Minimum nodes in the Regular workload pool. Use >= 2 for multi-zone HA."
   type        = number
   default     = 2
+}
+
+variable "workload_regular_max_count" {
+  description = "Maximum nodes in the Regular workload pool."
+  type        = number
+  default     = 4
 }
 
 variable "workload_max_surge" {
