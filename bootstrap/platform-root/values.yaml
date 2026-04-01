@@ -104,13 +104,12 @@ components:
   kube-state-metrics: true   # observability: Kubernetes state metrics
   node-exporter: true        # observability: node-level metrics
 
+# Platform Add-ons — private components deployed via OCI Helm charts.
+# Downstream activates add-ons via overrides/platform-root/values.yaml.
+# Each entry creates an ArgoCD Application with project: platform.
+platformAddons: {}
+
 # Custom Applications — clients can deploy their own apps via overrides.
 # Each entry creates an ArgoCD Application that references the client's
 # downstream repo. The client controls the path and content.
-# Example:
-#   customApps:
-#     my-app:
-#       namespace: my-app
-#       path: apps/my-app
-#       syncWave: "10"
 customApps: {}

@@ -1,0 +1,40 @@
+{{- /* Platform Add-ons — private components via OCI Helm charts */ -}}
+{{- range $name, $addon := .Values.platformAddons }}
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: {{ $name }}
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: {{ $addon.syncWave | default "9" | quote }}
+  labels:
+    estabilis.io/managed-by: platform
+    estabilis.io/tier: addon
+spec:
+  project: platform
+  source:
+    repoURL: {{ $addon.repoURL }}
+    chart: {{ $addon.chart }}
+    targetRevision: {{ $addon.targetRevision | quote }}
+    {{- if $addon.values }}
+    helm:
+      valuesObject:
+        {{- $addon.values | toYaml | nindent 8 }}
+    {{- end }}
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: {{ $addon.namespace | default "estabilis-system" }}
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    retry:
+      limit: 10
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 3m
+    syncOptions:
+      - CreateNamespace=true
+{{- end }}
