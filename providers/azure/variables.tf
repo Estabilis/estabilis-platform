@@ -385,6 +385,12 @@ variable "nat_gateway_enabled" {
   default     = true
 }
 
+variable "nat_gateway_idle_timeout" {
+  description = "Idle timeout in minutes for NAT Gateway. Increase for long-lived connections (WebSocket, streaming). Max 120."
+  type        = number
+  default     = 4
+}
+
 variable "nsg_enabled" {
   description = "Enable Network Security Group on AKS node subnet for defense in depth."
   type        = bool

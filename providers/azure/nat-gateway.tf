@@ -19,7 +19,7 @@ resource "azurerm_nat_gateway" "platform" {
   location                = azurerm_resource_group.platform.location
   resource_group_name     = azurerm_resource_group.platform.name
   sku_name                = "Standard"
-  idle_timeout_in_minutes = 4
+  idle_timeout_in_minutes = var.nat_gateway_idle_timeout
   tags                    = local.tags
 }
 
