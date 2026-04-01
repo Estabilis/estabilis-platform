@@ -22,7 +22,7 @@ provider "azuread" {
 resource "azurerm_resource_group" "platform" {
   name     = "rg-${local.base_name}"
   location = var.location
-  tags     = var.tags
+  tags     = local.tags
 }
 
 # ---------------------------------------------------------------------------
@@ -46,6 +46,35 @@ locals {
   }[var.environment]
 
   base_name = "${var.name_prefix}-platform-${local.env_code}-${var.location}"
+
+  # CAF tags — automatic + optional (empty values filtered out)
+  caf_tags = {
+    for k, v in {
+      # Functional
+      app        = coalesce(var.tag_app, var.name_prefix)
+      env        = local.env_code
+      region     = var.location
+      tier       = var.tag_tier
+      managed-by = "terraform"
+      # Classification
+      criticality     = var.tag_criticality
+      confidentiality = var.tag_confidentiality
+      sla             = var.tag_sla
+      # Accounting
+      costcenter = var.tag_costcenter
+      department = var.tag_department
+      budget     = var.tag_budget
+      # Purpose
+      businessprocess = var.tag_businessprocess
+      businessimpact  = var.tag_businessimpact
+      revenueimpact   = var.tag_revenueimpact
+      # Ownership
+      opsteam      = var.tag_opsteam
+      businessunit = var.tag_businessunit
+    } : k => v if v != ""
+  }
+
+  tags = merge(local.caf_tags, var.extra_tags)
 }
 
 # ---------------------------------------------------------------------------

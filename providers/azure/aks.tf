@@ -103,7 +103,7 @@ resource "azurerm_kubernetes_cluster" "platform" {
     azurerm_subnet_network_security_group_association.aks_nodes,
   ]
 
-  tags = var.tags
+  tags = local.tags
 }
 
 # ---------------------------------------------------------------------------
@@ -137,7 +137,7 @@ resource "azurerm_kubernetes_cluster_node_pool" "platform_spot" {
     "estabilis.io/workload-type=platform:NoSchedule",
     "kubernetes.azure.com/scalesetpriority=spot:NoSchedule",
   ]
-  tags = var.tags
+  tags = local.tags
 
   lifecycle {
     ignore_changes = [
@@ -181,7 +181,7 @@ resource "azurerm_kubernetes_cluster_node_pool" "platform_regular" {
   node_taints = [
     "estabilis.io/workload-type=platform:NoSchedule",
   ]
-  tags = var.tags
+  tags = local.tags
 }
 
 # ---------------------------------------------------------------------------

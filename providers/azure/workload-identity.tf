@@ -12,7 +12,7 @@ resource "azurerm_user_assigned_identity" "external_dns" {
   name                = "mi-${local.base_name}-external-dns"
   location            = azurerm_resource_group.platform.location
   resource_group_name = azurerm_resource_group.platform.name
-  tags                = var.tags
+  tags                = local.tags
 }
 
 resource "azurerm_federated_identity_credential" "external_dns" {
@@ -27,7 +27,7 @@ resource "azurerm_federated_identity_credential" "external_dns" {
 resource "azurerm_dns_zone" "platform" {
   name                = local.effective_domain
   resource_group_name = azurerm_resource_group.platform.name
-  tags                = var.tags
+  tags                = local.tags
 }
 
 resource "azurerm_role_assignment" "external_dns_dns_contributor" {
@@ -42,7 +42,7 @@ resource "azurerm_user_assigned_identity" "external_secrets" {
   name                = "mi-${local.base_name}-external-secrets"
   location            = azurerm_resource_group.platform.location
   resource_group_name = azurerm_resource_group.platform.name
-  tags                = var.tags
+  tags                = local.tags
 }
 
 resource "azurerm_federated_identity_credential" "external_secrets" {
@@ -65,7 +65,7 @@ resource "azurerm_user_assigned_identity" "loki" {
   name                = "mi-${local.base_name}-loki"
   location            = azurerm_resource_group.platform.location
   resource_group_name = azurerm_resource_group.platform.name
-  tags                = var.tags
+  tags                = local.tags
 }
 
 resource "azurerm_federated_identity_credential" "loki" {
@@ -88,7 +88,7 @@ resource "azurerm_user_assigned_identity" "mimir" {
   name                = "mi-${local.base_name}-mimir"
   location            = azurerm_resource_group.platform.location
   resource_group_name = azurerm_resource_group.platform.name
-  tags                = var.tags
+  tags                = local.tags
 }
 
 resource "azurerm_federated_identity_credential" "mimir" {
@@ -111,7 +111,7 @@ resource "azurerm_user_assigned_identity" "cnpg" {
   name                = "mi-${local.base_name}-cnpg"
   location            = azurerm_resource_group.platform.location
   resource_group_name = azurerm_resource_group.platform.name
-  tags                = var.tags
+  tags                = local.tags
 }
 
 resource "azurerm_federated_identity_credential" "cnpg" {
@@ -134,7 +134,7 @@ resource "azurerm_user_assigned_identity" "cert_manager" {
   name                = "mi-${local.base_name}-cert-manager"
   location            = azurerm_resource_group.platform.location
   resource_group_name = azurerm_resource_group.platform.name
-  tags                = var.tags
+  tags                = local.tags
 }
 
 resource "azurerm_federated_identity_credential" "cert_manager" {
@@ -157,7 +157,7 @@ resource "azurerm_user_assigned_identity" "velero" {
   name                = "mi-${local.base_name}-velero"
   location            = azurerm_resource_group.platform.location
   resource_group_name = azurerm_resource_group.platform.name
-  tags                = var.tags
+  tags                = local.tags
 }
 
 resource "azurerm_federated_identity_credential" "velero" {

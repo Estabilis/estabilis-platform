@@ -548,14 +548,126 @@ variable "openai_api_key" {
 }
 
 # ---------------------------------------------------------------------------
-# Tags
+# Tags (Azure CAF recommended)
 # ---------------------------------------------------------------------------
 
-variable "tags" {
-  description = "Default tags applied to every resource."
-  type        = map(string)
-  default = {
-    project    = "estabilis"
-    managed-by = "terraform"
+# --- Functional ---
+
+variable "tag_app" {
+  description = "CAF Functional: application name. Defaults to name_prefix if empty."
+  type        = string
+  default     = ""
+}
+
+variable "tag_tier" {
+  description = "CAF Functional: application tier (infrastructure, platform, application)."
+  type        = string
+  default     = "platform"
+
+  validation {
+    condition     = var.tag_tier == "" || contains(["infrastructure", "platform", "application", "database", "web", "api"], var.tag_tier)
+    error_message = "Tier must be one of: infrastructure, platform, application, database, web, api (or empty to omit)."
   }
+}
+
+# --- Classification ---
+
+variable "tag_criticality" {
+  description = "CAF Classification: criticality level."
+  type        = string
+  default     = ""
+
+  validation {
+    condition     = var.tag_criticality == "" || contains(["mission-critical", "high", "medium", "low"], var.tag_criticality)
+    error_message = "Criticality must be one of: mission-critical, high, medium, low (or empty to omit)."
+  }
+}
+
+variable "tag_confidentiality" {
+  description = "CAF Classification: data confidentiality level."
+  type        = string
+  default     = ""
+
+  validation {
+    condition     = var.tag_confidentiality == "" || contains(["public", "internal", "confidential", "restricted"], var.tag_confidentiality)
+    error_message = "Confidentiality must be one of: public, internal, confidential, restricted (or empty to omit)."
+  }
+}
+
+variable "tag_sla" {
+  description = "CAF Classification: expected SLA (e.g., 99.9, 99.95, 99.99)."
+  type        = string
+  default     = ""
+}
+
+# --- Accounting ---
+
+variable "tag_costcenter" {
+  description = "CAF Accounting: cost center for billing attribution."
+  type        = string
+  default     = ""
+}
+
+variable "tag_department" {
+  description = "CAF Accounting: department responsible for the cost."
+  type        = string
+  default     = ""
+}
+
+variable "tag_budget" {
+  description = "CAF Accounting: budget associated with the workload."
+  type        = string
+  default     = ""
+}
+
+# --- Purpose ---
+
+variable "tag_businessprocess" {
+  description = "CAF Purpose: business process this workload supports."
+  type        = string
+  default     = ""
+}
+
+variable "tag_businessimpact" {
+  description = "CAF Purpose: impact if this workload is unavailable."
+  type        = string
+  default     = ""
+
+  validation {
+    condition     = var.tag_businessimpact == "" || contains(["critical", "high", "moderate", "low", "none"], var.tag_businessimpact)
+    error_message = "Business impact must be one of: critical, high, moderate, low, none (or empty to omit)."
+  }
+}
+
+variable "tag_revenueimpact" {
+  description = "CAF Purpose: revenue impact if this workload is unavailable."
+  type        = string
+  default     = ""
+
+  validation {
+    condition     = var.tag_revenueimpact == "" || contains(["high", "moderate", "low", "none"], var.tag_revenueimpact)
+    error_message = "Revenue impact must be one of: high, moderate, low, none (or empty to omit)."
+  }
+}
+
+# --- Ownership ---
+
+variable "tag_opsteam" {
+  description = "CAF Ownership: operations team responsible for this workload."
+  type        = string
+  default     = ""
+}
+
+variable "tag_businessunit" {
+  description = "CAF Ownership: business unit that owns this workload."
+  type        = string
+  default     = ""
+}
+
+# --- Extra ---
+
+variable "extra_tags" {
+  description = "Additional tags to merge with the CAF set."
+  type        = map(string)
+  default     = {}
 }

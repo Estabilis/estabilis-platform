@@ -6,7 +6,7 @@
 resource "azurerm_resource_group" "tfstate" {
   name     = "rg-${local.base_name}-tfstate"
   location = var.location
-  tags     = var.tags
+  tags     = local.tags
 }
 
 resource "azurerm_storage_account" "tfstate" {
@@ -41,7 +41,7 @@ resource "azurerm_storage_account" "tfstate" {
     }
   }
 
-  tags = var.tags
+  tags = local.tags
 }
 
 resource "azurerm_storage_container" "tfstate" {

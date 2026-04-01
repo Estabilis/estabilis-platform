@@ -8,7 +8,7 @@ resource "azurerm_network_security_group" "aks_nodes" {
   name                = "nsg-${local.base_name}"
   location            = azurerm_resource_group.platform.location
   resource_group_name = azurerm_resource_group.platform.name
-  tags                = var.tags
+  tags                = local.tags
 }
 
 resource "azurerm_subnet_network_security_group_association" "aks_nodes" {

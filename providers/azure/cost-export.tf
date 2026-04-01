@@ -40,7 +40,7 @@ resource "azurerm_storage_account" "cost_exports" {
     ignore_changes = [network_rules]
   }
 
-  tags = var.tags
+  tags = local.tags
 }
 
 # Firewall rules applied AFTER the cost export is created.
@@ -71,7 +71,7 @@ resource "azurerm_private_endpoint" "cost_exports_blob" {
   location            = azurerm_resource_group.platform.location
   resource_group_name = azurerm_resource_group.platform.name
   subnet_id           = azurerm_subnet.aks_nodes.id
-  tags                = var.tags
+  tags                = local.tags
 
   private_service_connection {
     name                           = "psc-${local.base_name}-costs-blob"

@@ -19,7 +19,7 @@ resource "azurerm_key_vault" "platform" {
     virtual_network_subnet_ids = [azurerm_subnet.aks_nodes.id, azurerm_subnet.aks_pods.id]
   }
 
-  tags = var.tags
+  tags = local.tags
 }
 
 # ---------------------------------------------------------------------------

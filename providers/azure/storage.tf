@@ -25,7 +25,7 @@ resource "azurerm_storage_account" "observability" {
       }
     }
   }
-  tags = var.tags
+  tags = local.tags
 }
 
 # ---------------------------------------------------------------------------
@@ -37,7 +37,7 @@ resource "azurerm_private_endpoint" "observability_blob" {
   location            = azurerm_resource_group.platform.location
   resource_group_name = azurerm_resource_group.platform.name
   subnet_id           = azurerm_subnet.aks_nodes.id
-  tags                = var.tags
+  tags                = local.tags
 
   private_service_connection {
     name                           = "psc-${local.base_name}-obs-blob"
@@ -55,7 +55,7 @@ resource "azurerm_private_endpoint" "observability_blob" {
 resource "azurerm_private_dns_zone" "blob" {
   name                = "privatelink.blob.core.windows.net"
   resource_group_name = azurerm_resource_group.platform.name
-  tags                = var.tags
+  tags                = local.tags
 }
 
 resource "azurerm_private_dns_zone_virtual_network_link" "blob" {
@@ -123,7 +123,7 @@ resource "azurerm_storage_account" "cnpg_backup" {
     }
   }
 
-  tags = var.tags
+  tags = local.tags
 }
 
 resource "azurerm_storage_container" "cnpg_backup" {
@@ -168,7 +168,7 @@ resource "azurerm_storage_account" "velero_backup" {
     }
   }
 
-  tags = var.tags
+  tags = local.tags
 }
 
 resource "azurerm_storage_container" "velero_backup" {

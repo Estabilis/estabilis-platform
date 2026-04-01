@@ -10,7 +10,7 @@ resource "azurerm_public_ip" "nat_gateway" {
   resource_group_name = azurerm_resource_group.platform.name
   allocation_method   = "Static"
   sku                 = "Standard"
-  tags                = var.tags
+  tags                = local.tags
 }
 
 resource "azurerm_nat_gateway" "platform" {
@@ -20,7 +20,7 @@ resource "azurerm_nat_gateway" "platform" {
   resource_group_name     = azurerm_resource_group.platform.name
   sku_name                = "Standard"
   idle_timeout_in_minutes = 4
-  tags                    = var.tags
+  tags                    = local.tags
 }
 
 resource "azurerm_nat_gateway_public_ip_association" "platform" {

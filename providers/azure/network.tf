@@ -7,7 +7,7 @@ resource "azurerm_virtual_network" "platform" {
   location            = azurerm_resource_group.platform.location
   resource_group_name = azurerm_resource_group.platform.name
   address_space       = [var.vnet_address_space]
-  tags                = var.tags
+  tags                = local.tags
 }
 
 # ---------------------------------------------------------------------------
