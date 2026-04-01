@@ -277,6 +277,17 @@ variable "pod_cidr" {
   default     = "10.244.0.0/16"
 }
 
+variable "network_dataplane" {
+  description = "Network dataplane for AKS. Options: default (Azure), cilium (managed Cilium, no Hubble), cilium-acns (managed Cilium + Hubble/FQDN, ~$70/mo)."
+  type        = string
+  default     = "default"
+
+  validation {
+    condition     = contains(["default", "cilium", "cilium-acns"], var.network_dataplane)
+    error_message = "Network dataplane must be one of: default, cilium, cilium-acns."
+  }
+}
+
 variable "system_os_disk_type" {
   description = "OS disk type for system node pool. Ephemeral uses VM local SSD (faster, no cost, limited by cache size)."
   type        = string

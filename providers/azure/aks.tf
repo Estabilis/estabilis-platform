@@ -56,10 +56,21 @@ resource "azurerm_kubernetes_cluster" "platform" {
   network_profile {
     network_plugin      = "azure"
     network_plugin_mode = "overlay"
+    network_data_plane  = var.network_dataplane == "cilium" || var.network_dataplane == "cilium-acns" ? "cilium" : "azure"
+    network_policy      = var.network_dataplane == "cilium" || var.network_dataplane == "cilium-acns" ? "cilium" : null
     outbound_type       = var.nat_gateway_enabled ? "userAssignedNATGateway" : "loadBalancer"
     service_cidr        = var.service_cidr
     dns_service_ip      = var.dns_service_ip
     pod_cidr            = var.pod_cidr
+
+    # ACNS — Advanced Container Networking Services (Hubble + FQDN filtering)
+    dynamic "advanced_networking" {
+      for_each = var.network_dataplane == "cilium-acns" ? [1] : []
+      content {
+        observability_enabled = true
+        security_enabled      = true
+      }
+    }
   }
 
   api_server_access_profile {
