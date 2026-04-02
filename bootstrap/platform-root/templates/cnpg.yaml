@@ -19,7 +19,7 @@ spec:
         {{- include "platform-root.ignoreMissingValueFiles" $ | nindent 8 }}
         parameters:
           - name: crds.create
-            value: "false"
+            value: "true"
     - repoURL: {{ .Values.platformRepoUrl }}
       targetRevision: {{ .Values.platformVersion }}
       ref: values
