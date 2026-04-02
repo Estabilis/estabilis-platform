@@ -1,6 +1,9 @@
 # Config repo credentials — only created when configRepoUrl is set
 configRepoUrl: ""
 
+# ACR OCI credentials — only created when acrLoginServer is set
+acrLoginServer: ""
+
 # Key Vault secret names — must exist in Key Vault before platform deploy
 kvSecrets:
   configRepoToken: "platform-config-repo-token"
@@ -9,3 +12,4 @@ kvSecrets:
   openaiApiKey: "platform-openai-api-key"
   opencostServiceKey: "platform-opencost-service-key"
   opencostCloudIntegration: "platform-opencost-cloud-integration"
+  acrArgocdToken: "platform-acr-argocd-token"

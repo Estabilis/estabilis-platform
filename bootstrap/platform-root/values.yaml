@@ -40,6 +40,7 @@ global:
   cnpgBackupSchedule: ""
   lokiExternalIngressEnabled: ""
   lokiAllowedCidrs: ""
+  acrLoginServer: ""
 
 # Workload Identity client IDs — injected by terraform
 identity:

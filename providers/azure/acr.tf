@@ -209,3 +209,43 @@ resource "azurerm_private_endpoint" "acr" {
     private_dns_zone_ids = [azurerm_private_dns_zone.acr[0].id]
   }
 }
+
+# ---------------------------------------------------------------------------
+# ArgoCD pull token — scope-limited token for OCI chart pull
+# Stored in Key Vault, synced to ArgoCD via ExternalSecret
+# ---------------------------------------------------------------------------
+
+resource "azurerm_container_registry_scope_map" "argocd_pull" {
+  count                   = var.acr_enabled ? 1 : 0
+  name                    = "argocd-chart-pull"
+  container_registry_name = azurerm_container_registry.platform[0].name
+  resource_group_name     = azurerm_resource_group.platform.name
+  actions = [
+    "repositories/charts/*/content/read",
+    "repositories/charts/*/metadata/read",
+  ]
+}
+
+resource "azurerm_container_registry_token" "argocd_pull" {
+  count                   = var.acr_enabled ? 1 : 0
+  name                    = "argocd-pull"
+  container_registry_name = azurerm_container_registry.platform[0].name
+  resource_group_name     = azurerm_resource_group.platform.name
+  scope_map_id            = azurerm_container_registry_scope_map.argocd_pull[0].id
+}
+
+resource "azurerm_container_registry_token_password" "argocd_pull" {
+  count                       = var.acr_enabled ? 1 : 0
+  container_registry_token_id = azurerm_container_registry_token.argocd_pull[0].id
+
+  password1 {}
+}
+
+resource "azurerm_key_vault_secret" "acr_argocd_token" {
+  count        = var.acr_enabled ? 1 : 0
+  name         = "platform-acr-argocd-token"
+  value        = azurerm_container_registry_token_password.argocd_pull[0].password1[0].value
+  key_vault_id = azurerm_key_vault.platform.id
+
+  depends_on = [azurerm_role_assignment.terraform_kv_officer]
+}

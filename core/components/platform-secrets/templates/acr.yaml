@@ -1,0 +1,31 @@
+{{- if .Values.acrLoginServer }}
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: repo-acr-charts
+  namespace: argocd
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: platform-secret-store
+    kind: ClusterSecretStore
+  target:
+    name: repo-acr-charts
+    creationPolicy: Owner
+    template:
+      metadata:
+        labels:
+          argocd.argoproj.io/secret-type: repository
+      data:
+        type: helm
+        name: acr-charts
+        enableOCI: "true"
+        url: {{ .Values.acrLoginServer | quote }}
+        username: argocd-pull
+        password: |-
+          {{`{{ .token }}`}}
+  data:
+    - secretKey: token
+      remoteRef:
+        key: {{ .Values.kvSecrets.acrArgocdToken | quote }}
+{{- end }}
