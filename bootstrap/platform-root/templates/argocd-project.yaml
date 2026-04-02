@@ -26,6 +26,9 @@ spec:
     - "https://cloudnative-pg.github.io/charts"
     - "https://vmware-tanzu.github.io/helm-charts"
     - "https://prometheus-community.github.io/helm-charts"
+    {{- range $name, $addon := .Values.platformAddons }}
+    - {{ $addon.repoURL | quote }}
+    {{- end }}
   destinations:
     - server: https://kubernetes.default.svc
       namespace: default
@@ -61,6 +64,14 @@ spec:
       namespace: node-exporter
     - server: https://kubernetes.default.svc
       namespace: policy-reporter
+    - server: https://kubernetes.default.svc
+      namespace: estabilis-system
+    {{- range $name, $addon := .Values.platformAddons }}
+    {{- if $addon.namespace }}
+    - server: https://kubernetes.default.svc
+      namespace: {{ $addon.namespace }}
+    {{- end }}
+    {{- end }}
   clusterResourceWhitelist:
     - group: "*"
       kind: Namespace
