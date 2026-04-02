@@ -130,7 +130,7 @@ spec:
 # =============================================================================
 # cnpg-system namespace
 # Needs broad egress: Azure Blob for WAL backup
-# Ingress: postgres clients from grafana namespace
+# Ingress: webhook from API server, postgres clients from grafana
 # =============================================================================
 {{- if (index .Values.policies "cnpg-system").enabled }}
 apiVersion: networking.k8s.io/v1
@@ -144,6 +144,10 @@ spec:
     - Ingress
     - Egress
   ingress:
+    # Webhook callbacks from API server (mutating/validating admission)
+    - ports:
+        - protocol: TCP
+          port: 9443
     # PostgreSQL clients from grafana namespace
     - from:
         - namespaceSelector:
