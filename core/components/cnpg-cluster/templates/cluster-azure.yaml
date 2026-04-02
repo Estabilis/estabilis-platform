@@ -4,7 +4,7 @@ metadata:
   name: platform-postgres
   namespace: cnpg-system
 spec:
-  instances: 1
+  instances: {{ .Values.postgres.instances }}
 
   resources:
     requests:
@@ -61,6 +61,7 @@ spec:
         operator: "Equal"
         value: "spot"
         effect: "NoSchedule"
+    topologyKey: topology.kubernetes.io/zone
     nodeAffinity:
       preferredDuringSchedulingIgnoredDuringExecution:
         - weight: 100

@@ -4,6 +4,7 @@ global:
   cnpgBackupRetentionDays: 7
   cnpgBackupSchedule: "0 2 * * *"
 postgres:
+  instances: 3
   resources:
     requests:
       cpu: "100m"
