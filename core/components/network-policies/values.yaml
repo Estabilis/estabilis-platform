@@ -34,3 +34,5 @@ policies:
     enabled: true
   estabilis-system:
     enabled: true
+  policy-reporter:
+    enabled: true

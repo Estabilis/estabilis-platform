@@ -21,6 +21,7 @@ Do NOT call directly in policy templates — use the full exclude helpers.
                 - trivy-system
                 - velero
                 - estabilis-system
+                - policy-reporter
 {{- end }}
 
 {{/*
@@ -55,7 +56,6 @@ Inverse of the exclude — used by mutation policies that apply TO platform.
 {{- define "kyverno-policies.platform-namespace-match" }}
               namespaces:
 {{- include "kyverno-policies.excluded-namespace-list" . }}
-                - policy-reporter
 {{- end }}
 
 {{/*
@@ -64,5 +64,4 @@ Match block for platform namespace names (cluster-scoped resources like Namespac
 {{- define "kyverno-policies.platform-namespace-names-match" }}
               names:
 {{- include "kyverno-policies.excluded-namespace-list" . }}
-                - policy-reporter
 {{- end }}
