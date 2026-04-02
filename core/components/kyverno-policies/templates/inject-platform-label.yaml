@@ -1,0 +1,83 @@
+{{- if .Values.policies.inject_platform_label.enabled }}
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: inject-platform-label
+  annotations:
+    policies.kyverno.io/title: Inject Platform Label
+    policies.kyverno.io/description: >-
+      Mutates all resources in platform namespaces to include the label
+      estabilis.io/managed-by=platform. Ensures every resource provisioned
+      by the platform is identifiable regardless of whether the Helm chart
+      or operator sets the label explicitly.
+    policies.kyverno.io/category: Estabilis Platform
+spec:
+  mutateExistingOnPolicyUpdate: true
+  rules:
+    - name: inject-label-namespaced
+      match:
+        any:
+          - resources:
+              kinds:
+                - Deployment
+                - StatefulSet
+                - DaemonSet
+                - Service
+                - ConfigMap
+                - Secret
+                - ServiceAccount
+                - Role
+                - RoleBinding
+                - Job
+                - CronJob
+                - PersistentVolumeClaim
+                - Ingress
+                - NetworkPolicy
+{{- include "kyverno-policies.platform-namespace-match" . }}
+      mutate:
+        patchStrategicMerge:
+          metadata:
+            labels:
+              estabilis.io/managed-by: platform
+    - name: inject-label-namespaces
+      match:
+        any:
+          - resources:
+              kinds:
+                - Namespace
+{{- include "kyverno-policies.platform-namespace-names-match" . }}
+      mutate:
+        patchStrategicMerge:
+          metadata:
+            labels:
+              estabilis.io/managed-by: platform
+    - name: inject-label-cluster-scoped
+      match:
+        any:
+          - resources:
+              kinds:
+                - ClusterRole
+                - ClusterRoleBinding
+              selector:
+                matchExpressions:
+                  - key: app.kubernetes.io/part-of
+                    operator: In
+                    values:
+                      - estabilis-workload-operator
+                      - argocd
+                      - cert-manager
+                      - kyverno
+                      - external-secrets
+                      - cloudnative-pg
+                      - traefik
+                      - velero
+                      - trivy-operator
+                      - external-dns
+                      - opencost
+                      - grafana-alloy
+      mutate:
+        patchStrategicMerge:
+          metadata:
+            labels:
+              estabilis.io/managed-by: platform
+{{- end }}

@@ -110,4 +110,6 @@ policies:
   block_client_in_platform_ns:
     enabled: true
     action: Audit
+  inject_platform_label:
+    enabled: true
 customPolicies: {}

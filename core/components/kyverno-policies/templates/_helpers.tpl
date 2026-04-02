@@ -46,3 +46,24 @@ are cluster-scoped and don't have a namespace field.
               names:
 {{- include "kyverno-policies.excluded-namespace-list" . }}
 {{- end }}
+
+{{/*
+Match block for policies targeting platform namespaces (namespaced resources).
+Inverse of the exclude — used by mutation policies that apply TO platform.
+*/}}
+{{- define "kyverno-policies.platform-namespace-match" }}
+              namespaces:
+{{- include "kyverno-policies.excluded-namespace-list" . }}
+                - estabilis-system
+                - policy-reporter
+{{- end }}
+
+{{/*
+Match block for platform namespace names (cluster-scoped resources like Namespace).
+*/}}
+{{- define "kyverno-policies.platform-namespace-names-match" }}
+              names:
+{{- include "kyverno-policies.excluded-namespace-list" . }}
+                - estabilis-system
+                - policy-reporter
+{{- end }}
