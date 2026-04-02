@@ -70,6 +70,7 @@ spec:
 # =============================================================================
 # cert-manager namespace
 # Needs broad egress: Let's Encrypt ACME, Azure DNS API
+# Ingress: webhook from API server
 # =============================================================================
 {{- if (index .Values.policies "cert-manager").enabled }}
 apiVersion: networking.k8s.io/v1
@@ -80,7 +81,13 @@ metadata:
 spec:
   podSelector: {}
   policyTypes:
+    - Ingress
     - Egress
+  ingress:
+    # Webhook callbacks from API server (validating/mutating admission)
+    - ports:
+        - protocol: TCP
+          port: 10250
   egress:
 {{ include "network-policies.dns-egress" . }}
     # All egress (Let's Encrypt ACME, Azure DNS API)
@@ -90,6 +97,7 @@ spec:
 # =============================================================================
 # external-secrets namespace
 # Needs broad egress: Azure Key Vault
+# Ingress: webhook from API server, metrics scraping from grafana
 # =============================================================================
 {{- if (index .Values.policies "external-secrets").enabled }}
 apiVersion: networking.k8s.io/v1
@@ -100,7 +108,18 @@ metadata:
 spec:
   podSelector: {}
   policyTypes:
+    - Ingress
     - Egress
+  ingress:
+    # Webhook callbacks from API server (validating admission)
+    - ports:
+        - protocol: TCP
+          port: 10250
+    # Metrics scraping from grafana namespace (Alloy)
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: grafana
   egress:
 {{ include "network-policies.dns-egress" . }}
     # All egress (Azure Key Vault)
@@ -335,4 +354,25 @@ spec:
               kubernetes.io/metadata.name: grafana
   egress:
 {{ include "network-policies.dns-egress" . }}
+{{- end }}
+---
+# =============================================================================
+# estabilis-system namespace
+# Workload operator: needs egress to kubernetes API and ArgoCD namespace
+# Ingress: none required (operator initiates all connections)
+# =============================================================================
+{{- if (index .Values.policies "estabilis-system").enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-estabilis-system
+  namespace: estabilis-system
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
+  egress:
+{{ include "network-policies.dns-egress" . }}
+    # Kubernetes API + ArgoCD namespace (create cluster secrets)
+    - to: []
 {{- end }}

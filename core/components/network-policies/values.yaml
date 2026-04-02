@@ -32,3 +32,5 @@ policies:
     enabled: true
   node-exporter:
     enabled: true
+  estabilis-system:
+    enabled: true
