@@ -99,8 +99,8 @@ controller:
     - --operation-processors=25
   resources:
     requests:
-      cpu: 270m
-      memory: 680Mi
+      cpu: 500m
+      memory: 1Gi
     limits:
       cpu: 2
       memory: 2Gi
