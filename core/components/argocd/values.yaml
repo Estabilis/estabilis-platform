@@ -27,6 +27,9 @@ configs:
     policy.default: "role:readonly"
     scopes: "[groups]"
   cm:
+    resource.customizations.ignoreDifferences.all: |
+      jqPathExpressions:
+        - .metadata.labels."estabilis.io/managed-by"
     resource.customizations.health.postgresql.cnpg.io_Cluster: |
       hs = {}
       if obj.status == nil or obj.status.phase == nil then
