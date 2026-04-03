@@ -149,7 +149,7 @@ spec:
 # =============================================================================
 # cnpg-system namespace
 # Needs broad egress: Azure Blob for WAL backup
-# Ingress: webhook from API server, postgres clients from grafana
+# Ingress: webhook, operator status, replication, postgres clients
 # =============================================================================
 {{- if (index .Values.policies "cnpg-system").enabled }}
 apiVersion: networking.k8s.io/v1
@@ -167,6 +167,12 @@ spec:
     - ports:
         - protocol: TCP
           port: 9443
+    # Intra-namespace: operator → postgres status API (8000),
+    # replication between primary and replicas (5432)
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: cnpg-system
     # PostgreSQL clients from grafana namespace
     - from:
         - namespaceSelector:
