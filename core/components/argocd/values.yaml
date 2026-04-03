@@ -22,7 +22,7 @@ global:
 configs:
   params:
     server.insecure: true
-    timeout.reconciliation: "60s"
+    timeout.reconciliation: "10s"
   rbac:
     policy.default: "role:readonly"
     scopes: "[groups]"
@@ -94,6 +94,9 @@ server:
 
 controller:
   replicas: 1
+  args:
+    - --status-processors=50
+    - --operation-processors=25
   resources:
     requests:
       cpu: 270m
@@ -103,7 +106,7 @@ controller:
       memory: 2Gi
 
 repoServer:
-  replicas: 1
+  replicas: 2
   resources:
     requests:
       cpu: 100m
