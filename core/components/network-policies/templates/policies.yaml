@@ -363,27 +363,6 @@ spec:
 {{- end }}
 ---
 # =============================================================================
-# estabilis-system namespace
-# Workload operator: needs egress to kubernetes API and ArgoCD namespace
-# Ingress: none required (operator initiates all connections)
-# =============================================================================
-{{- if (index .Values.policies "estabilis-system").enabled }}
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: allow-estabilis-system
-  namespace: estabilis-system
-spec:
-  podSelector: {}
-  policyTypes:
-    - Egress
-  egress:
-{{ include "network-policies.dns-egress" . }}
-    # Kubernetes API + ArgoCD namespace (create cluster secrets)
-    - to: []
-{{- end }}
----
-# =============================================================================
 # policy-reporter namespace
 # Kyverno sub-component: reads policy results, exposes metrics
 # Ingress: grafana namespace (Alloy metrics scraping)

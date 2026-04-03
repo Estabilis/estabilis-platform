@@ -12,7 +12,6 @@ metadata:
       or operator sets the label explicitly.
     policies.kyverno.io/category: Estabilis Platform
 spec:
-  mutateExistingOnPolicyUpdate: true
   rules:
     - name: inject-label-namespaced
       match:
