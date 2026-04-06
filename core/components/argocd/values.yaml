@@ -6,6 +6,12 @@ commonLabels:
   estabilis.io/managed-by: platform
   estabilis.io/component: argocd
 
+# Disable redis-secret-init hook — the Redis password is managed by
+# Terraform (Key Vault) + ExternalSecret, not Helm hooks.
+# Hooks cause foregroundDeletion deadlocks on ArgoCD self-manage sync.
+redisSecretInit:
+  enabled: false
+
 global:
   securityContext:
     runAsNonRoot: true

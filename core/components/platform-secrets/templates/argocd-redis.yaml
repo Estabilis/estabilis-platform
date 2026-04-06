@@ -1,0 +1,17 @@
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: argocd-redis
+  namespace: argocd
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: platform-secret-store
+    kind: ClusterSecretStore
+  target:
+    name: argocd-redis
+    creationPolicy: Merge
+  data:
+    - secretKey: auth
+      remoteRef:
+        key: {{ .Values.kvSecrets.argocdRedisPassword | quote }}

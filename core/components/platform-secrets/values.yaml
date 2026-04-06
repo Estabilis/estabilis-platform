@@ -13,3 +13,4 @@ kvSecrets:
   opencostServiceKey: "platform-opencost-service-key"
   opencostCloudIntegration: "platform-opencost-cloud-integration"
   acrArgocdToken: "platform-acr-argocd-token"
+  argocdRedisPassword: "platform-argocd-redis-password"

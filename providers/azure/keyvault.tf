@@ -44,6 +44,11 @@ resource "azurerm_role_assignment" "terraform_kv_officer" {
 # These are consumed by ExternalSecrets → K8s Secrets → apps
 # ---------------------------------------------------------------------------
 
+resource "random_password" "argocd_redis" {
+  length  = 32
+  special = false
+}
+
 resource "random_password" "grafana_admin" {
   length  = 24
   special = false
@@ -52,6 +57,14 @@ resource "random_password" "grafana_admin" {
 resource "random_password" "grafana_db" {
   length  = 32
   special = false
+}
+
+resource "azurerm_key_vault_secret" "argocd_redis_password" {
+  name         = "platform-argocd-redis-password"
+  value        = random_password.argocd_redis.result
+  key_vault_id = azurerm_key_vault.platform.id
+
+  depends_on = [azurerm_role_assignment.terraform_kv_officer]
 }
 
 resource "azurerm_key_vault_secret" "grafana_admin_password" {
