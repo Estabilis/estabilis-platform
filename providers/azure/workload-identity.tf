@@ -16,11 +16,11 @@ resource "azurerm_user_assigned_identity" "external_dns" {
 }
 
 resource "azurerm_federated_identity_credential" "external_dns" {
-  name      = "fic-${local.base_name}-external-dns"
-  parent_id = azurerm_user_assigned_identity.external_dns.id
-  audience  = ["api://AzureADTokenExchange"]
-  issuer    = local.aks_oidc_issuer_url
-  subject   = "system:serviceaccount:external-dns:external-dns"
+  name                      = "fic-${local.base_name}-external-dns"
+  user_assigned_identity_id = azurerm_user_assigned_identity.external_dns.id
+  audience                  = ["api://AzureADTokenExchange"]
+  issuer                    = local.aks_oidc_issuer_url
+  subject                   = "system:serviceaccount:external-dns:external-dns"
 }
 
 # DNS Zone — uses effective_domain (includes env subdomain when host_pattern=subdomain)
@@ -46,11 +46,11 @@ resource "azurerm_user_assigned_identity" "external_secrets" {
 }
 
 resource "azurerm_federated_identity_credential" "external_secrets" {
-  name      = "fic-${local.base_name}-external-secrets"
-  parent_id = azurerm_user_assigned_identity.external_secrets.id
-  audience  = ["api://AzureADTokenExchange"]
-  issuer    = local.aks_oidc_issuer_url
-  subject   = "system:serviceaccount:external-secrets:external-secrets"
+  name                      = "fic-${local.base_name}-external-secrets"
+  user_assigned_identity_id = azurerm_user_assigned_identity.external_secrets.id
+  audience                  = ["api://AzureADTokenExchange"]
+  issuer                    = local.aks_oidc_issuer_url
+  subject                   = "system:serviceaccount:external-secrets:external-secrets"
 }
 
 resource "azurerm_role_assignment" "external_secrets_kv_reader" {
@@ -69,11 +69,11 @@ resource "azurerm_user_assigned_identity" "loki" {
 }
 
 resource "azurerm_federated_identity_credential" "loki" {
-  name      = "fic-${local.base_name}-loki"
-  parent_id = azurerm_user_assigned_identity.loki.id
-  audience  = ["api://AzureADTokenExchange"]
-  issuer    = local.aks_oidc_issuer_url
-  subject   = "system:serviceaccount:grafana:grafana-loki"
+  name                      = "fic-${local.base_name}-loki"
+  user_assigned_identity_id = azurerm_user_assigned_identity.loki.id
+  audience                  = ["api://AzureADTokenExchange"]
+  issuer                    = local.aks_oidc_issuer_url
+  subject                   = "system:serviceaccount:grafana:grafana-loki"
 }
 
 resource "azurerm_role_assignment" "loki_storage_contributor" {
@@ -92,11 +92,11 @@ resource "azurerm_user_assigned_identity" "mimir" {
 }
 
 resource "azurerm_federated_identity_credential" "mimir" {
-  name      = "fic-${local.base_name}-mimir"
-  parent_id = azurerm_user_assigned_identity.mimir.id
-  audience  = ["api://AzureADTokenExchange"]
-  issuer    = local.aks_oidc_issuer_url
-  subject   = "system:serviceaccount:grafana:grafana-mimir"
+  name                      = "fic-${local.base_name}-mimir"
+  user_assigned_identity_id = azurerm_user_assigned_identity.mimir.id
+  audience                  = ["api://AzureADTokenExchange"]
+  issuer                    = local.aks_oidc_issuer_url
+  subject                   = "system:serviceaccount:grafana:grafana-mimir"
 }
 
 resource "azurerm_role_assignment" "mimir_storage_contributor" {
@@ -115,11 +115,11 @@ resource "azurerm_user_assigned_identity" "cnpg" {
 }
 
 resource "azurerm_federated_identity_credential" "cnpg" {
-  name      = "fic-${local.base_name}-cnpg"
-  parent_id = azurerm_user_assigned_identity.cnpg.id
-  audience  = ["api://AzureADTokenExchange"]
-  issuer    = local.aks_oidc_issuer_url
-  subject   = "system:serviceaccount:cnpg-system:platform-postgres"
+  name                      = "fic-${local.base_name}-cnpg"
+  user_assigned_identity_id = azurerm_user_assigned_identity.cnpg.id
+  audience                  = ["api://AzureADTokenExchange"]
+  issuer                    = local.aks_oidc_issuer_url
+  subject                   = "system:serviceaccount:cnpg-system:platform-postgres"
 }
 
 resource "azurerm_role_assignment" "cnpg_storage_contributor" {
@@ -138,11 +138,11 @@ resource "azurerm_user_assigned_identity" "cert_manager" {
 }
 
 resource "azurerm_federated_identity_credential" "cert_manager" {
-  name      = "fic-${local.base_name}-cert-manager"
-  parent_id = azurerm_user_assigned_identity.cert_manager.id
-  audience  = ["api://AzureADTokenExchange"]
-  issuer    = local.aks_oidc_issuer_url
-  subject   = "system:serviceaccount:cert-manager:cert-manager"
+  name                      = "fic-${local.base_name}-cert-manager"
+  user_assigned_identity_id = azurerm_user_assigned_identity.cert_manager.id
+  audience                  = ["api://AzureADTokenExchange"]
+  issuer                    = local.aks_oidc_issuer_url
+  subject                   = "system:serviceaccount:cert-manager:cert-manager"
 }
 
 resource "azurerm_role_assignment" "cert_manager_dns_contributor" {
@@ -161,11 +161,11 @@ resource "azurerm_user_assigned_identity" "velero" {
 }
 
 resource "azurerm_federated_identity_credential" "velero" {
-  name      = "fic-${local.base_name}-velero"
-  parent_id = azurerm_user_assigned_identity.velero.id
-  audience  = ["api://AzureADTokenExchange"]
-  issuer    = local.aks_oidc_issuer_url
-  subject   = "system:serviceaccount:velero:velero-server"
+  name                      = "fic-${local.base_name}-velero"
+  user_assigned_identity_id = azurerm_user_assigned_identity.velero.id
+  audience                  = ["api://AzureADTokenExchange"]
+  issuer                    = local.aks_oidc_issuer_url
+  subject                   = "system:serviceaccount:velero:velero-server"
 }
 
 resource "azurerm_role_assignment" "velero_storage_contributor" {

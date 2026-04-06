@@ -1,3 +1,9 @@
+# argocd-redis — Redis auth password for ArgoCD components.
+# creationPolicy is Merge (not Owner like other platform secrets) because the
+# Secret is pre-created by the CLI before helm install — external-secrets
+# operator doesn't exist yet during bootstrap, so we cannot use an ExternalSecret
+# at that moment. Post-bootstrap, this ExternalSecret keeps the 'auth' field
+# synced with Key Vault without taking ownership of the Secret.
 apiVersion: external-secrets.io/v1
 kind: ExternalSecret
 metadata:
