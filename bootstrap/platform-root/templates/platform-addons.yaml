@@ -1,8 +1,20 @@
 {{- /* Platform Add-ons — private components via OCI Helm charts */ -}}
-{{- /* repoURL resolution: explicit repoURL > ACR from terraform (oci://<acr>/charts) */ -}}
+{{- /*
+ArgoCD OCI composition rules (v3.x):
+  - repoURL must be HOST ONLY (no path component), e.g. oci://acr.azurecr.io
+  - chart contains the full path including subrepo, e.g. charts/my-chart
+  - When ACR fallback is used, we auto-prepend "charts/" to the chart name
+    (our ACR convention: oci://<acr>/charts/<name>)
+  - Explicit repoURL bypasses the fallback; chart is used as-is
+*/ -}}
 {{- $acrLoginServer := .Values.global.acrLoginServer -}}
 {{- range $name, $addon := .Values.platformAddons }}
-{{- $repoURL := $addon.repoURL | default (printf "oci://%s/charts" $acrLoginServer) }}
+{{- $useAcr := and $acrLoginServer (not $addon.repoURL) }}
+{{- $repoURL := $addon.repoURL | default (printf "oci://%s" $acrLoginServer) }}
+{{- $chart := $addon.chart }}
+{{- if $useAcr }}
+{{- $chart = printf "charts/%s" $addon.chart }}
+{{- end }}
 ---
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -18,7 +30,7 @@ spec:
   project: platform
   source:
     repoURL: {{ $repoURL }}
-    chart: {{ $addon.chart }}
+    chart: {{ $chart }}
     targetRevision: {{ $addon.targetRevision | quote }}
     {{- if $addon.values }}
     helm:
