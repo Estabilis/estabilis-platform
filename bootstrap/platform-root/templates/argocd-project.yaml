@@ -26,8 +26,20 @@ spec:
     - "https://cloudnative-pg.github.io/charts"
     - "https://vmware-tanzu.github.io/helm-charts"
     - "https://prometheus-community.github.io/helm-charts"
+    {{- /* Platform add-on repos: explicit repoURL > ACR fallback (once) */ -}}
+    {{- $acrOciRepo := "" -}}
+    {{- if .Values.global.acrLoginServer }}
+    {{- $acrOciRepo = printf "oci://%s/charts" .Values.global.acrLoginServer }}
+    {{- end }}
+    {{- $addonRepos := dict }}
     {{- range $name, $addon := .Values.platformAddons }}
-    - {{ $addon.repoURL | quote }}
+    {{- $repo := $addon.repoURL | default $acrOciRepo }}
+    {{- if $repo }}
+    {{- $_ := set $addonRepos $repo true }}
+    {{- end }}
+    {{- end }}
+    {{- range $repo, $_ := $addonRepos }}
+    - {{ $repo | quote }}
     {{- end }}
   destinations:
     - server: https://kubernetes.default.svc
