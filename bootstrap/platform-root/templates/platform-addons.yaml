@@ -1,5 +1,8 @@
 {{- /* Platform Add-ons — private components via OCI Helm charts */ -}}
+{{- /* repoURL resolution: explicit repoURL > ACR from terraform (oci://<acr>/charts) */ -}}
+{{- $acrLoginServer := .Values.global.acrLoginServer -}}
 {{- range $name, $addon := .Values.platformAddons }}
+{{- $repoURL := $addon.repoURL | default (printf "oci://%s/charts" $acrLoginServer) }}
 ---
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -14,12 +17,16 @@ metadata:
 spec:
   project: platform
   source:
-    repoURL: {{ $addon.repoURL }}
+    repoURL: {{ $repoURL }}
     chart: {{ $addon.chart }}
     targetRevision: {{ $addon.targetRevision | quote }}
     {{- if $addon.values }}
     helm:
       valuesObject:
+        {{- /* Inject ACR registry into values if not explicitly set */ -}}
+        {{- if and $acrLoginServer (not (index ($addon.values) "registry")) }}
+        registry: {{ printf "%s/estabilis" $acrLoginServer }}
+        {{- end }}
         {{- $addon.values | toYaml | nindent 8 }}
     {{- end }}
   destination:
