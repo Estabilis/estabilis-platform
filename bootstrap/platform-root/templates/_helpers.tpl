@@ -1,4 +1,25 @@
 {{/*
+Estabilis Platform — branding annotations injected into every namespace
+managed by the platform. Carries release-level provenance (platform-version)
+plus identity, source, and contact info for inspection/audit.
+
+This is the canonical place for the platform release version — the
+platform-root chart knows .Values.platformVersion natively, no plumbing
+needed. Per-resource branding lives in each chart's own _helpers.tpl
+(`estabilis.annotations`) and carries the chart's own version.
+
+See: estabilis-platform-tools issue #45.
+*/}}
+{{- define "platform-root.estabilisNamespaceAnnotations" -}}
+estabilis.io/platform: "Estabilis Platform"
+estabilis.io/platform-version: {{ .Values.platformVersion | quote }}
+estabilis.io/website: "https://estabilis.com"
+estabilis.io/source: "https://github.com/Estabilis/estabilis-platform"
+estabilis.io/support: "ops@estabilis.com"
+estabilis.io/license: "proprietary"
+{{- end -}}
+
+{{/*
 Standard namespace metadata — PSA baseline enforcement + platform label.
 Used by all Applications that create their namespace (CreateNamespace=true).
 Multiple apps targeting the same namespace MUST use identical metadata.
@@ -9,6 +30,8 @@ managedNamespaceMetadata:
     estabilis.io/managed-by: platform
     pod-security.kubernetes.io/enforce: baseline
     pod-security.kubernetes.io/enforce-version: latest
+  annotations:
+    {{- include "platform-root.estabilisNamespaceAnnotations" . | nindent 4 }}
 {{- end -}}
 
 {{/*
@@ -22,6 +45,8 @@ managedNamespaceMetadata:
     kyverno.io/exclude: "true"
     pod-security.kubernetes.io/enforce: baseline
     pod-security.kubernetes.io/enforce-version: latest
+  annotations:
+    {{- include "platform-root.estabilisNamespaceAnnotations" . | nindent 4 }}
 {{- end -}}
 
 {{/*
@@ -77,6 +102,8 @@ managedNamespaceMetadata:
     estabilis.io/managed-by: platform
     pod-security.kubernetes.io/enforce: privileged
     pod-security.kubernetes.io/enforce-version: latest
+  annotations:
+    {{- include "platform-root.estabilisNamespaceAnnotations" . | nindent 4 }}
 {{- end -}}
 
 {{/*
@@ -89,6 +116,8 @@ managedNamespaceMetadata:
     kyverno.io/exclude: "true"
     pod-security.kubernetes.io/enforce: privileged
     pod-security.kubernetes.io/enforce-version: latest
+  annotations:
+    {{- include "platform-root.estabilisNamespaceAnnotations" . | nindent 4 }}
 {{- end -}}
 
 {{/*
