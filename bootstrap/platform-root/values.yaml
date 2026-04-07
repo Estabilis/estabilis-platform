@@ -10,6 +10,12 @@ platformVersion: ""       # injected by terraform
 configRepoUrl: ""         # injected by terraform
 configRepoVersion: ""     # injected by terraform
 
+# estabilis-platform-gitops — repo that owns workload bootstrap manifests.
+# See ADR 0001 (estabilis-platform-tools/docs/adr/0001-workload-bootstrap-strategy.md).
+# Default values below; downstream can override via overrides/platform-root/values.yaml.
+platformGitopsRepoUrl: "https://github.com/Estabilis/estabilis-platform-gitops.git"
+platformGitopsVersion: "v0.1.0"
+
 global:
   # Client configuration — injected by terraform from client tfvars
   provider: ""            # injected by terraform
@@ -105,6 +111,7 @@ components:
   kube-state-metrics: true   # observability: Kubernetes state metrics
   node-exporter: true        # observability: node-level metrics
   hubble-ui: false           # observability: Cilium network flows UI (opt-in, ACNS only)
+  workload-bootstrap: false  # optional: bootstraps Kyverno + baseline on registered workload clusters (ADR 0001)
 
 # Platform Add-ons — private components deployed via OCI Helm charts.
 # Downstream activates add-ons via overrides/platform-root/values.yaml.

@@ -1,0 +1,47 @@
+{{- /*
+  Workload bootstrap — bridges platform-root (this repo) to the
+  estabilis-platform-gitops repo, which owns everything the hub
+  ArgoCD applies to workload clusters.
+
+  Opt-in: set components.workload-bootstrap=true in the downstream
+  override (overrides/platform-root/values.yaml).
+
+  Reference: ADR 0001 — estabilis-platform-tools/docs/adr/0001-workload-bootstrap-strategy.md
+*/ -}}
+{{- if eq (index .Values.components "workload-bootstrap") true }}
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: workload-bootstrap
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "9"
+spec:
+  project: platform
+  sources:
+    - repoURL: {{ .Values.platformGitopsRepoUrl }}
+      targetRevision: {{ .Values.platformGitopsVersion }}
+      path: workload-bootstrap
+      helm:
+        valueFiles:
+          - values.yaml
+          {{- include "platform-root.overrideValueFile" (dict "component" "workload-bootstrap" "root" $) | nindent 10 }}
+        {{- include "platform-root.ignoreMissingValueFiles" $ | nindent 8 }}
+    {{- include "platform-root.overrideSource" . | nindent 4 }}
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    retry:
+      limit: 10
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 3m
+    syncOptions:
+      - ServerSideApply=true
+      - CreateNamespace=true
+{{- end }}
