@@ -1,0 +1,37 @@
+{{- /* optional: downstream can enable via components.hubble-ui: true (ACNS only) */ -}}
+{{- if eq (index .Values.components "hubble-ui") true }}
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: hubble-ui
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "8"
+spec:
+  project: platform
+  sources:
+    - repoURL: {{ .Values.platformRepoUrl }}
+      targetRevision: {{ .Values.platformVersion }}
+      path: core/components/hubble-ui
+      helm:
+        valueFiles:
+          - $values/core/components/hubble-ui/values.yaml
+          {{- include "platform-root.overrideValueFile" (dict "component" "hubble-ui" "root" $) | nindent 10 }}
+        {{- include "platform-root.ignoreMissingValueFiles" $ | nindent 8 }}
+    - repoURL: {{ .Values.platformRepoUrl }}
+      targetRevision: {{ .Values.platformVersion }}
+      ref: values
+    {{- include "platform-root.overrideSource" . | nindent 4 }}
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kube-system
+  syncPolicy:
+    retry:
+      limit: 10
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 3m
+    syncOptions:
+      - ServerSideApply=true
+{{- end }}

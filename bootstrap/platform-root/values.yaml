@@ -104,6 +104,7 @@ components:
   mimir-rules: true          # observability: alerting rules
   kube-state-metrics: true   # observability: Kubernetes state metrics
   node-exporter: true        # observability: node-level metrics
+  hubble-ui: false           # observability: Cilium network flows UI (opt-in, ACNS only)
 
 # Platform Add-ons — private components deployed via OCI Helm charts.
 # Downstream activates add-ons via overrides/platform-root/values.yaml.

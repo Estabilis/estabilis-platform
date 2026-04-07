@@ -1,0 +1,6 @@
+apiVersion: v2
+name: hubble-ui
+description: Cilium Hubble UI for visualizing network flows on ACNS clusters
+type: application
+version: 0.1.0
+appVersion: "0.13.3"

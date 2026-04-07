@@ -1,0 +1,75 @@
+# Hubble UI — visualizes Cilium network flows captured by hubble-relay.
+#
+# This component is deployed into kube-system because it must consume the
+# hubble-relay-client-certs Secret created by the Microsoft-managed certgen
+# Job (ACNS mode), which lives in kube-system. The Hubble relay enforces
+# mutual TLS — the UI backend MUST present a client certificate signed by
+# the same CA the relay trusts, otherwise the connection is rejected with
+# "tls: certificate required".
+#
+# v1 supports ACNS only. BYO-CNI mode will be added later when a real
+# BYO-CNI cluster exists for validation.
+
+# Mode of the underlying Cilium installation.
+# Currently only "acns" is supported. Setting any other value renders an
+# error during template rendering — fail loud, not silently.
+mode: acns
+
+# Image versions are pinned to match the Microsoft-managed hubble-relay
+# version. As of 2026-04, ACNS ships hubble-relay v1.18.x which pairs
+# with hubble-ui v0.13.x. See README.md for the compatibility matrix.
+image:
+  pullPolicy: IfNotPresent
+  frontend:
+    repository: quay.io/cilium/hubble-ui
+    tag: v0.13.3
+  backend:
+    repository: quay.io/cilium/hubble-ui-backend
+    tag: v0.13.3
+
+# The Hubble relay endpoint and TLS server name. These match what the
+# Microsoft-managed Hubble relay expects. The relay server cert SAN is
+# *.hubble-relay.cilium.io; "instance.hubble-relay.cilium.io" satisfies
+# the wildcard.
+relay:
+  address: hubble-relay.kube-system.svc.cluster.local:443
+  serverName: instance.hubble-relay.cilium.io
+  # Secret in the same namespace containing ca.crt, tls.crt, tls.key.
+  # On ACNS this Secret is created by the Microsoft-managed certgen Job.
+  clientCertSecretName: hubble-relay-client-certs
+
+service:
+  type: ClusterIP
+  port: 80
+
+resources:
+  frontend:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+  backend:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+
+# Pod-level security context. Hubble UI runs unprivileged.
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1001
+  runAsGroup: 1001
+  fsGroup: 1001
+  seccompProfile:
+    type: RuntimeDefault
+
+# Tolerations and node selector — kube-system DaemonSets normally tolerate
+# everything, but Hubble UI is a single Deployment and only needs a
+# regular node.
+tolerations: []
+nodeSelector: {}
+affinity: {}
