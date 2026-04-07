@@ -23,6 +23,14 @@ spec:
       targetRevision: {{ .Values.platformGitopsVersion }}
       path: workload-bootstrap
       helm:
+        # Pass the estabilis-platform release version down to the
+        # workload-bootstrap chart so the namespace annotations on the
+        # target workload cluster carry the correct platform-version
+        # (distinct from workload-bootstrap-version, which comes from
+        # the chart's own Chart.yaml inside estabilis-platform-gitops).
+        parameters:
+          - name: platformVersion
+            value: {{ .Values.platformVersion | quote }}
         valueFiles:
           - values.yaml
           {{- include "platform-root.overrideValueFile" (dict "component" "workload-bootstrap" "root" $) | nindent 10 }}
