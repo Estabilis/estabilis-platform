@@ -4,6 +4,7 @@ kind: Secret
 metadata:
   name: external-dns-azure-config
   namespace: external-dns
+  {{- include "estabilis.metadata" . | nindent 2 }}
 type: Opaque
 stringData:
   azure.json: |

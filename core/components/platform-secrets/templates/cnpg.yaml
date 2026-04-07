@@ -4,6 +4,7 @@ kind: ExternalSecret
 metadata:
   name: grafana-db-credentials
   namespace: cnpg-system
+  {{- include "estabilis.metadata" . | nindent 2 }}
 spec:
   refreshInterval: 1h
   secretStoreRef:

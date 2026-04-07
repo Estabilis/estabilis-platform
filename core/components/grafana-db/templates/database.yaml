@@ -3,6 +3,7 @@ kind: Database
 metadata:
   name: grafana-db
   namespace: cnpg-system
+  {{- include "estabilis.metadata" . | nindent 2 }}
 spec:
   name: grafana
   owner: grafana

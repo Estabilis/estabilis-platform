@@ -4,7 +4,10 @@ kind: VolumeSnapshotClass
 metadata:
   name: azure-disk-snapshot
   labels:
+    {{- include "estabilis.labels" . | nindent 4 }}
     velero.io/csi-volumesnapshot-class: "true"
+  annotations:
+    {{- include "estabilis.annotations" . | nindent 4 }}
 driver: disk.csi.azure.com
 deletionPolicy: Retain
 parameters:

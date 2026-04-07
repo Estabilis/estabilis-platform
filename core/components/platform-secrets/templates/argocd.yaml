@@ -4,6 +4,7 @@ kind: ExternalSecret
 metadata:
   name: repo-config-client
   namespace: argocd
+  {{- include "estabilis.metadata" . | nindent 2 }}
 spec:
   refreshInterval: 1h
   secretStoreRef:

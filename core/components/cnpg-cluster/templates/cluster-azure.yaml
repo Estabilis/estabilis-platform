@@ -3,6 +3,7 @@ kind: Cluster
 metadata:
   name: platform-postgres
   namespace: cnpg-system
+  {{- include "estabilis.metadata" . | nindent 2 }}
 spec:
   instances: {{ .Values.postgres.instances }}
 

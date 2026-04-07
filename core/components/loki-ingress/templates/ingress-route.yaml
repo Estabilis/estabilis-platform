@@ -4,6 +4,7 @@ kind: Middleware
 metadata:
   name: loki-ingress-ipallowlist
   namespace: grafana
+  {{- include "estabilis.metadata" . | nindent 2 }}
 spec:
   ipAllowList:
     sourceRange:
@@ -19,6 +20,7 @@ kind: Middleware
 metadata:
   name: loki-ingress-auth
   namespace: grafana
+  {{- include "estabilis.metadata" . | nindent 2 }}
 spec:
   basicAuth:
     secret: loki-ingress-auth
@@ -28,6 +30,7 @@ kind: Certificate
 metadata:
   name: loki-external-tls
   namespace: grafana
+  {{- include "estabilis.metadata" . | nindent 2 }}
 spec:
   secretName: loki-external-tls
   issuerRef:
@@ -41,6 +44,7 @@ kind: IngressRoute
 metadata:
   name: loki-external
   namespace: grafana
+  {{- include "estabilis.metadata" . | nindent 2 }}
 spec:
   entryPoints:
     - websecure
@@ -64,6 +68,7 @@ kind: ExternalSecret
 metadata:
   name: loki-ingress-auth
   namespace: grafana
+  {{- include "estabilis.metadata" . | nindent 2 }}
 spec:
   refreshInterval: 1h
   secretStoreRef:

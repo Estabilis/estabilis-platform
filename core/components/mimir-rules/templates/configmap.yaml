@@ -3,9 +3,7 @@ kind: ConfigMap
 metadata:
   name: mimir-alerting-rules
   namespace: grafana
-  labels:
-    estabilis.io/managed-by: platform
-    estabilis.io/component: mimir-rules
+  {{- include "estabilis.metadata" . | nindent 2 }}
 data:
   {{- if .Values.ruleGroups.platformDown.enabled }}
   tier1-platform-down.yaml: |

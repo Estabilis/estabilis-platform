@@ -9,6 +9,7 @@ kind: ExternalSecret
 metadata:
   name: argocd-redis
   namespace: argocd
+  {{- include "estabilis.metadata" . | nindent 2 }}
 spec:
   refreshInterval: 1h
   secretStoreRef:
