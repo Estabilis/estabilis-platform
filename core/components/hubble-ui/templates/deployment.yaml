@@ -19,7 +19,6 @@ spec:
         {{- include "hubble-ui.labels" . | nindent 8 }}
     spec:
       serviceAccountName: hubble-ui
-      automountServiceAccountToken: false
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:
