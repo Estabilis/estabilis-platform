@@ -3,7 +3,10 @@ apiVersion: kyverno.io/v1
 kind: ClusterPolicy
 metadata:
   name: require-seccomp-profile
+  labels:
+    {{- include "estabilis.labels" . | nindent 4 }}
   annotations:
+    {{- include "estabilis.annotations" . | nindent 4 }}
     policies.kyverno.io/title: Require Seccomp Profile
     policies.kyverno.io/description: >-
       Requires pods to set a seccomp profile of type RuntimeDefault or Localhost.

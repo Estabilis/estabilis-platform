@@ -3,7 +3,10 @@ apiVersion: kyverno.io/v1
 kind: ClusterPolicy
 metadata:
   name: drop-all-capabilities
+  labels:
+    {{- include "estabilis.labels" . | nindent 4 }}
   annotations:
+    {{- include "estabilis.annotations" . | nindent 4 }}
     policies.kyverno.io/title: Drop All Capabilities
     policies.kyverno.io/description: >-
       Requires all containers to explicitly drop ALL Linux capabilities.

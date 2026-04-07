@@ -3,7 +3,10 @@ apiVersion: kyverno.io/v1
 kind: ClusterPolicy
 metadata:
   name: disallow-adding-capabilities
+  labels:
+    {{- include "estabilis.labels" . | nindent 4 }}
   annotations:
+    {{- include "estabilis.annotations" . | nindent 4 }}
     policies.kyverno.io/title: Disallow Adding Capabilities
     policies.kyverno.io/description: >-
       Prevents containers from adding Linux capabilities beyond the default set.

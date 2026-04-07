@@ -3,7 +3,10 @@ apiVersion: kyverno.io/v1
 kind: ClusterPolicy
 metadata:
   name: disallow-default-sa
+  labels:
+    {{- include "estabilis.labels" . | nindent 4 }}
   annotations:
+    {{- include "estabilis.annotations" . | nindent 4 }}
     policies.kyverno.io/title: Disallow Default Service Account
     policies.kyverno.io/description: >-
       Prevents pods from using the default ServiceAccount. The default

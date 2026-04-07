@@ -3,7 +3,10 @@ apiVersion: kyverno.io/v1
 kind: ClusterPolicy
 metadata:
   name: require-limit-ranges
+  labels:
+    {{- include "estabilis.labels" . | nindent 4 }}
   annotations:
+    {{- include "estabilis.annotations" . | nindent 4 }}
     policies.kyverno.io/title: Require Limit Ranges
     policies.kyverno.io/description: >-
       Validates that every namespace has a LimitRange defined.

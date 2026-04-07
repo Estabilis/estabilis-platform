@@ -3,7 +3,10 @@ apiVersion: kyverno.io/v1
 kind: ClusterPolicy
 metadata:
   name: inject-pss-labels
+  labels:
+    {{- include "estabilis.labels" . | nindent 4 }}
   annotations:
+    {{- include "estabilis.annotations" . | nindent 4 }}
     policies.kyverno.io/title: Inject PSS Labels
     policies.kyverno.io/description: >-
       Injects Pod Security Standards (PSS) labels on namespaces.

@@ -3,7 +3,10 @@ apiVersion: kyverno.io/v1
 kind: ClusterPolicy
 metadata:
   name: require-pod-annotations
+  labels:
+    {{- include "estabilis.labels" . | nindent 4 }}
   annotations:
+    {{- include "estabilis.annotations" . | nindent 4 }}
     policies.kyverno.io/title: Require Pod Annotations
     policies.kyverno.io/description: >-
       Requires Deployments, StatefulSets, and DaemonSets to include

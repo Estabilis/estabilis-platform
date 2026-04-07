@@ -3,7 +3,10 @@ apiVersion: kyverno.io/v1
 kind: ClusterPolicy
 metadata:
   name: no-latest-tag
+  labels:
+    {{- include "estabilis.labels" . | nindent 4 }}
   annotations:
+    {{- include "estabilis.annotations" . | nindent 4 }}
     policies.kyverno.io/title: Disallow Latest Tag
     policies.kyverno.io/description: >-
       Requires all container images to have an explicit tag that is not ':latest'.

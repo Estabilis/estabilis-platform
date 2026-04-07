@@ -3,7 +3,10 @@ apiVersion: kyverno.io/v1
 kind: ClusterPolicy
 metadata:
   name: block-client-in-platform-ns
+  labels:
+    {{- include "estabilis.labels" . | nindent 4 }}
   annotations:
+    {{- include "estabilis.annotations" . | nindent 4 }}
     policies.kyverno.io/title: Block Client Deployments in Platform Namespaces
     policies.kyverno.io/description: >-
       Prevents workloads with estabilis.io/managed-by=client from being

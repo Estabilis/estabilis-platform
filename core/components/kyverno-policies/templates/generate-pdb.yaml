@@ -3,7 +3,10 @@ apiVersion: kyverno.io/v1
 kind: ClusterPolicy
 metadata:
   name: generate-pdb
+  labels:
+    {{- include "estabilis.labels" . | nindent 4 }}
   annotations:
+    {{- include "estabilis.annotations" . | nindent 4 }}
     policies.kyverno.io/title: Generate PodDisruptionBudget
     policies.kyverno.io/description: >-
       Automatically generates a PodDisruptionBudget for Deployments with

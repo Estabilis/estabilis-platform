@@ -3,7 +3,10 @@ apiVersion: kyverno.io/v1
 kind: ClusterPolicy
 metadata:
   name: disallow-host-namespaces
+  labels:
+    {{- include "estabilis.labels" . | nindent 4 }}
   annotations:
+    {{- include "estabilis.annotations" . | nindent 4 }}
     policies.kyverno.io/title: Disallow Host Namespaces
     policies.kyverno.io/description: >-
       Prevents pods from using host PID, IPC, or network namespaces. Sharing

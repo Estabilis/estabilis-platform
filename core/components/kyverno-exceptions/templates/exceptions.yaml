@@ -4,6 +4,10 @@ apiVersion: kyverno.io/v2beta1
 kind: PolicyException
 metadata:
   name: {{ $name }}
+  labels:
+    {{- include "estabilis.labels" $ | nindent 4 }}
+  annotations:
+    {{- include "estabilis.annotations" $ | nindent 4 }}
 spec:
   exceptions:
     {{- range $exception.policies }}

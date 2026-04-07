@@ -3,7 +3,10 @@ apiVersion: kyverno.io/v1
 kind: ClusterPolicy
 metadata:
   name: disallow-host-path
+  labels:
+    {{- include "estabilis.labels" . | nindent 4 }}
   annotations:
+    {{- include "estabilis.annotations" . | nindent 4 }}
     policies.kyverno.io/title: Disallow Host Path Volumes
     policies.kyverno.io/description: >-
       Prevents pods from mounting host filesystem paths via hostPath volumes.

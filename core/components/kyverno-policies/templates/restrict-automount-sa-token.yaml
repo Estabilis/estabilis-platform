@@ -3,7 +3,10 @@ apiVersion: kyverno.io/v1
 kind: ClusterPolicy
 metadata:
   name: restrict-automount-sa-token
+  labels:
+    {{- include "estabilis.labels" . | nindent 4 }}
   annotations:
+    {{- include "estabilis.annotations" . | nindent 4 }}
     policies.kyverno.io/title: Restrict Automount Service Account Token
     policies.kyverno.io/description: >-
       Prevents pods from automatically mounting the service account token.

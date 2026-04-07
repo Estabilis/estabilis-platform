@@ -3,7 +3,10 @@ apiVersion: kyverno.io/v1
 kind: ClusterPolicy
 metadata:
   name: restrict-volume-types
+  labels:
+    {{- include "estabilis.labels" . | nindent 4 }}
   annotations:
+    {{- include "estabilis.annotations" . | nindent 4 }}
     policies.kyverno.io/title: Restrict Volume Types
     policies.kyverno.io/description: >-
       Restricts pod volumes to safe types only: configMap, secret, emptyDir,

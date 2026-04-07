@@ -3,7 +3,10 @@ apiVersion: kyverno.io/v1
 kind: ClusterPolicy
 metadata:
   name: deny-ingress-platform-ns
+  labels:
+    {{- include "estabilis.labels" . | nindent 4 }}
   annotations:
+    {{- include "estabilis.annotations" . | nindent 4 }}
     policies.kyverno.io/title: Deny Ingress in Platform Namespaces
     policies.kyverno.io/description: >-
       Prevents creating Ingress resources in platform namespaces to avoid
