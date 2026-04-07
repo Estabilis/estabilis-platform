@@ -26,11 +26,16 @@ spec:
     - "https://cloudnative-pg.github.io/charts"
     - "https://vmware-tanzu.github.io/helm-charts"
     - "https://prometheus-community.github.io/helm-charts"
-    {{- /* Platform add-on repos: must match the repoURL used in platform-addons.yaml.
-           ArgoCD OCI repos are host-only (no path component). */ -}}
+    {{- /*
+    Platform add-on repos: must match the repoURL emitted by
+    platform-addons.yaml. ArgoCD 3.x requires OCI Helm repoURL WITHOUT
+    the `oci://` prefix, and the chart path (e.g. `charts`) is part of
+    the repoURL, not the chart field. See the upstream docs:
+    https://argo-cd.readthedocs.io/en/stable/user-guide/helm/#helm-chart-repositories
+    */ -}}
     {{- $acrOciRepo := "" -}}
     {{- if .Values.global.acrLoginServer }}
-    {{- $acrOciRepo = printf "oci://%s" .Values.global.acrLoginServer }}
+    {{- $acrOciRepo = printf "%s/charts" .Values.global.acrLoginServer }}
     {{- end }}
     {{- $addonRepos := dict }}
     {{- range $name, $addon := .Values.platformAddons }}
