@@ -8,8 +8,7 @@ kind: NetworkPolicy
 metadata:
   name: allow-grafana
   namespace: grafana
-  labels:
-    {{- include "network-policies.labels" . | nindent 4 }}
+  {{- include "estabilis.metadata" . | nindent 2 }}
 spec:
   podSelector: {}
   policyTypes:
@@ -59,8 +58,7 @@ kind: NetworkPolicy
 metadata:
   name: allow-argocd
   namespace: argocd
-  labels:
-    {{- include "network-policies.labels" . | nindent 4 }}
+  {{- include "estabilis.metadata" . | nindent 2 }}
 spec:
   podSelector: {}
   policyTypes:
@@ -82,8 +80,7 @@ kind: NetworkPolicy
 metadata:
   name: allow-cert-manager
   namespace: cert-manager
-  labels:
-    {{- include "network-policies.labels" . | nindent 4 }}
+  {{- include "estabilis.metadata" . | nindent 2 }}
 spec:
   podSelector: {}
   policyTypes:
@@ -111,8 +108,7 @@ kind: NetworkPolicy
 metadata:
   name: allow-external-secrets
   namespace: external-secrets
-  labels:
-    {{- include "network-policies.labels" . | nindent 4 }}
+  {{- include "estabilis.metadata" . | nindent 2 }}
 spec:
   podSelector: {}
   policyTypes:
@@ -144,8 +140,7 @@ kind: NetworkPolicy
 metadata:
   name: allow-external-dns
   namespace: external-dns
-  labels:
-    {{- include "network-policies.labels" . | nindent 4 }}
+  {{- include "estabilis.metadata" . | nindent 2 }}
 spec:
   podSelector: {}
   policyTypes:
@@ -167,8 +162,7 @@ kind: NetworkPolicy
 metadata:
   name: allow-cnpg-system
   namespace: cnpg-system
-  labels:
-    {{- include "network-policies.labels" . | nindent 4 }}
+  {{- include "estabilis.metadata" . | nindent 2 }}
 spec:
   podSelector: {}
   policyTypes:
@@ -210,8 +204,7 @@ kind: NetworkPolicy
 metadata:
   name: allow-kyverno
   namespace: kyverno
-  labels:
-    {{- include "network-policies.labels" . | nindent 4 }}
+  {{- include "estabilis.metadata" . | nindent 2 }}
 spec:
   podSelector: {}
   policyTypes:
@@ -237,8 +230,7 @@ kind: NetworkPolicy
 metadata:
   name: allow-traefik
   namespace: traefik
-  labels:
-    {{- include "network-policies.labels" . | nindent 4 }}
+  {{- include "estabilis.metadata" . | nindent 2 }}
 spec:
   podSelector: {}
   policyTypes:
@@ -266,8 +258,7 @@ kind: NetworkPolicy
 metadata:
   name: allow-velero
   namespace: velero
-  labels:
-    {{- include "network-policies.labels" . | nindent 4 }}
+  {{- include "estabilis.metadata" . | nindent 2 }}
 spec:
   podSelector: {}
   policyTypes:
@@ -288,8 +279,7 @@ kind: NetworkPolicy
 metadata:
   name: allow-opencost
   namespace: opencost
-  labels:
-    {{- include "network-policies.labels" . | nindent 4 }}
+  {{- include "estabilis.metadata" . | nindent 2 }}
 spec:
   podSelector: {}
   policyTypes:
@@ -311,8 +301,7 @@ kind: NetworkPolicy
 metadata:
   name: allow-trivy-system
   namespace: trivy-system
-  labels:
-    {{- include "network-policies.labels" . | nindent 4 }}
+  {{- include "estabilis.metadata" . | nindent 2 }}
 spec:
   podSelector: {}
   policyTypes:
@@ -341,8 +330,7 @@ kind: NetworkPolicy
 metadata:
   name: allow-kube-state-metrics
   namespace: kube-state-metrics
-  labels:
-    {{- include "network-policies.labels" . | nindent 4 }}
+  {{- include "estabilis.metadata" . | nindent 2 }}
 spec:
   podSelector: {}
   policyTypes:
@@ -371,8 +359,7 @@ kind: NetworkPolicy
 metadata:
   name: allow-node-exporter
   namespace: node-exporter
-  labels:
-    {{- include "network-policies.labels" . | nindent 4 }}
+  {{- include "estabilis.metadata" . | nindent 2 }}
 spec:
   podSelector: {}
   policyTypes:
@@ -400,8 +387,7 @@ kind: NetworkPolicy
 metadata:
   name: allow-policy-reporter
   namespace: policy-reporter
-  labels:
-    {{- include "network-policies.labels" . | nindent 4 }}
+  {{- include "estabilis.metadata" . | nindent 2 }}
 spec:
   podSelector: {}
   policyTypes:

@@ -6,8 +6,7 @@ kind: LimitRange
 metadata:
   name: platform-limits-{{ $ns }}
   namespace: {{ $ns }}
-  labels:
-    {{- include "resource-quotas.labels" $ | nindent 4 }}
+  {{- include "estabilis.metadata" $ | nindent 2 }}
 spec:
   limits:
     - type: Container

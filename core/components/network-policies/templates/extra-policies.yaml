@@ -22,14 +22,15 @@ metadata:
   name: {{ $policy.name }}
   namespace: {{ $policy.namespace }}
   labels:
-    {{- include "network-policies.labels" $ | nindent 4 }}
+    {{- include "estabilis.labels" $ | nindent 4 }}
     {{- with $policy.labels }}
     {{- toYaml . | nindent 4 }}
     {{- end }}
-  {{- with $policy.annotations }}
   annotations:
+    {{- include "estabilis.annotations" $ | nindent 4 }}
+    {{- with $policy.annotations }}
     {{- toYaml . | nindent 4 }}
-  {{- end }}
+    {{- end }}
 spec:
   {{- toYaml $policy.spec | nindent 2 }}
 {{- end }}

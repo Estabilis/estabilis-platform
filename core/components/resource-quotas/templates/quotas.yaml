@@ -6,8 +6,7 @@ kind: ResourceQuota
 metadata:
   name: platform-quota-{{ $ns }}
   namespace: {{ $ns }}
-  labels:
-    {{- include "resource-quotas.labels" $ | nindent 4 }}
+  {{- include "estabilis.metadata" $ | nindent 2 }}
 spec:
   hard:
     {{- if $quota.hard }}

@@ -4,8 +4,7 @@ kind: ConfigMap
 metadata:
   name: hubble-ui-nginx
   namespace: kube-system
-  labels:
-    {{- include "hubble-ui.labels" . | nindent 4 }}
+  {{- include "estabilis.metadata" . | nindent 2 }}
 data:
   nginx.conf: |
     server {

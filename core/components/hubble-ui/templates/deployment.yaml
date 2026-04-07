@@ -4,8 +4,7 @@ kind: Deployment
 metadata:
   name: hubble-ui
   namespace: kube-system
-  labels:
-    {{- include "hubble-ui.labels" . | nindent 4 }}
+  {{- include "estabilis.metadata" . | nindent 2 }}
 spec:
   replicas: 1
   strategy:
@@ -16,7 +15,9 @@ spec:
   template:
     metadata:
       labels:
-        {{- include "hubble-ui.labels" . | nindent 8 }}
+        {{- /* pod template: labels only (no annotations) so chart-version */}}
+        {{- /* bumps don't restart pods on every release */}}
+        {{- include "estabilis.labels" . | nindent 8 }}
     spec:
       serviceAccountName: hubble-ui
       securityContext:
