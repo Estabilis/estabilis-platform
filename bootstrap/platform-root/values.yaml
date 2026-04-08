@@ -10,6 +10,23 @@ platformVersion: ""       # injected by terraform
 configRepoUrl: ""         # injected by terraform
 configRepoVersion: ""     # injected by terraform
 
+# ---------------------------------------------------------------------------
+# Supply-chain provenance — ADR 0005 Phase 2
+# ---------------------------------------------------------------------------
+# The four L1 annotations emitted onto managed namespaces (and, in a
+# follow-up Phase 2b, onto resources rendered by internal charts).
+#
+# Injected as helm.parameters by the CLI (`estabilis upstart` /
+# `estabilis promote`) at render time, sourced from
+# `scripts/generate-provenance-values.sh` in estabilis-platform-tools.
+# When any of the four is empty, the namespace helper skips rendering
+# the block (guarded by gitRevision). Pipelines that do not run the
+# wrapper script — or local helm template invocations without values —
+# produce manifests without provenance annotations, which is valid.
+#
+# Reference: estabilis-platform-tools/docs/adr/0005-supply-chain-provenance.md
+# ---------------------------------------------------------------------------
+
 # estabilis-platform-gitops — repo that owns workload bootstrap manifests.
 # See ADR 0001 (estabilis-platform-tools/docs/adr/0001-workload-bootstrap-strategy.md).
 # Default values below; downstream can override via overrides/platform-root/values.yaml.
@@ -17,6 +34,14 @@ platformGitopsRepoUrl: "https://github.com/Estabilis/estabilis-platform-gitops.g
 platformGitopsVersion: "v0.1.0"
 
 global:
+  # Provenance — injected at runtime by the CLI (see block above).
+  # Empty defaults mean "not populated"; the helper skips the block.
+  provenance:
+    gitRevision: ""
+    gitSource: ""
+    builtAt: ""
+    buildId: ""
+
   # Client configuration — injected by terraform from client tfvars
   provider: ""            # injected by terraform
   domain: ""              # injected by terraform (base domain)
