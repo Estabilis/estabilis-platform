@@ -158,7 +158,6 @@ metadata:
     app: myapp
     app.kubernetes.io/name: myapp
     app.kubernetes.io/managed-by: argocd
-    estabilis.io/team: engineering
   annotations:
     estabilis.io/owner: team-engineering
     estabilis.io/contact: eng@example.com
