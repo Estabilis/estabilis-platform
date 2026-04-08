@@ -241,11 +241,21 @@ spec:
     - from: []
   egress:
 {{ include "network-policies.dns-egress" . }}
-    # Backend routing to grafana namespace
-    - to:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: grafana
+    # Traefik is an ingress controller and needs broad egress:
+    # - Kubernetes API server (watches IngressRoute/Ingress/Middleware
+    #   CRDs, reads pod metadata for the OTel tracer)
+    # - Any backend service in any namespace (routing — the whole
+    #   point of an ingress controller)
+    # - External endpoints (ACME TLS-ALPN challenges, upstream
+    #   services behind an IngressRoute)
+    #
+    # Before this was added the policy only allowed DNS + the grafana
+    # namespace. On clusters with a NetworkPolicy-enforcing CNI
+    # (e.g. Cilium via ACNS), Traefik could not reach the Kubernetes
+    # API server and every informer timed out with
+    # "timed out waiting for controller caches to sync *v1.Ingress".
+    # Matches the `allow-velero`/`allow-opencost` pattern below.
+    - to: []
 {{- end }}
 ---
 # =============================================================================
