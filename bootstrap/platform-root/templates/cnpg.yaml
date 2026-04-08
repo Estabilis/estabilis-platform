@@ -54,6 +54,7 @@ spec:
         valueFiles:
           - $values/core/components/cnpg-cluster/values.yaml
         parameters:
+          {{- include "platform-root.provenanceParameters" $ | nindent 10 }}
           - name: global.storageAccountName
             value: "{{ .Values.global.cnpgStorageAccountName }}"
           - name: global.cnpgBackupContainerName

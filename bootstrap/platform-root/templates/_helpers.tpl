@@ -102,6 +102,55 @@ ignoreMissingValueFiles: true
 {{- end }}
 {{- end -}}
 
+{{/*
+ADR 0005 Phase 2b — forwards global.provenance.* from platform-root's
+values.yaml into each child Application's Helm render. The internal
+charts pick these up through their own `estabilis.provenanceAnnotations`
+helper. Both helpers emit nothing when gitRevision is empty, so the
+enclosing block stays valid when the CLI has no git context.
+
+Two variants:
+
+- `provenanceParameters` — emits bare list items. Use inside a child
+  Application template that ALREADY has a `parameters:` block; append
+  the include at the end so the extra entries merge in cleanly.
+
+      parameters:
+        - name: foo
+          value: bar
+        {{- include "platform-root.provenanceParameters" $ | nindent 10 }}
+
+- `provenanceParametersBlock` — emits a complete `parameters:` key
+  wrapped in a guard so nothing is rendered when provenance is absent.
+  Use inside a child Application template that does NOT already have a
+  `parameters:` block.
+
+      helm:
+        valueFiles:
+          - ...
+        {{- include "platform-root.ignoreMissingValueFiles" $ | nindent 8 }}
+        {{- include "platform-root.provenanceParametersBlock" $ | nindent 8 }}
+*/}}
+{{- define "platform-root.provenanceParameters" -}}
+{{- if .Values.global.provenance.gitRevision }}
+- name: global.provenance.gitRevision
+  value: {{ .Values.global.provenance.gitRevision | quote }}
+- name: global.provenance.gitSource
+  value: {{ .Values.global.provenance.gitSource | quote }}
+- name: global.provenance.builtAt
+  value: {{ .Values.global.provenance.builtAt | quote }}
+- name: global.provenance.buildId
+  value: {{ .Values.global.provenance.buildId | quote }}
+{{- end }}
+{{- end -}}
+
+{{- define "platform-root.provenanceParametersBlock" -}}
+{{- if .Values.global.provenance.gitRevision }}
+parameters:
+  {{- include "platform-root.provenanceParameters" . | nindent 2 }}
+{{- end }}
+{{- end -}}
+
 {{- define "platform-root.managedNamespaceMetadataPrivileged" -}}
 managedNamespaceMetadata:
   labels:

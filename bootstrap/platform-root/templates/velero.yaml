@@ -75,6 +75,7 @@ spec:
     path: core/components/velero-config
     helm:
       parameters:
+        {{- include "platform-root.provenanceParameters" $ | nindent 8 }}
         - name: global.provider
           value: "{{ .Values.global.provider }}"
   destination:

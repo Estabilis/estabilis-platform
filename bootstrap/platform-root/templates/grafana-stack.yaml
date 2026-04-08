@@ -13,6 +13,11 @@ spec:
     repoURL: {{ .Values.platformRepoUrl }}
     targetRevision: {{ .Values.platformVersion }}
     path: core/components/grafana-db
+    {{- if .Values.global.provenance.gitRevision }}
+    helm:
+      parameters:
+        {{- include "platform-root.provenanceParameters" . | nindent 8 }}
+    {{- end }}
   destination:
     server: https://kubernetes.default.svc
     namespace: cnpg-system
@@ -333,6 +338,7 @@ spec:
           - $values/core/components/mimir-rules/values.yaml
           {{- include "platform-root.overrideValueFile" (dict "component" "mimir-rules" "root" $) | nindent 10 }}
         {{- include "platform-root.ignoreMissingValueFiles" $ | nindent 8 }}
+        {{- include "platform-root.provenanceParametersBlock" $ | nindent 8 }}
     - repoURL: {{ .Values.platformRepoUrl }}
       targetRevision: {{ .Values.platformVersion }}
       ref: values

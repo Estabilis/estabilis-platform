@@ -18,6 +18,7 @@ spec:
           - $values/core/components/network-policies/values.yaml
           {{- include "platform-root.overrideValueFile" (dict "component" "network-policies" "root" $) | nindent 10 }}
         {{- include "platform-root.ignoreMissingValueFiles" $ | nindent 8 }}
+        {{- include "platform-root.provenanceParametersBlock" $ | nindent 8 }}
     - repoURL: {{ .Values.platformRepoUrl }}
       targetRevision: {{ .Values.platformVersion }}
       ref: values

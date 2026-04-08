@@ -18,6 +18,7 @@ spec:
         valueFiles:
           - $values/core/components/external-dns-config/values.yaml
         parameters:
+          {{- include "platform-root.provenanceParameters" $ | nindent 10 }}
           - name: global.provider
             value: "{{ .Values.global.provider }}"
           - name: global.tenantId

@@ -17,6 +17,7 @@ spec:
           - $values/core/components/resource-quotas/values.yaml
           {{- include "platform-root.overrideValueFile" (dict "component" "resource-quotas" "root" $) | nindent 10 }}
         {{- include "platform-root.ignoreMissingValueFiles" $ | nindent 8 }}
+        {{- include "platform-root.provenanceParametersBlock" $ | nindent 8 }}
     - repoURL: {{ .Values.platformRepoUrl }}
       targetRevision: {{ .Values.platformVersion }}
       ref: values
