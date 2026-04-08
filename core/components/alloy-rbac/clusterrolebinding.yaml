@@ -3,7 +3,6 @@ kind: ClusterRoleBinding
 metadata:
   name: grafana-alloy
   labels:
-    estabilis.io/managed-by: platform
     estabilis.io/component: alloy
 roleRef:
   apiGroup: rbac.authorization.k8s.io

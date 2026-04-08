@@ -1,6 +1,5 @@
 global:
   commonLabels:
-    estabilis.io/managed-by: platform
     estabilis.io/component: cert-manager
 
 installCRDs: true

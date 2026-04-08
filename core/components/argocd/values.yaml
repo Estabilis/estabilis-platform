@@ -3,7 +3,6 @@
 # All configuration changes go here, not in Terraform.
 
 commonLabels:
-  estabilis.io/managed-by: platform
   estabilis.io/component: argocd
 
 # Disable redis-secret-init hook — the Redis password is managed by

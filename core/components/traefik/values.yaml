@@ -2,7 +2,6 @@
 # https://github.com/traefik/traefik-helm-chart
 
 commonLabels:
-  estabilis.io/managed-by: platform
   estabilis.io/component: traefik
 
 resources:

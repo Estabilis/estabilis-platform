@@ -1,5 +1,4 @@
 commonLabels:
-  estabilis.io/managed-by: platform
   estabilis.io/component: external-dns
 
 txtOwnerId: ""  # injected via ArgoCD helm.parameters (global.clusterName)

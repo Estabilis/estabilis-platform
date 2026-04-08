@@ -6,7 +6,6 @@
 # runs its own Alloy DaemonSet that collects profiles via eBPF.
 
 commonLabels:
-  estabilis.io/managed-by: platform
   estabilis.io/component: pyroscope
 
 # Disable the bundled Alloy agent — we use the platform-wide Alloy

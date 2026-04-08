@@ -2,7 +2,6 @@
 # https://velero.io
 
 commonLabels:
-  estabilis.io/managed-by: platform
   estabilis.io/component: velero
 
 configuration:

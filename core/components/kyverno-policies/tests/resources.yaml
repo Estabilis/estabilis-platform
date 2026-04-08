@@ -43,11 +43,11 @@ kind: Namespace
 metadata:
   name: app-myapp
   labels:
-    estabilis.io/managed-by: platform
+    estabilis.io/managed-by: client
+    estabilis.io/tier: application
+    estabilis.io/owner: team-engineering
     app.kubernetes.io/name: myapp
     app.kubernetes.io/managed-by: argocd
-    estabilis.io/team: engineering
-    estabilis.io/environment: production
 ---
 # App namespace without required labels (should fail validation)
 apiVersion: v1

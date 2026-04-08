@@ -3,7 +3,6 @@ kind: ClusterRole
 metadata:
   name: grafana-alloy
   labels:
-    estabilis.io/managed-by: platform
     estabilis.io/component: alloy
 rules:
   # Pod discovery + log collection (core Alloy functionality)

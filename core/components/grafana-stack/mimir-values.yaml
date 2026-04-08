@@ -2,7 +2,6 @@
 # Scale up in production via downstream override
 
 commonLabels:
-  estabilis.io/managed-by: platform
   estabilis.io/component: mimir
 
 containerSecurityContext:
