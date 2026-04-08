@@ -28,9 +28,17 @@ spec:
         # target workload cluster carry the correct platform-version
         # (distinct from workload-bootstrap-version, which comes from
         # the chart's own Chart.yaml inside estabilis-platform-gitops).
+        #
+        # Also forward global.provenance.* (ADR 0005 Phase 2b) so the
+        # workload-bootstrap chart and every workload-components chart
+        # it renders (via nested ApplicationSets) inherit the L1
+        # supply-chain annotations from the pipeline that invoked the
+        # hub ArgoCD — without this, workload resources would render
+        # with empty provenance defaults even when the hub has them set.
         parameters:
           - name: platformVersion
             value: {{ .Values.platformVersion | quote }}
+          {{- include "platform-root.provenanceParameters" $ | nindent 10 }}
         valueFiles:
           - values.yaml
           {{- include "platform-root.overrideValueFile" (dict "component" "workload-bootstrap" "root" $) | nindent 10 }}
