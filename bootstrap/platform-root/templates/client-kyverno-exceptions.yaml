@@ -1,0 +1,46 @@
+{{- /*
+  Client-authored Kyverno PolicyExceptions for the hub cluster.
+
+  Reads raw PolicyException manifests from the client's gitops repo at
+  platforms/{deploymentId}/policies/exceptions/. Only active when
+  clientGitopsRepoUrl AND deploymentId are set.
+
+  Separate Application from kyverno-exceptions because ArgoCD cannot
+  mix helm + directory source types in a single multi-source Application.
+
+  Sync-wave 4 (same as kyverno-exceptions — no ordering dependency
+  between platform and client exceptions).
+*/ -}}
+{{- if and .Values.clientGitopsRepoUrl .Values.deploymentId }}
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: client-kyverno-exceptions
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "4"
+spec:
+  project: platform
+  source:
+    repoURL: {{ .Values.clientGitopsRepoUrl }}
+    targetRevision: {{ .Values.clientGitopsRepoVersion | default "HEAD" }}
+    path: platforms/{{ .Values.deploymentId }}/policies/exceptions
+    directory:
+      recurse: true
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kyverno
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    retry:
+      limit: 10
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 3m
+    syncOptions:
+      - ServerSideApply=true
+      - CreateNamespace=false
+{{- end }}
