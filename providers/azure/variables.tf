@@ -835,3 +835,13 @@ variable "extra_tags" {
   type        = map(string)
   default     = {}
 }
+
+# ---------------------------------------------------------------------------
+# Shared Hub Key Vault (cross-deployment secret sharing)
+# ---------------------------------------------------------------------------
+
+variable "shared_hub_kv_enabled" {
+  description = "Create a shared RG with a Key Vault for hub connection values consumed by workload clusters. Required when workload clusters use data sources instead of manual tfvars."
+  type        = bool
+  default     = true
+}

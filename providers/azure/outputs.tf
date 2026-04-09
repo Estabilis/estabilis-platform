@@ -121,3 +121,15 @@ output "nat_gateway_public_ip" {
   description = "Static outbound IP address (NAT Gateway). Use this for external allowlists."
   value       = var.nat_gateway_enabled ? azurerm_public_ip.nat_gateway[0].ip_address : null
 }
+
+# --- Shared Hub Key Vault ---
+
+output "shared_resource_group_name" {
+  description = "Name of the shared RG that persists across platform teardowns. Used by workload clusters to locate the hub Key Vault."
+  value       = var.shared_hub_kv_enabled ? azurerm_resource_group.shared[0].name : null
+}
+
+output "hub_key_vault_name" {
+  description = "Name of the Key Vault containing hub connection values for workload clusters."
+  value       = var.shared_hub_kv_enabled ? azurerm_key_vault.hub[0].name : null
+}
