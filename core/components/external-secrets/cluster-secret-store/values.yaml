@@ -1,3 +1,0 @@
-# Values injected via ArgoCD helm.parameters from platform-root
-vaultUrl: ""
-tenantId: ""

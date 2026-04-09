@@ -59,12 +59,16 @@ metadata:
 spec:
   project: platform
   sources:
-    - repoURL: {{ .Values.platformRepoUrl }}
-      targetRevision: {{ .Values.platformVersion }}
-      path: core/components/cert-manager-config
+    - repoURL: {{ .Values.platformGitopsRepoUrl }}
+      targetRevision: {{ .Values.platformGitopsVersion }}
+      path: components/cert-manager-config
       helm:
         valueFiles:
-          - $values/core/components/cert-manager-config/values.yaml
+          - $values/components/cert-manager-config/values.yaml
+          - $values/values/platform/cert-manager-config.yaml
+          {{- include "platform-root.overrideValueFile" (dict "component" "cert-manager-config" "root" $) | nindent 10 }}
+          {{- include "platform-root.gitopsValueFile" (dict "component" "cert-manager-config" "root" $) | nindent 10 }}
+        ignoreMissingValueFiles: true
         parameters:
           {{- include "platform-root.provenanceParameters" $ | nindent 10 }}
           - name: global.provider
@@ -83,9 +87,11 @@ spec:
           - name: identity.certManager.clientId
             value: "{{ .Values.identity.certManager.clientId }}"
           {{- end }}
-    - repoURL: {{ .Values.platformRepoUrl }}
-      targetRevision: {{ .Values.platformVersion }}
+    - repoURL: {{ .Values.platformGitopsRepoUrl }}
+      targetRevision: {{ .Values.platformGitopsVersion }}
       ref: values
+    {{- include "platform-root.overrideSource" . | nindent 4 }}
+    {{- include "platform-root.gitopsSource" . | nindent 4 }}
   destination:
     server: https://kubernetes.default.svc
     namespace: cert-manager
