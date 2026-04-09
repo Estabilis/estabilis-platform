@@ -147,3 +147,15 @@ platformAddons: {}
 # Each entry creates an ArgoCD Application that references the client's
 # downstream repo. The client controls the path and content.
 customApps: {}
+
+# ---------------------------------------------------------------------------
+# Client GitOps repo (ADR 0008 Tier 3 — per-client override source)
+# ---------------------------------------------------------------------------
+# When set, each Application gains a $gitops source pointing at the
+# client's gitops repo. Override path convention:
+#   $gitops/platforms/{deploymentId}/overrides/{component}/values.yaml
+#
+# Set by the CLI at render time (same mechanism as global.provenance.*).
+clientGitopsRepoUrl: ""
+clientGitopsRepoVersion: ""
+deploymentId: ""

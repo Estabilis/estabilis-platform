@@ -186,6 +186,26 @@ Patterns:
   prefix:    env-app.domain       (prod: app.domain)
   suffix:    app-env.domain       (prod: app.domain)
 */}}
+{{/*
+Client GitOps override helpers (ADR 0008 Tier 3).
+Adds a $gitops source pointing at the client's gitops repo with
+per-platform override paths scoped by deploymentId.
+*/}}
+
+{{- define "platform-root.gitopsSource" -}}
+{{- if and .Values.clientGitopsRepoUrl .Values.deploymentId }}
+- repoURL: {{ .Values.clientGitopsRepoUrl }}
+  targetRevision: {{ .Values.clientGitopsRepoVersion | default "HEAD" }}
+  ref: gitops
+{{- end }}
+{{- end -}}
+
+{{- define "platform-root.gitopsValueFile" -}}
+{{- if and .root.Values.clientGitopsRepoUrl .root.Values.deploymentId }}
+- $gitops/platforms/{{ .root.Values.deploymentId }}/overrides/{{ .component }}/values.yaml
+{{- end }}
+{{- end -}}
+
 {{- define "estabilis.host" -}}
 {{- $app := .app -}}
 {{- $g := .global -}}

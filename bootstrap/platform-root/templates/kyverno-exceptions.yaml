@@ -17,12 +17,14 @@ spec:
           - $values/components/kyverno-exceptions/values.yaml
           - $values/values/platform/kyverno-exceptions.yaml
           {{- include "platform-root.overrideValueFile" (dict "component" "kyverno-exceptions" "root" $) | nindent 10 }}
-        {{- include "platform-root.ignoreMissingValueFiles" $ | nindent 8 }}
+          {{- include "platform-root.gitopsValueFile" (dict "component" "kyverno-exceptions" "root" $) | nindent 10 }}
+        ignoreMissingValueFiles: true
         {{- include "platform-root.provenanceParametersBlock" $ | nindent 8 }}
     - repoURL: {{ .Values.platformGitopsRepoUrl }}
       targetRevision: {{ .Values.platformGitopsVersion }}
       ref: values
     {{- include "platform-root.overrideSource" . | nindent 4 }}
+    {{- include "platform-root.gitopsSource" . | nindent 4 }}
   destination:
     server: https://kubernetes.default.svc
     namespace: kyverno
