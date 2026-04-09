@@ -53,17 +53,18 @@ metadata:
 spec:
   project: platform
   sources:
-    - repoURL: {{ .Values.platformRepoUrl }}
-      targetRevision: {{ .Values.platformVersion }}
-      path: core/components/kyverno-policies
+    - repoURL: {{ .Values.platformGitopsRepoUrl }}
+      targetRevision: {{ .Values.platformGitopsVersion }}
+      path: components/kyverno-policies
       helm:
         valueFiles:
-          - $values/core/components/kyverno-policies/values.yaml
+          - $values/components/kyverno-policies/values.yaml
+          - $values/values/platform/kyverno-policies.yaml
           {{- include "platform-root.overrideValueFile" (dict "component" "kyverno-policies" "root" $) | nindent 10 }}
         {{- include "platform-root.ignoreMissingValueFiles" $ | nindent 8 }}
         {{- include "platform-root.provenanceParametersBlock" $ | nindent 8 }}
-    - repoURL: {{ .Values.platformRepoUrl }}
-      targetRevision: {{ .Values.platformVersion }}
+    - repoURL: {{ .Values.platformGitopsRepoUrl }}
+      targetRevision: {{ .Values.platformGitopsVersion }}
       ref: values
     {{- include "platform-root.overrideSource" . | nindent 4 }}
   destination:
