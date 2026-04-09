@@ -72,6 +72,14 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: kyverno
+  ignoreDifferences:
+    - group: kyverno.io
+      kind: ClusterPolicy
+      jqPathExpressions:
+        # Kyverno admission controller mutates ClusterPolicies after
+        # apply, injecting default fields not present in our manifests.
+        - .spec.rules[].skipBackgroundRequests
+        - .spec.rules[].validate.allowExistingViolations
   syncPolicy:
     retry:
       limit: 10
@@ -79,3 +87,6 @@ spec:
         duration: 10s
         factor: 2
         maxDuration: 3m
+    syncOptions:
+      - ServerSideApply=true
+      - RespectIgnoreDifferences=true
