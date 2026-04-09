@@ -22,8 +22,12 @@ resource "azurerm_resource_group" "shared" {
 # ---------------------------------------------------------------------------
 
 resource "azurerm_key_vault" "hub" {
-  count                      = var.shared_hub_kv_enabled ? 1 : 0
-  name                       = "kv-${var.name_prefix}-hub-${local.env_code}-${random_string.storage_suffix.result}"
+  count = var.shared_hub_kv_enabled ? 1 : 0
+  # Compact naming (no dashes between components) to stay within Azure's
+  # 24-char Key Vault name limit. The dashed form "kv-{prefix}-hub-{env}-{suffix}"
+  # exceeds 24 chars for most prefixes. Matches the storage account naming
+  # convention used elsewhere in the codebase (st{prefix}{env}obs{suffix}).
+  name                       = "kv${var.name_prefix}hub${local.env_code}${random_string.storage_suffix.result}"
   resource_group_name        = azurerm_resource_group.shared[0].name
   location                   = azurerm_resource_group.shared[0].location
   sku_name                   = "standard"
