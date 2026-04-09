@@ -8,7 +8,7 @@
 
 resource "azurerm_resource_group" "shared" {
   count    = var.shared_hub_kv_enabled ? 1 : 0
-  name     = "rg-${var.name_prefix}-shared-${var.location}"
+  name     = "rg-${var.name_prefix}-platform-hub-${var.location}"
   location = var.location
   tags     = local.tags
 
