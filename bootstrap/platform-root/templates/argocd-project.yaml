@@ -17,6 +17,9 @@ spec:
     {{- if and .Values.platformGitopsRepoUrl .Values.platformGitopsVersion }}
     - {{ .Values.platformGitopsRepoUrl | quote }}
     {{- end }}
+    {{- if .Values.clientGitopsRepoUrl }}
+    - {{ .Values.clientGitopsRepoUrl | quote }}
+    {{- end }}
     - "https://argoproj.github.io/argo-helm"
     - "https://charts.jetstack.io"
     - "https://kyverno.github.io/kyverno"
