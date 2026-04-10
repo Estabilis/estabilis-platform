@@ -165,6 +165,8 @@ spec:
     - server: "*"
       namespace: node-exporter
     - server: "*"
+      namespace: kube-system
+    - server: "*"
       namespace: default
   clusterResourceWhitelist:
     - group: "*"
@@ -173,6 +175,8 @@ spec:
       kind: ClusterRole
     - group: "*"
       kind: ClusterRoleBinding
+    - group: apiextensions.k8s.io
+      kind: CustomResourceDefinition
     - group: kyverno.io
       kind: ClusterPolicy
     - group: kyverno.io
