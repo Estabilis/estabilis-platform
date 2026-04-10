@@ -121,6 +121,108 @@ spec:
       kind: VolumeSnapshotClass
     - group: policy
       kind: PodDisruptionBudget
+---
+# Workload-baseline project — for platform baseline components deployed
+# to workload clusters via the workload-bootstrap ApplicationSets.
+# Permits all workload cluster destinations + baseline namespaces.
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: workload-baseline
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  description: Platform baseline components on workload clusters
+  sourceRepos:
+    - {{ .Values.platformRepoUrl | quote }}
+    {{- if and .Values.platformGitopsRepoUrl .Values.platformGitopsVersion }}
+    - {{ .Values.platformGitopsRepoUrl | quote }}
+    {{- end }}
+    {{- if and .Values.configRepoUrl .Values.configRepoVersion }}
+    - {{ .Values.configRepoUrl | quote }}
+    {{- end }}
+    {{- if .Values.clientGitopsRepoUrl }}
+    - {{ .Values.clientGitopsRepoUrl | quote }}
+    {{- end }}
+    - "https://charts.jetstack.io"
+    - "https://kyverno.github.io/kyverno"
+    - "https://charts.external-secrets.io"
+    - "https://prometheus-community.github.io/helm-charts"
+  destinations:
+    # Hub (workload-bootstrap + ApplicationSets live here)
+    - server: https://kubernetes.default.svc
+      namespace: argocd
+    # Workload clusters — all baseline namespaces
+    - server: "*"
+      namespace: kyverno
+    - server: "*"
+      namespace: cert-manager
+    - server: "*"
+      namespace: external-secrets
+    - server: "*"
+      namespace: kube-state-metrics
+    - server: "*"
+      namespace: node-exporter
+    - server: "*"
+      namespace: default
+  clusterResourceWhitelist:
+    - group: "*"
+      kind: Namespace
+    - group: "*"
+      kind: ClusterRole
+    - group: "*"
+      kind: ClusterRoleBinding
+    - group: kyverno.io
+      kind: ClusterPolicy
+    - group: kyverno.io
+      kind: PolicyException
+    - group: admissionregistration.k8s.io
+      kind: "*"
+    - group: cert-manager.io
+      kind: ClusterIssuer
+    - group: external-secrets.io
+      kind: ClusterSecretStore
+    - group: networking.k8s.io
+      kind: "*"
+    - group: policy
+      kind: PodDisruptionBudget
+---
+# Client-infra project — for client-managed infrastructure components
+# (e.g. Kong, Envoy Gateway) deployed to workload clusters via the
+# client-apps ApplicationSet in workload-bootstrap.
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: client-infra
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  description: Client-managed infrastructure on workload clusters
+  sourceRepos:
+    {{- if .Values.clientGitopsRepoUrl }}
+    - {{ .Values.clientGitopsRepoUrl | quote }}
+    {{- end }}
+    - "https://charts.konghq.com"
+    - "*"
+  destinations:
+    # Hub (client-apps wrapper Applications live here)
+    - server: https://kubernetes.default.svc
+      namespace: argocd
+    # Workload clusters — client can deploy to any namespace
+    - server: "*"
+      namespace: "*"
+  clusterResourceWhitelist:
+    - group: "*"
+      kind: Namespace
+    - group: networking.k8s.io
+      kind: "*"
+    - group: gateway.networking.k8s.io
+      kind: "*"
+  namespaceResourceWhitelist:
+    - group: "*"
+      kind: "*"
 {{- if and .Values.configRepoUrl .Values.configRepoVersion }}
 ---
 # Applications project — for client custom apps in app-* namespaces
