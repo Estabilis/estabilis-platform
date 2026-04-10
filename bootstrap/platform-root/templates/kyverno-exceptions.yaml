@@ -28,6 +28,12 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: kyverno
+  ignoreDifferences:
+    - jqPathExpressions:
+        - .metadata.annotations["estabilis.io/built-at"]
+        - .metadata.annotations["estabilis.io/build-id"]
+        - .metadata.annotations["estabilis.io/git-revision"]
+        - .metadata.annotations["estabilis.io/git-source"]
   syncPolicy:
     retry:
       limit: 10
@@ -37,3 +43,4 @@ spec:
         maxDuration: 3m
     syncOptions:
       - ServerSideApply=true
+      - RespectIgnoreDifferences=true
