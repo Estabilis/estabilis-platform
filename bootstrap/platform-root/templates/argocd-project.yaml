@@ -153,21 +153,11 @@ spec:
     # Hub (workload-bootstrap + ApplicationSets live here)
     - server: https://kubernetes.default.svc
       namespace: argocd
-    # Workload clusters — all baseline namespaces
+    # Workload clusters — permit all namespaces because baseline
+    # components (resource-quotas, network-policies) manage resources
+    # across every namespace including client-managed ones (kong, etc.)
     - server: "*"
-      namespace: kyverno
-    - server: "*"
-      namespace: cert-manager
-    - server: "*"
-      namespace: external-secrets
-    - server: "*"
-      namespace: kube-state-metrics
-    - server: "*"
-      namespace: node-exporter
-    - server: "*"
-      namespace: kube-system
-    - server: "*"
-      namespace: default
+      namespace: "*"
   clusterResourceWhitelist:
     - group: "*"
       kind: Namespace
