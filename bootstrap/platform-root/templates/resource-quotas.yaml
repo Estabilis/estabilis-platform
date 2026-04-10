@@ -28,12 +28,6 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: default
-  ignoreDifferences:
-    - jqPathExpressions:
-        - .metadata.annotations["estabilis.io/built-at"]
-        - .metadata.annotations["estabilis.io/build-id"]
-        - .metadata.annotations["estabilis.io/git-revision"]
-        - .metadata.annotations["estabilis.io/git-source"]
   syncPolicy:
     automated:
       prune: true
@@ -45,4 +39,4 @@ spec:
         factor: 2
         maxDuration: 3m
     syncOptions:
-      - RespectIgnoreDifferences=true
+      - ServerSideApply=true

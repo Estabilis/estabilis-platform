@@ -35,6 +35,12 @@ configs:
     resource.customizations.ignoreDifferences.all: |
       jqPathExpressions:
         - .metadata.labels."estabilis.io/managed-by"
+        # ADR 0005 L1 provenance — temporal annotations that change on
+        # every promote. Ignored globally to prevent cosmetic OutOfSync.
+        - .metadata.annotations."estabilis.io/built-at"
+        - .metadata.annotations."estabilis.io/build-id"
+        - .metadata.annotations."estabilis.io/git-revision"
+        - .metadata.annotations."estabilis.io/git-source"
     resource.customizations.health.postgresql.cnpg.io_Cluster: |
       hs = {}
       if obj.status == nil or obj.status.phase == nil then
