@@ -188,7 +188,7 @@ spec:
 apiVersion: argoproj.io/v1alpha1
 kind: AppProject
 metadata:
-  name: client-infra
+  name: workload-infra
   namespace: argocd
   annotations:
     argocd.argoproj.io/sync-wave: "-1"
