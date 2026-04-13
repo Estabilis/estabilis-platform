@@ -85,15 +85,23 @@ variable "platform_version" {
 }
 
 variable "config_repo_url" {
-  description = "Git repository URL for client-specific value overrides. Leave empty to skip."
+  description = "Git repository URL for client-specific value overrides (downstream config repo)."
   type        = string
-  default     = ""
+
+  validation {
+    condition     = length(var.config_repo_url) > 0
+    error_message = "config_repo_url is required. Set it to the downstream config repo URL."
+  }
 }
 
 variable "config_repo_version" {
-  description = "Git revision (branch, tag, or SHA) for the config repository. Required if config_repo_url is set."
+  description = "Git tag for the config repository (e.g., v1.0.0). Must be a pinned tag, not HEAD or a branch."
   type        = string
-  default     = ""
+
+  validation {
+    condition     = length(var.config_repo_version) > 0
+    error_message = "config_repo_version is required. Set it to the downstream config repo git tag."
+  }
 }
 
 variable "config_repo_token" {
