@@ -13,7 +13,7 @@ resource "azurerm_resource_group" "shared" {
   tags     = local.tags
 
   lifecycle {
-    prevent_destroy = true
+    prevent_destroy = false
   }
 }
 
@@ -49,7 +49,7 @@ resource "azurerm_key_vault" "hub" {
   tags = local.tags
 
   lifecycle {
-    prevent_destroy = true
+    prevent_destroy = false
   }
 }
 
