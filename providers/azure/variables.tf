@@ -111,6 +111,13 @@ variable "config_repo_token" {
   sensitive   = true
 }
 
+variable "client_gitops_repo_token" {
+  description = "Git access token for the client GitOps repository. Pass via secrets.auto.tfvars. Required if clientGitopsRepoUrl (in overrides) points to a private repo."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
 variable "tenant_id" {
   description = "Azure AD tenant ID. Can also be set via ARM_TENANT_ID environment variable."
   type        = string

@@ -132,6 +132,15 @@ resource "azurerm_key_vault_secret" "config_repo_token" {
   depends_on = [azurerm_role_assignment.terraform_kv_officer]
 }
 
+resource "azurerm_key_vault_secret" "client_gitops_repo_token" {
+  count        = var.client_gitops_repo_token != "" ? 1 : 0
+  name         = "platform-client-gitops-repo-token"
+  value        = var.client_gitops_repo_token
+  key_vault_id = azurerm_key_vault.platform.id
+
+  depends_on = [azurerm_role_assignment.terraform_kv_officer]
+}
+
 resource "azurerm_key_vault_secret" "openai_api_key" {
   count        = var.openai_api_key != "" ? 1 : 0
   name         = "platform-openai-api-key"

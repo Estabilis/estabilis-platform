@@ -1,12 +1,16 @@
 # Config repo credentials — only created when configRepoUrl is set
 configRepoUrl: ""
 
+# Client GitOps repo credentials — only created when clientGitopsRepoUrl is set
+clientGitopsRepoUrl: ""
+
 # ACR OCI credentials — only created when acrLoginServer is set
 acrLoginServer: ""
 
 # Key Vault secret names — must exist in Key Vault before platform deploy
 kvSecrets:
   configRepoToken: "platform-config-repo-token"
+  clientGitopsRepoToken: "platform-client-gitops-repo-token"
   grafanaDbPassword: "platform-grafana-db-password"
   grafanaAdminPassword: "platform-grafana-admin-password"
   openaiApiKey: "platform-openai-api-key"
