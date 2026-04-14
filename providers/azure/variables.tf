@@ -124,6 +124,12 @@ variable "tenant_id" {
   sensitive   = true
 }
 
+variable "platform_outputs_enabled" {
+  description = "Write platform infrastructure values to a ConfigMap and Secret in the argocd namespace. Used by ArgoCD to configure platform components without the CLI."
+  type        = bool
+  default     = true
+}
+
 variable "subscription_id" {
   description = "Azure subscription ID. Can also be set via ARM_SUBSCRIPTION_ID environment variable."
   type        = string
