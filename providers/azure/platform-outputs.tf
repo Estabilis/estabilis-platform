@@ -125,3 +125,51 @@ resource "kubernetes_secret" "platform_infrastructure" {
     "identity.workloadOperator.clientId" = var.shared_hub_kv_enabled ? azurerm_user_assigned_identity.workload_operator[0].client_id : ""
   }
 }
+
+# ---------------------------------------------------------------------------
+# ArgoCD Cluster Secret — hub cluster (GitOps Bridge, ADR 0010)
+# ---------------------------------------------------------------------------
+# Distinct from ArgoCD's auto-managed `in-cluster` Secret. Registers the hub
+# as a separate cluster entry whose annotations carry Terraform-known values
+# that ApplicationSet-based addon templates consume via the `clusters`
+# generator. Annotations live in the reserved `estabilis.io/bridge.<name>`
+# namespace (registry maintained in ADR 0010 §Decision).
+#
+# Why a second cluster entry instead of annotating `in-cluster`: the auto
+# `in-cluster` Secret is synthesized by ArgoCD and would be overwritten on
+# upgrade. ArgoCD's docs recommend a dedicated Secret for this purpose and
+# treats both as distinct clusters pointing at the same server (selector
+# disambiguates).
+
+resource "kubernetes_secret" "hub_cluster" {
+  count = var.platform_outputs_enabled ? 1 : 0
+
+  metadata {
+    name      = "hub-cluster"
+    namespace = kubernetes_namespace.argocd[0].metadata[0].name
+    labels = {
+      "argocd.argoproj.io/secret-type" = "cluster"
+      # ADR 0003 S4 vocabulary
+      "estabilis.io/managed-by"      = "platform"
+      "estabilis.io/component"       = "cluster-registration"
+      "estabilis.io/cluster-type"    = "hub"
+      "app.kubernetes.io/managed-by" = "terraform"
+    }
+    annotations = {
+      # ADR 0010 v1 bridge registry
+      "estabilis.io/bridge.tenant-id"                   = var.tenant_id
+      "estabilis.io/bridge.subscription-id"             = var.subscription_id
+      "estabilis.io/bridge.hub-key-vault-name"          = var.shared_hub_kv_enabled ? azurerm_key_vault.hub[0].name : ""
+      "estabilis.io/bridge.hub-resource-group"          = var.shared_hub_kv_enabled ? azurerm_resource_group.shared[0].name : ""
+      "estabilis.io/bridge.workload-operator-client-id" = var.shared_hub_kv_enabled ? azurerm_user_assigned_identity.workload_operator[0].client_id : ""
+    }
+  }
+
+  data = {
+    name   = "hub"
+    server = "https://kubernetes.default.svc"
+    config = jsonencode({
+      tlsClientConfig = { insecure = false }
+    })
+  }
+}

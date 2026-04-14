@@ -1,5 +1,18 @@
-{{- /* Platform Add-ons — private components via OCI Helm charts */ -}}
-{{- /*
+{{- /* Platform Add-ons — private components via OCI Helm charts
+
+Two render paths coexist, chosen per addon via `$addon.bridge`:
+
+  1. Plain Application (default) — the common case. The addon receives
+     values from `.Values.platformAddons.<name>.values` merged into the
+     chart at render time. This is simple and 1:1.
+
+  2. ApplicationSet + clusters generator (`bridge: true`) — used when
+     the addon needs Terraform-known values at Helm render time
+     (managed identity client IDs, hub Key Vault name, etc.). Values
+     flow via annotations on the hub Cluster Secret written by Terraform
+     in `estabilis-platform/providers/<cloud>/platform-outputs.tf`.
+     See ADR 0010 for the full rationale and the annotation registry.
+
 ArgoCD OCI composition rules (v3.x) — per upstream docs:
 https://argo-cd.readthedocs.io/en/stable/user-guide/helm/#helm-chart-repositories
 
@@ -11,19 +24,82 @@ https://argo-cd.readthedocs.io/en/stable/user-guide/helm/#helm-chart-repositorie
 
 ACR convention used here: charts live under `<acr>/charts/<name>`, so the
 default repoURL is `<acr>/charts` and the chart field is the bare name.
-
-Historical note: a previous fix (commit 102da92) went the opposite
-direction with `oci://<acr>` + `charts/<name>`. That was WRONG — it was
-based on a sympton-level misdiagnosis and never actually worked
-end-to-end. The ArgoCD 3.x docs are explicit that oci:// must not be
-in repoURL. See Estabilis/estabilis-platform-tools#46 context and
-the investigation that corrected this.
 */ -}}
 {{- $acrLoginServer := .Values.global.acrLoginServer -}}
 {{- range $name, $addon := .Values.platformAddons }}
 {{- $repoURL := $addon.repoURL | default (printf "%s/charts" $acrLoginServer) }}
 {{- $chart := $addon.chart }}
 ---
+{{- if $addon.bridge }}
+{{- /* --- Bridge addon: ApplicationSet + clusters generator --- */}}
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: {{ $name }}
+  namespace: argocd
+  labels:
+    estabilis.io/managed-by: platform
+    estabilis.io/tier: addon
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - clusters:
+        selector:
+          matchLabels:
+            estabilis.io/cluster-type: hub
+  template:
+    metadata:
+      name: {{ `'{{ .name }}-` }}{{ $name }}{{ `'` }}
+      annotations:
+        argocd.argoproj.io/sync-wave: {{ $addon.syncWave | default "9" | quote }}
+      labels:
+        estabilis.io/managed-by: platform
+        estabilis.io/tier: addon
+    spec:
+      project: platform
+      source:
+        repoURL: {{ $repoURL }}
+        chart: {{ $chart }}
+        targetRevision: {{ $addon.targetRevision | quote }}
+        helm:
+          {{- if $addon.values }}
+          valuesObject:
+            {{- if and $acrLoginServer (not (index ($addon.values) "registry")) }}
+            registry: {{ printf "%s/estabilis" $acrLoginServer }}
+            {{- end }}
+            {{- $addon.values | toYaml | nindent 12 }}
+          {{- end }}
+          parameters:
+            {{- /* Per-addon bridge bindings — map Cluster Secret annotations
+                   (estabilis.io/bridge.<name>) to chart values. Keep this
+                   mapping explicit per addon; see ADR 0010 §Rejected
+                   alternatives for why a generic map is not used. */}}
+            {{- if eq $name "estabilis-workload-operator" }}
+            - name: hubTokenSync.clientId
+              value: {{ `'{{ index .metadata.annotations "estabilis.io/bridge.workload-operator-client-id" }}'` }}
+            - name: hubTokenSync.tenantId
+              value: {{ `'{{ index .metadata.annotations "estabilis.io/bridge.tenant-id" }}'` }}
+            - name: hubTokenSync.keyVaultName
+              value: {{ `'{{ index .metadata.annotations "estabilis.io/bridge.hub-key-vault-name" }}'` }}
+            {{- end }}
+      destination:
+        server: {{ `'{{ .server }}'` }}
+        namespace: {{ $addon.namespace | default "estabilis-system" }}
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        retry:
+          limit: 10
+          backoff:
+            duration: 10s
+            factor: 2
+            maxDuration: 3m
+        syncOptions:
+          - CreateNamespace=true
+{{- else }}
+{{- /* --- Plain addon: Application (existing path, unchanged) --- */}}
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -43,7 +119,6 @@ spec:
     {{- if $addon.values }}
     helm:
       valuesObject:
-        {{- /* Inject ACR registry into values if not explicitly set */ -}}
         {{- if and $acrLoginServer (not (index ($addon.values) "registry")) }}
         registry: {{ printf "%s/estabilis" $acrLoginServer }}
         {{- end }}
@@ -64,4 +139,5 @@ spec:
         maxDuration: 3m
     syncOptions:
       - CreateNamespace=true
+{{- end }}
 {{- end }}
