@@ -282,7 +282,6 @@ resource "azurerm_user_assigned_identity" "workload_operator" {
 resource "azurerm_federated_identity_credential" "workload_operator" {
   count                     = var.shared_hub_kv_enabled ? 1 : 0
   name                      = "fic-${local.base_name}-workload-operator"
-  resource_group_name       = azurerm_resource_group.platform.name
   user_assigned_identity_id = azurerm_user_assigned_identity.workload_operator[0].id
   audience                  = ["api://AzureADTokenExchange"]
   issuer                    = local.aks_oidc_issuer_url
