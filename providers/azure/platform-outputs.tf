@@ -46,6 +46,10 @@ resource "kubernetes_config_map" "platform_infrastructure" {
     "configRepoUrl"     = var.config_repo_url
     "configRepoVersion" = var.config_repo_version
 
+    # Client GitOps (structural — version lives in overrides YAML)
+    "clientGitopsRepoUrl" = var.client_gitops_repo_url
+    "deploymentId"        = var.deployment_id
+
     # Global
     "global.provider"         = "azure"
     "global.domain"           = var.domain

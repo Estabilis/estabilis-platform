@@ -111,6 +111,26 @@ variable "config_repo_token" {
   sensitive   = true
 }
 
+variable "client_gitops_repo_url" {
+  description = "Git repository URL for the client GitOps repo (apps, policies, workload overrides)."
+  type        = string
+
+  validation {
+    condition     = length(var.client_gitops_repo_url) > 0
+    error_message = "client_gitops_repo_url is required. Set it to the client GitOps repo URL."
+  }
+}
+
+variable "deployment_id" {
+  description = "Deployment identifier used as key in the client GitOps repo (e.g., platform-azure-eastus2-hml). Maps to platforms/{deployment_id}/ in the gitops repo."
+  type        = string
+
+  validation {
+    condition     = length(var.deployment_id) > 0
+    error_message = "deployment_id is required (e.g., platform-azure-eastus2-hml)."
+  }
+}
+
 variable "client_gitops_repo_token" {
   description = "Git access token for the client GitOps repository. Pass via secrets.auto.tfvars. Required if clientGitopsRepoUrl (in overrides) points to a private repo."
   type        = string
