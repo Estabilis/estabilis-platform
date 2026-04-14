@@ -80,6 +80,10 @@ resource "kubernetes_config_map" "platform_infrastructure" {
 
     # Cost
     "global.azureOfferId" = local.azure_offer_id
+
+    # Hub Key Vault (for workload-operator to publish hub-registrar-token)
+    "hubKeyVaultName"  = var.shared_hub_kv_enabled ? azurerm_key_vault.hub[0].name : ""
+    "hubResourceGroup" = var.shared_hub_kv_enabled ? azurerm_resource_group.shared[0].name : ""
   }
 }
 
@@ -116,5 +120,8 @@ resource "kubernetes_secret" "platform_infrastructure" {
     "identity.mimir.clientId"           = azurerm_user_assigned_identity.mimir.client_id
     "identity.cnpg.clientId"            = azurerm_user_assigned_identity.cnpg.client_id
     "identity.velero.clientId"          = azurerm_user_assigned_identity.velero.client_id
+
+    # Workload-operator (publishes hub-registrar-token to hub Key Vault)
+    "identity.workloadOperator.clientId" = var.shared_hub_kv_enabled ? azurerm_user_assigned_identity.workload_operator[0].client_id : ""
   }
 }

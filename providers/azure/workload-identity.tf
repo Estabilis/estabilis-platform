@@ -265,3 +265,33 @@ resource "azurerm_role_assignment" "opencost_custom_reader" {
   role_definition_id = azurerm_role_definition.opencost[0].role_definition_resource_id
   principal_id       = azuread_service_principal.opencost[0].object_id
 }
+
+# ========================== workload-operator (hub token sync) ============
+# Managed identity for the estabilis-workload-operator pod. Used to sync
+# the hub-registrar-token from the cluster to the hub Key Vault.
+# Only created when shared_hub_kv_enabled = true (operator can publish to hub KV).
+
+resource "azurerm_user_assigned_identity" "workload_operator" {
+  count               = var.shared_hub_kv_enabled ? 1 : 0
+  name                = "mi-${local.base_name}-workload-operator"
+  location            = azurerm_resource_group.platform.location
+  resource_group_name = azurerm_resource_group.platform.name
+  tags                = local.tags
+}
+
+resource "azurerm_federated_identity_credential" "workload_operator" {
+  count                     = var.shared_hub_kv_enabled ? 1 : 0
+  name                      = "fic-${local.base_name}-workload-operator"
+  resource_group_name       = azurerm_resource_group.platform.name
+  user_assigned_identity_id = azurerm_user_assigned_identity.workload_operator[0].id
+  audience                  = ["api://AzureADTokenExchange"]
+  issuer                    = local.aks_oidc_issuer_url
+  subject                   = "system:serviceaccount:estabilis-system:estabilis-workload-operator"
+}
+
+resource "azurerm_role_assignment" "workload_operator_hub_kv" {
+  count                = var.shared_hub_kv_enabled ? 1 : 0
+  scope                = azurerm_key_vault.hub[0].id
+  role_definition_name = "Key Vault Secrets Officer"
+  principal_id         = azurerm_user_assigned_identity.workload_operator[0].principal_id
+}
