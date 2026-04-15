@@ -159,3 +159,13 @@ customApps: {}
 clientGitopsRepoUrl: ""
 clientGitopsRepoVersion: ""
 deploymentId: ""
+
+# Scheduling policy per component (ADR 0012 — tracked in
+# Estabilis/estabilis-platform-tools#97). Empty by default — each
+# Application template uses its opinionated mode ("auto" for most,
+# "regular-only" for stateful: velero, tempo, loki-ingester, mimir-ingester).
+# Override per-component in the downstream overrides/platform-root/values.yaml:
+#   scheduling:
+#     argocd: regular-only
+#     velero: spot-only
+scheduling: {}
