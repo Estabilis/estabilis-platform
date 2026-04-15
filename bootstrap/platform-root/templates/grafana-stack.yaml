@@ -94,14 +94,13 @@ spec:
           {{- include "platform-root.overrideValueFile" (dict "component" "loki" "root" $) | nindent 10 }}
         {{- include "platform-root.ignoreMissingValueFiles" $ | nindent 8 }}
         valuesObject:
-          {{- /* Scheduling (ADR 0012 — issue #97) — loki-distributed uses per-component paths */}}
+          {{- /* Scheduling (ADR 0012 — issue #97) — loki-distributed per-component */}}
           {{- $mode := default "auto" (index .Values.scheduling "loki") }}
-          {{- $modeIngester := default "regular-only" (index .Values.scheduling "loki-ingester") }}
+          {{- $modeIngester := default "auto" (index .Values.scheduling "loki-ingester") }}
           {{- include "platform-root.schedulingValuesFor" (dict
                 "mode" $mode
                 "paths" (list "gateway" "distributor" "querier" "queryFrontend" "queryScheduler" "ruler" "compactor" "indexGateway")
              ) | nindent 10 }}
-          {{- /* ingester: default regular-only (in-memory WAL, eviction = data loss risk) */}}
           {{- include "platform-root.schedulingValuesFor" (dict
                 "mode" $modeIngester
                 "paths" (list "ingester")
@@ -162,12 +161,11 @@ spec:
         valuesObject:
           {{- /* Scheduling (ADR 0012 — issue #97) — mimir-distributed per-component */}}
           {{- $mode := default "auto" (index .Values.scheduling "mimir") }}
-          {{- $modeIngester := default "regular-only" (index .Values.scheduling "mimir-ingester") }}
+          {{- $modeIngester := default "auto" (index .Values.scheduling "mimir-ingester") }}
           {{- include "platform-root.schedulingValuesFor" (dict
                 "mode" $mode
                 "paths" (list "gateway" "distributor" "querier" "query_frontend" "query_scheduler" "ruler" "compactor" "store_gateway" "alertmanager" "overrides_exporter")
              ) | nindent 10 }}
-          {{- /* ingester: default regular-only (in-memory state, eviction expensive) */}}
           {{- include "platform-root.schedulingValuesFor" (dict
                 "mode" $modeIngester
                 "paths" (list "ingester")
@@ -296,9 +294,9 @@ spec:
           {{- include "platform-root.overrideValueFile" (dict "component" "tempo" "root" $) | nindent 10 }}
         {{- include "platform-root.ignoreMissingValueFiles" $ | nindent 8 }}
         valuesObject:
-          {{- /* Scheduling (ADR 0012 — issue #97) — tempo single binary */}}
+          {{- /* Scheduling (ADR 0012 — issue #97) */}}
           {{- include "platform-root.schedulingValuesTopLevel" (dict
-                "mode" (default "regular-only" (index .Values.scheduling "tempo"))
+                "mode" (default "auto" (index .Values.scheduling "tempo"))
              ) | nindent 10 }}
     - repoURL: {{ .Values.platformRepoUrl }}
       targetRevision: {{ .Values.platformVersion }}
