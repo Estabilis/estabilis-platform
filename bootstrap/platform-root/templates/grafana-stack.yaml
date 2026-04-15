@@ -48,6 +48,11 @@ spec:
           - $values/core/components/grafana-stack/grafana-values-{{ .Values.global.provider }}.yaml
           {{- include "platform-root.overrideValueFile" (dict "component" "grafana" "root" $) | nindent 10 }}
         {{- include "platform-root.ignoreMissingValueFiles" $ | nindent 8 }}
+        valuesObject:
+          {{- /* Scheduling (ADR 0012 — issue #97) */}}
+          {{- include "platform-root.schedulingValuesTopLevel" (dict
+                "mode" (default "auto" (index .Values.scheduling "grafana"))
+             ) | nindent 10 }}
     - repoURL: {{ .Values.platformRepoUrl }}
       targetRevision: {{ .Values.platformVersion }}
       ref: values
@@ -88,6 +93,19 @@ spec:
           - $values/core/components/grafana-stack/loki-values-{{ .Values.global.provider }}.yaml
           {{- include "platform-root.overrideValueFile" (dict "component" "loki" "root" $) | nindent 10 }}
         {{- include "platform-root.ignoreMissingValueFiles" $ | nindent 8 }}
+        valuesObject:
+          {{- /* Scheduling (ADR 0012 — issue #97) — loki-distributed uses per-component paths */}}
+          {{- $mode := default "auto" (index .Values.scheduling "loki") }}
+          {{- $modeIngester := default "regular-only" (index .Values.scheduling "loki-ingester") }}
+          {{- include "platform-root.schedulingValuesFor" (dict
+                "mode" $mode
+                "paths" (list "gateway" "distributor" "querier" "queryFrontend" "queryScheduler" "ruler" "compactor" "indexGateway")
+             ) | nindent 10 }}
+          {{- /* ingester: default regular-only (in-memory WAL, eviction = data loss risk) */}}
+          {{- include "platform-root.schedulingValuesFor" (dict
+                "mode" $modeIngester
+                "paths" (list "ingester")
+             ) | nindent 10 }}
         parameters:
           {{- if eq .Values.global.provider "azure" }}
           - name: loki.storage.azure.accountName
@@ -141,6 +159,19 @@ spec:
           - $values/core/components/grafana-stack/mimir-values-{{ .Values.global.provider }}.yaml
           {{- include "platform-root.overrideValueFile" (dict "component" "mimir" "root" $) | nindent 10 }}
         {{- include "platform-root.ignoreMissingValueFiles" $ | nindent 8 }}
+        valuesObject:
+          {{- /* Scheduling (ADR 0012 — issue #97) — mimir-distributed per-component */}}
+          {{- $mode := default "auto" (index .Values.scheduling "mimir") }}
+          {{- $modeIngester := default "regular-only" (index .Values.scheduling "mimir-ingester") }}
+          {{- include "platform-root.schedulingValuesFor" (dict
+                "mode" $mode
+                "paths" (list "gateway" "distributor" "querier" "query_frontend" "query_scheduler" "ruler" "compactor" "store_gateway" "alertmanager" "overrides_exporter")
+             ) | nindent 10 }}
+          {{- /* ingester: default regular-only (in-memory state, eviction expensive) */}}
+          {{- include "platform-root.schedulingValuesFor" (dict
+                "mode" $modeIngester
+                "paths" (list "ingester")
+             ) | nindent 10 }}
         parameters:
           {{- if eq .Values.global.provider "azure" }}
           - name: mimir.structuredConfig.common.storage.azure.account_name
@@ -218,6 +249,12 @@ spec:
           - $values/core/components/grafana-stack/alloy-values-{{ .Values.global.provider }}.yaml
           {{- include "platform-root.overrideValueFile" (dict "component" "alloy" "root" $) | nindent 10 }}
         {{- include "platform-root.ignoreMissingValueFiles" $ | nindent 8 }}
+        valuesObject:
+          {{- /* Scheduling (ADR 0012 — issue #97) — alloy is a DaemonSet, tolerations only */}}
+          {{- include "platform-root.schedulingValuesFor" (dict
+                "mode" (default "auto" (index .Values.scheduling "alloy"))
+                "paths" (list "alloy")
+             ) | nindent 10 }}
     - repoURL: {{ .Values.platformRepoUrl }}
       targetRevision: {{ .Values.platformVersion }}
       ref: values
@@ -258,6 +295,11 @@ spec:
           - $values/core/components/grafana-stack/tempo-values-{{ .Values.global.provider }}.yaml
           {{- include "platform-root.overrideValueFile" (dict "component" "tempo" "root" $) | nindent 10 }}
         {{- include "platform-root.ignoreMissingValueFiles" $ | nindent 8 }}
+        valuesObject:
+          {{- /* Scheduling (ADR 0012 — issue #97) — tempo single binary */}}
+          {{- include "platform-root.schedulingValuesTopLevel" (dict
+                "mode" (default "regular-only" (index .Values.scheduling "tempo"))
+             ) | nindent 10 }}
     - repoURL: {{ .Values.platformRepoUrl }}
       targetRevision: {{ .Values.platformVersion }}
       ref: values
@@ -298,6 +340,11 @@ spec:
           - $values/core/components/grafana-stack/pyroscope-values-{{ .Values.global.provider }}.yaml
           {{- include "platform-root.overrideValueFile" (dict "component" "pyroscope" "root" $) | nindent 10 }}
         {{- include "platform-root.ignoreMissingValueFiles" $ | nindent 8 }}
+        valuesObject:
+          {{- /* Scheduling (ADR 0012 — issue #97) */}}
+          {{- include "platform-root.schedulingValuesTopLevel" (dict
+                "mode" (default "auto" (index .Values.scheduling "pyroscope"))
+             ) | nindent 10 }}
     - repoURL: {{ .Values.platformRepoUrl }}
       targetRevision: {{ .Values.platformVersion }}
       ref: values

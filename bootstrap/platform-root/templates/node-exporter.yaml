@@ -20,6 +20,9 @@ spec:
           {{- include "platform-root.overrideValueFile" (dict "component" "node-exporter" "root" $) | nindent 10 }}
           {{- include "platform-root.gitopsValueFile" (dict "component" "node-exporter" "root" $) | nindent 10 }}
         ignoreMissingValueFiles: true
+        valuesObject:
+          {{- /* Scheduling (ADR 0012 — issue #97). DaemonSet: tolerations only. */}}
+          {{- include "platform-root.schedulingTolerationsOnly" . | nindent 10 }}
         {{- include "platform-root.provenanceParametersBlock" $ | nindent 8 }}
     - repoURL: {{ .Values.platformGitopsRepoUrl }}
       targetRevision: {{ .Values.platformGitopsVersion }}

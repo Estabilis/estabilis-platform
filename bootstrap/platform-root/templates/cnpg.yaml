@@ -17,6 +17,11 @@ spec:
           - $values/core/components/cnpg/values-{{ .Values.global.provider }}.yaml
           {{- include "platform-root.overrideValueFile" (dict "component" "cnpg" "root" $) | nindent 10 }}
         {{- include "platform-root.ignoreMissingValueFiles" $ | nindent 8 }}
+        valuesObject:
+          {{- /* Scheduling (ADR 0012 — issue #97) — cnpg-operator chart Deployment */}}
+          {{- include "platform-root.schedulingValuesTopLevel" (dict
+                "mode" (default "auto" (index .Values.scheduling "cnpg"))
+             ) | nindent 10 }}
         parameters:
           - name: crds.create
             value: "false"

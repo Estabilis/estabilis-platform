@@ -17,6 +17,12 @@ spec:
           - $values/core/components/argocd/values.yaml
           {{- include "platform-root.overrideValueFile" (dict "component" "argocd" "root" $) | nindent 10 }}
         {{- include "platform-root.ignoreMissingValueFiles" $ | nindent 8 }}
+        valuesObject:
+          {{- /* Scheduling (ADR 0012 — issue #97). Default: auto. */}}
+          {{- include "platform-root.schedulingValuesFor" (dict
+                "mode" (default "auto" (index .Values.scheduling "argocd"))
+                "paths" (list "controller" "server" "repoServer" "applicationSet" "notifications" "dex" "redis")
+             ) | nindent 10 }}
     - repoURL: {{ .Values.platformRepoUrl }}
       targetRevision: {{ .Values.platformVersion }}
       ref: values

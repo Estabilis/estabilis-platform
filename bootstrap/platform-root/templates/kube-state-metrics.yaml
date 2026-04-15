@@ -19,6 +19,11 @@ spec:
           {{- include "platform-root.overrideValueFile" (dict "component" "kube-state-metrics" "root" $) | nindent 10 }}
           {{- include "platform-root.gitopsValueFile" (dict "component" "kube-state-metrics" "root" $) | nindent 10 }}
         ignoreMissingValueFiles: true
+        valuesObject:
+          {{- /* Scheduling (ADR 0012 — issue #97) */}}
+          {{- include "platform-root.schedulingValuesTopLevel" (dict
+                "mode" (default "auto" (index .Values.scheduling "kube-state-metrics"))
+             ) | nindent 10 }}
         {{- include "platform-root.provenanceParametersBlock" $ | nindent 8 }}
     - repoURL: {{ .Values.platformGitopsRepoUrl }}
       targetRevision: {{ .Values.platformGitopsVersion }}

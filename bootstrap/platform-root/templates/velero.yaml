@@ -19,6 +19,11 @@ spec:
           - $values/core/components/velero/values-{{ .Values.global.provider }}.yaml
           {{- include "platform-root.overrideValueFile" (dict "component" "velero" "root" $) | nindent 10 }}
         {{- include "platform-root.ignoreMissingValueFiles" $ | nindent 8 }}
+        valuesObject:
+          {{- /* Scheduling (ADR 0012 — issue #97) — default regular-only (backup integrity) */}}
+          {{- include "platform-root.schedulingValuesTopLevel" (dict
+                "mode" (default "regular-only" (index .Values.scheduling "velero"))
+             ) | nindent 10 }}
         parameters:
           {{- if eq .Values.global.provider "azure" }}
           - name: configuration.backupStorageLocation[0].bucket

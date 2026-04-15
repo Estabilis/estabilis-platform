@@ -18,6 +18,11 @@ spec:
           - $values/core/components/hubble-ui/values.yaml
           {{- include "platform-root.overrideValueFile" (dict "component" "hubble-ui" "root" $) | nindent 10 }}
         {{- include "platform-root.ignoreMissingValueFiles" $ | nindent 8 }}
+        valuesObject:
+          {{- /* Scheduling (ADR 0012 — issue #97) */}}
+          {{- include "platform-root.schedulingValuesTopLevel" (dict
+                "mode" (default "auto" (index .Values.scheduling "hubble-ui"))
+             ) | nindent 10 }}
         {{- include "platform-root.provenanceParametersBlock" $ | nindent 8 }}
     - repoURL: {{ .Values.platformRepoUrl }}
       targetRevision: {{ .Values.platformVersion }}

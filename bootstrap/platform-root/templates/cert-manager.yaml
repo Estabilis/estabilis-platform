@@ -18,6 +18,12 @@ spec:
           {{- include "platform-root.overrideValueFile" (dict "component" "cert-manager" "root" $) | nindent 10 }}
           {{- include "platform-root.gitopsValueFile" (dict "component" "cert-manager" "root" $) | nindent 10 }}
         ignoreMissingValueFiles: true
+        valuesObject:
+          {{- /* Scheduling (ADR 0012 — issue #97) */}}
+          {{- include "platform-root.schedulingValuesFor" (dict
+                "mode" (default "auto" (index .Values.scheduling "cert-manager"))
+                "paths" (list "controller" "webhook" "cainjector" "startupapicheck")
+             ) | nindent 10 }}
         {{- include "platform-root.provenanceParametersBlock" $ | nindent 8 }}
     - repoURL: {{ .Values.platformGitopsRepoUrl }}
       targetRevision: {{ .Values.platformGitopsVersion }}

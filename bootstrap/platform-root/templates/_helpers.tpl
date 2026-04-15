@@ -297,3 +297,53 @@ nodeAffinity:
             values: ["spot"]
 {{- end }}
 {{- end -}}
+
+{{- /*
+  schedulingValuesFor — renders a valuesObject block for multiple
+  sub-component paths at once. Used by Application templates that
+  configure umbrella charts with per-component tolerations/affinity
+  (argocd, cert-manager, kyverno, external-secrets, etc.).
+
+  Input:
+    .mode  — scheduling mode (auto|regular-only|spot-only). Defaults to auto.
+    .paths — list of string paths (e.g. ["controller", "server", "webhook"])
+
+  Emits one block per path with tolerations + affinity rendered from
+  platform-root.schedulingTolerations and platform-root.schedulingAffinity.
+*/ -}}
+{{- define "platform-root.schedulingValuesFor" -}}
+{{- $mode := default "auto" .mode -}}
+{{- $tolerations := include "platform-root.schedulingTolerations" . -}}
+{{- $affinity := include "platform-root.schedulingAffinity" (dict "mode" $mode) -}}
+{{- range $comp := .paths }}
+{{ $comp }}:
+  tolerations:
+    {{- $tolerations | nindent 4 }}
+  affinity:
+    {{- $affinity | nindent 4 }}
+{{- end -}}
+{{- end -}}
+
+{{- /*
+  schedulingValuesTopLevel — same but at the top of the chart (no path).
+  Used by charts like external-dns, traefik, velero where tolerations/
+  affinity live at the chart root.
+
+  Input: .mode
+*/ -}}
+{{- define "platform-root.schedulingValuesTopLevel" -}}
+{{- $mode := default "auto" .mode -}}
+tolerations:
+  {{- include "platform-root.schedulingTolerations" . | nindent 2 }}
+affinity:
+  {{- include "platform-root.schedulingAffinity" (dict "mode" $mode) | nindent 2 }}
+{{- end -}}
+
+{{- /*
+  schedulingTolerationsOnly — for DaemonSets where nodeAffinity is
+  not applicable (DS always deploys to all nodes matching node selector).
+*/ -}}
+{{- define "platform-root.schedulingTolerationsOnly" -}}
+tolerations:
+  {{- include "platform-root.schedulingTolerations" . | nindent 2 }}
+{{- end -}}
