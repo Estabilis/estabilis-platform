@@ -242,3 +242,58 @@ per-platform override paths scoped by deploymentId.
 {{ $app }}.{{ $g.effectiveDomain }}
 {{- end -}}
 {{- end -}}
+{{- /*
+  Scheduling helpers — renders tolerations + nodeAffinity for charts so
+  workloads tolerate Spot node taints and optionally express preference
+  for a pool (regular / spot / auto).
+
+  ADR 0012 (tracked in Estabilis/estabilis-platform-tools#97).
+
+  Input: .Values.scheduling.mode — one of {auto, regular-only, spot-only}.
+  Default (when unset): auto — tolerates spot, prefers regular.
+
+  The tolerations block is ALWAYS the same (always allow scheduling on
+  Spot when needed). Only the affinity part varies by mode:
+    - auto         : preferredDuringScheduling → regular preferred
+    - regular-only : requiredDuringScheduling  → regular hard
+    - spot-only    : requiredDuringScheduling  → spot hard
+
+  These helpers are rendered at platform-root time. Downstream charts
+  consume them via Helm parameters wired in each Application template
+  (see bootstrap/platform-root/templates/*.yaml).
+*/ -}}
+
+{{- define "platform-root.schedulingTolerations" -}}
+- key: "kubernetes.azure.com/scalesetpriority"
+  operator: "Equal"
+  value: "spot"
+  effect: "NoSchedule"
+{{- end -}}
+
+{{- define "platform-root.schedulingAffinity" -}}
+{{- $mode := default "auto" .mode -}}
+nodeAffinity:
+{{- if eq $mode "auto" }}
+  preferredDuringSchedulingIgnoredDuringExecution:
+    - weight: 50
+      preference:
+        matchExpressions:
+          - key: estabilis.io/schedulable
+            operator: In
+            values: ["regular"]
+{{- else if eq $mode "regular-only" }}
+  requiredDuringSchedulingIgnoredDuringExecution:
+    nodeSelectorTerms:
+      - matchExpressions:
+          - key: estabilis.io/schedulable
+            operator: In
+            values: ["regular"]
+{{- else if eq $mode "spot-only" }}
+  requiredDuringSchedulingIgnoredDuringExecution:
+    nodeSelectorTerms:
+      - matchExpressions:
+          - key: estabilis.io/schedulable
+            operator: In
+            values: ["spot"]
+{{- end }}
+{{- end -}}

@@ -144,9 +144,18 @@ resource "azurerm_kubernetes_cluster_node_pool" "platform_spot" {
   node_labels = {
     "estabilis.io/workload-type" = "platform"
     "estabilis.io/pool-type"     = "spot"
+    # Cloud-agnostic label consumed by charts' nodeAffinity via the
+    # estabilis.scheduling.affinity helper (ADR 0012 — issue #97).
+    # Single source of truth; charts never reference Azure-specific labels.
+    "estabilis.io/schedulable" = "spot"
   }
+  # Only the Azure-auto taint is kept. The previous custom
+  # `estabilis.io/workload-type=platform:NoSchedule` was removed — it was
+  # making Spot pool unreachable to every chart without a matching
+  # toleration (which none had), effectively turning Spot into a dead pool.
+  # The scalesetpriority taint alone is the canonical Spot signal; charts
+  # tolerate it via the estabilis.scheduling.tolerations helper.
   node_taints = [
-    "estabilis.io/workload-type=platform:NoSchedule",
     "kubernetes.azure.com/scalesetpriority=spot:NoSchedule",
   ]
   tags = local.tags
@@ -189,6 +198,8 @@ resource "azurerm_kubernetes_cluster_node_pool" "platform_regular" {
   node_labels = {
     "estabilis.io/workload-type" = "platform"
     "estabilis.io/pool-type"     = "regular"
+    # Cloud-agnostic label for the estabilis.scheduling.affinity helper.
+    "estabilis.io/schedulable" = "regular"
   }
   tags = local.tags
 }
