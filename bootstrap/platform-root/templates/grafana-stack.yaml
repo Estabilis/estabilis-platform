@@ -248,10 +248,12 @@ spec:
           {{- include "platform-root.overrideValueFile" (dict "component" "alloy" "root" $) | nindent 10 }}
         {{- include "platform-root.ignoreMissingValueFiles" $ | nindent 8 }}
         valuesObject:
-          {{- /* Scheduling (ADR 0012 — issue #97) — alloy is a DaemonSet, tolerations only */}}
+          {{- /* Scheduling (ADR 0012 — issue #97)
+                alloy chart 1.6.2: tolerations/affinity live under `controller.*`
+                (the DaemonSet wrapper), not `alloy.*`. */}}
           {{- include "platform-root.schedulingValuesFor" (dict
                 "mode" (default "auto" (index .Values.scheduling "alloy"))
-                "paths" (list "alloy")
+                "paths" (list "controller")
              ) | nindent 10 }}
     - repoURL: {{ .Values.platformRepoUrl }}
       targetRevision: {{ .Values.platformVersion }}

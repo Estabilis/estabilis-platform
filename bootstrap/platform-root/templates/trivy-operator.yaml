@@ -20,11 +20,20 @@ spec:
           {{- include "platform-root.overrideValueFile" (dict "component" "trivy-operator" "root" $) | nindent 10 }}
         {{- include "platform-root.ignoreMissingValueFiles" $ | nindent 8 }}
         valuesObject:
-          {{- /* Scheduling (ADR 0012 — issue #97) — trivy-operator chart has trivyOperator.* sub */}}
-          {{- include "platform-root.schedulingValuesFor" (dict
-                "mode" (default "auto" (index .Values.scheduling "trivy-operator"))
-                "paths" (list "trivyOperator" "trivy")
+          {{- /* Scheduling (ADR 0012 — issue #97)
+                trivy-operator 0.32.0:
+                  - operator deployment reads top-level tolerations/affinity
+                  - scan jobs created at runtime by the operator receive
+                    trivy.scanJobTolerations / trivy.scanJobAffinity. */}}
+          {{- $mode := default "auto" (index .Values.scheduling "trivy-operator") }}
+          {{- include "platform-root.schedulingValuesTopLevel" (dict
+                "mode" $mode
              ) | nindent 10 }}
+          trivy:
+            scanJobTolerations:
+              {{- include "platform-root.schedulingTolerations" . | nindent 14 }}
+            scanJobAffinity:
+              {{- include "platform-root.schedulingAffinity" (dict "mode" $mode) | nindent 14 }}
     - repoURL: {{ .Values.platformRepoUrl }}
       targetRevision: {{ .Values.platformVersion }}
       ref: values
