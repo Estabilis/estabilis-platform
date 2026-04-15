@@ -19,10 +19,16 @@ spec:
           {{- include "platform-root.gitopsValueFile" (dict "component" "cert-manager" "root" $) | nindent 10 }}
         ignoreMissingValueFiles: true
         valuesObject:
-          {{- /* Scheduling (ADR 0012 — issue #97) */}}
+          {{- /* Scheduling (ADR 0012 — issue #97)
+                cert-manager controller is top-level (no `controller:` key in chart);
+                webhook/cainjector/startupapicheck are nested. */}}
+          {{- $mode := default "auto" (index .Values.scheduling "cert-manager") }}
+          {{- include "platform-root.schedulingValuesTopLevel" (dict
+                "mode" $mode
+             ) | nindent 10 }}
           {{- include "platform-root.schedulingValuesFor" (dict
-                "mode" (default "auto" (index .Values.scheduling "cert-manager"))
-                "paths" (list "controller" "webhook" "cainjector" "startupapicheck")
+                "mode" $mode
+                "paths" (list "webhook" "cainjector" "startupapicheck")
              ) | nindent 10 }}
         {{- include "platform-root.provenanceParametersBlock" $ | nindent 8 }}
     - repoURL: {{ .Values.platformGitopsRepoUrl }}
