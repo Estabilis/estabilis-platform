@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------
-# Azure DevOps Service Connection for ACR push (ADR 0015 WIP) — opt-in.
+# Azure DevOps Service Connection for ACR push (ADR 0015) — opt-in.
 #
 # When `azdo_push_automation_enabled = true`, Terraform owns end-to-end:
 #   1. AAD Application + Service Principal (no secret)
@@ -11,8 +11,9 @@
 #   ${local.base_name}-acr-push    (e.g., transfero-platform-hml-eastus2-acr-push)
 #
 # Auth: provider authenticates via the active az cli session (AZURE_CONFIG_DIR).
-# No PAT is needed. Validated empirically — see scratch test ran on
-# Estabilis HML on 2026-04-16 (5 resources created, destroyed clean).
+# No PAT is needed. Validated empirically against
+# dev.azure.com/estabilis/Transfero on 2026-04-16 (5 resources created,
+# destroyed clean).
 # ---------------------------------------------------------------------------
 
 data "azuredevops_project" "acr_push" {

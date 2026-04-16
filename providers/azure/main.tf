@@ -15,7 +15,7 @@ provider "azuread" {
   tenant_id = var.tenant_id
 }
 
-# ADR 0015 (WIP) — Azure DevOps Service Connection automation for ACR push.
+# ADR 0015 — Azure DevOps Service Connection automation for ACR push.
 # Authenticates via az cli (no PAT required) when AZURE_CONFIG_DIR points to a
 # session that has access to the target ADO organization. Provider block is
 # always declared; resources are gated by var.azdo_push_automation_enabled
