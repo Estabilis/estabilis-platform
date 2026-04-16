@@ -510,6 +510,32 @@ variable "loki_exposures" {
   default = {}
 }
 
+variable "argocd_exposures" {
+  description = "ArgoCD UI ingress exposures. Typically internal — ops team accesses via VPN."
+  type = map(object({
+    enabled       = bool
+    host          = string
+    ingress_class = optional(string, "traefik")
+    allowed_cidrs = optional(string, "")
+    issuer        = optional(string, "letsencrypt-production")
+    basic_auth    = optional(bool, false) # ArgoCD has its own SSO
+  }))
+  default = {}
+}
+
+variable "hubble_ui_exposures" {
+  description = "Hubble UI (Cilium ACNS) ingress exposures. Only rendered when network_dataplane=cilium-acns and components.hubble-ui=true."
+  type = map(object({
+    enabled       = bool
+    host          = string
+    ingress_class = optional(string, "traefik")
+    allowed_cidrs = optional(string, "")
+    issuer        = optional(string, "letsencrypt-production")
+    basic_auth    = optional(bool, false)
+  }))
+  default = {}
+}
+
 variable "authorized_ip_ranges" {
   description = "List of authorized IP ranges for AKS API server access. Empty list makes API server private."
   type        = list(string)

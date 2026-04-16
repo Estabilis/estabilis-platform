@@ -145,3 +145,18 @@ output "loki_exposures_json" {
   description = "Loki exposures serialized as JSON."
   value       = jsonencode({ for k, v in var.loki_exposures : k => v if v.enabled })
 }
+
+output "argocd_exposures_json" {
+  description = "ArgoCD UI exposures serialized as JSON."
+  value       = jsonencode({ for k, v in var.argocd_exposures : k => v if v.enabled })
+}
+
+output "hubble_ui_exposures_json" {
+  description = "Hubble UI exposures serialized as JSON."
+  value       = jsonencode({ for k, v in var.hubble_ui_exposures : k => v if v.enabled })
+}
+
+output "network_dataplane" {
+  description = "AKS network dataplane (default|cilium|cilium-acns). Used by platform-root to gate ACNS-specific features like Hubble UI ingress."
+  value       = var.network_dataplane
+}

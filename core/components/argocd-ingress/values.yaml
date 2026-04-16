@@ -1,0 +1,13 @@
+# ArgoCD UI external ingress — ADR 0014 multi-exposure.
+#
+# The argocd chart's own ingress (server.ingress.*) must stay disabled;
+# this chart owns exposure concerns end-to-end (Middleware + Certificate
+# + Ingress) and lets each profile have independent hostnames, IP
+# allowlists, and TLS issuers.
+
+# Injected by platform-root as a JSON string (raw JSON or base64).
+exposuresJson: "{}"
+
+# Key Vault prefix for optional BasicAuth (ArgoCD has its own SSO —
+# BasicAuth usually not used, kept for parity).
+kvSecretPrefix: "platform-argocd-ingress-auth"

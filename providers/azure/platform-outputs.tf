@@ -75,8 +75,13 @@ resource "kubernetes_config_map" "platform_infrastructure" {
     # ADR 0014 — App exposures as a JSON-encoded map(object). Filtered to
     # only enabled profiles to keep the ConfigMap small. Platform-root
     # decodes with fromJson and iterates over the result.
-    "global.lokiExposures"    = jsonencode({ for k, v in var.loki_exposures : k => v if v.enabled })
-    "global.grafanaExposures" = jsonencode({ for k, v in var.grafana_exposures : k => v if v.enabled })
+    "global.lokiExposures"     = jsonencode({ for k, v in var.loki_exposures : k => v if v.enabled })
+    "global.grafanaExposures"  = jsonencode({ for k, v in var.grafana_exposures : k => v if v.enabled })
+    "global.argocdExposures"   = jsonencode({ for k, v in var.argocd_exposures : k => v if v.enabled })
+    "global.hubbleUiExposures" = jsonencode({ for k, v in var.hubble_ui_exposures : k => v if v.enabled })
+
+    # Gate for hubble-ui-ingress rendering (Hubble UI only exists in ACNS)
+    "global.networkDataplane" = var.network_dataplane
 
     # ACR
     "global.acrLoginServer" = var.acr_enabled ? azurerm_container_registry.platform[0].login_server : ""

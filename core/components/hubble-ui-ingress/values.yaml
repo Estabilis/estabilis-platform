@@ -1,0 +1,16 @@
+# Hubble UI external ingress — ADR 0014 multi-exposure.
+#
+# Hubble UI is a component of Cilium ACNS (Azure Container Networking
+# Services). The Service `hubble-ui` is installed in the kube-system
+# namespace by the AKS managed ACNS addon. K8s Ingresses must live in
+# the same namespace as the Service they target, so this chart creates
+# all its resources (Ingress + Middlewares + Certificate + optional
+# ExternalSecret) in kube-system.
+#
+# Gated at the platform-root layer by:
+#   global.networkDataplane == "cilium-acns"  AND
+#   components.hubble-ui == true              AND
+#   components.traefik != false
+
+exposuresJson: "{}"
+kvSecretPrefix: "platform-hubble-ui-ingress-auth"

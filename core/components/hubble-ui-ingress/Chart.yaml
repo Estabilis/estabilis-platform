@@ -1,0 +1,6 @@
+apiVersion: v2
+name: hubble-ui-ingress
+description: Hubble UI external ingress (requires ACNS) — multi-exposure per ADR 0014
+version: 0.1.0
+appVersion: "0.1.0"
+type: application

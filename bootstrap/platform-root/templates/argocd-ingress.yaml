@@ -1,0 +1,57 @@
+{{- /*
+  ADR 0014 — ArgoCD UI external ingress. Gated by traefik on and at least
+  one enabled profile in global.argocdExposures.
+*/ -}}
+{{- $raw := index .Values.global "argocdExposures" | default "" -}}
+{{- $jsonStr := "{}" -}}
+{{- if $raw }}
+  {{- if or (hasPrefix "{" $raw) (hasPrefix "[" $raw) }}
+    {{- $jsonStr = $raw }}
+  {{- else }}
+    {{- $jsonStr = b64dec $raw }}
+  {{- end }}
+{{- end }}
+{{- $exposures := fromJson $jsonStr -}}
+{{- $hasEnabled := false -}}
+{{- range $_, $exp := $exposures }}{{- if $exp.enabled }}{{- $hasEnabled = true }}{{- end }}{{- end }}
+{{- if and (ne (index .Values.components "traefik") false) $hasEnabled }}
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: argocd-ingress
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "9"
+spec:
+  project: platform
+  sources:
+    - repoURL: {{ .Values.platformRepoUrl }}
+      targetRevision: {{ .Values.platformVersion }}
+      path: core/components/argocd-ingress
+      helm:
+        valueFiles:
+          - $values/core/components/argocd-ingress/values.yaml
+          {{- include "platform-root.overrideValueFile" (dict "component" "argocd-ingress" "root" $) | nindent 10 }}
+          {{- include "platform-root.gitopsValueFile" (dict "component" "argocd-ingress" "root" $) | nindent 10 }}
+        ignoreMissingValueFiles: true
+        parameters:
+          {{- include "platform-root.provenanceParameters" $ | nindent 10 }}
+          - name: exposuresJson
+            value: {{ $raw | quote }}
+            forceString: true
+    - repoURL: {{ .Values.platformRepoUrl }}
+      targetRevision: {{ .Values.platformVersion }}
+      ref: values
+    {{- include "platform-root.overrideSource" . | nindent 4 }}
+    {{- include "platform-root.gitopsSource" . | nindent 4 }}
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    retry:
+      limit: 10
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 3m
+{{- end }}

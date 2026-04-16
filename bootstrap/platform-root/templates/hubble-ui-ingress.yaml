@@ -1,0 +1,65 @@
+{{- /*
+  ADR 0014 — Hubble UI external ingress. Gated by:
+    1. components.traefik != false
+    2. global.networkDataplane == "cilium-acns" (Hubble UI only exists in ACNS)
+    3. components.hubble-ui == true (downstream explicitly opts in)
+    4. At least one enabled profile in global.hubbleUiExposures
+*/ -}}
+{{- $raw := index .Values.global "hubbleUiExposures" | default "" -}}
+{{- $jsonStr := "{}" -}}
+{{- if $raw }}
+  {{- if or (hasPrefix "{" $raw) (hasPrefix "[" $raw) }}
+    {{- $jsonStr = $raw }}
+  {{- else }}
+    {{- $jsonStr = b64dec $raw }}
+  {{- end }}
+{{- end }}
+{{- $exposures := fromJson $jsonStr -}}
+{{- $hasEnabled := false -}}
+{{- range $_, $exp := $exposures }}{{- if $exp.enabled }}{{- $hasEnabled = true }}{{- end }}{{- end }}
+{{- $dataplane := index .Values.global "networkDataplane" | default "" -}}
+{{- if and
+      (ne (index .Values.components "traefik") false)
+      (eq (index .Values.components "hubble-ui" | default false) true)
+      (eq $dataplane "cilium-acns")
+      $hasEnabled }}
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: hubble-ui-ingress
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "9"
+spec:
+  project: platform
+  sources:
+    - repoURL: {{ .Values.platformRepoUrl }}
+      targetRevision: {{ .Values.platformVersion }}
+      path: core/components/hubble-ui-ingress
+      helm:
+        valueFiles:
+          - $values/core/components/hubble-ui-ingress/values.yaml
+          {{- include "platform-root.overrideValueFile" (dict "component" "hubble-ui-ingress" "root" $) | nindent 10 }}
+          {{- include "platform-root.gitopsValueFile" (dict "component" "hubble-ui-ingress" "root" $) | nindent 10 }}
+        ignoreMissingValueFiles: true
+        parameters:
+          {{- include "platform-root.provenanceParameters" $ | nindent 10 }}
+          - name: exposuresJson
+            value: {{ $raw | quote }}
+            forceString: true
+    - repoURL: {{ .Values.platformRepoUrl }}
+      targetRevision: {{ .Values.platformVersion }}
+      ref: values
+    {{- include "platform-root.overrideSource" . | nindent 4 }}
+    {{- include "platform-root.gitopsSource" . | nindent 4 }}
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kube-system
+  syncPolicy:
+    retry:
+      limit: 10
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 3m
+{{- end }}

@@ -1,0 +1,114 @@
+{{- /*
+  ADR 0014 — one Ingress + Middlewares + Certificate per enabled exposure
+  profile. Backend: Service argocd-server (port 80) in the argocd namespace.
+  All resources live in argocd namespace to share Traefik's cross-namespace
+  Middleware reference capability.
+*/ -}}
+{{- $raw := .Values.exposuresJson | default "{}" -}}
+{{- $jsonStr := $raw -}}
+{{- if and $raw (not (or (hasPrefix "{" $raw) (hasPrefix "[" $raw))) }}
+  {{- $jsonStr = b64dec $raw }}
+{{- end }}
+{{- $exposures := fromJson $jsonStr -}}
+{{- range $profile, $exp := $exposures }}
+{{- if $exp.enabled }}
+{{- $mwIPName := printf "argocd-%s-ipallowlist" $profile }}
+{{- $mwAuthName := printf "argocd-%s-auth" $profile }}
+---
+{{- if $exp.allowed_cidrs }}
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: {{ $mwIPName }}
+  namespace: argocd
+  {{- include "estabilis.metadata" $ | nindent 2 }}
+spec:
+  ipAllowList:
+    sourceRange:
+      {{- range splitList "," $exp.allowed_cidrs }}
+      - {{ trim . | quote }}
+      {{- end }}
+---
+{{- end }}
+{{- if $exp.basic_auth }}
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: {{ $mwAuthName }}
+  namespace: argocd
+  {{- include "estabilis.metadata" $ | nindent 2 }}
+spec:
+  basicAuth:
+    secret: {{ $mwAuthName }}
+---
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: {{ $mwAuthName }}
+  namespace: argocd
+  {{- include "estabilis.metadata" $ | nindent 2 }}
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: platform-secret-store
+    kind: ClusterSecretStore
+  target:
+    name: {{ $mwAuthName }}
+    creationPolicy: Owner
+  data:
+    - secretKey: users
+      remoteRef:
+        key: {{ printf "%s-%s" $.Values.kvSecretPrefix $profile | quote }}
+---
+{{- end }}
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: argocd-{{ $profile }}-tls
+  namespace: argocd
+  {{- include "estabilis.metadata" $ | nindent 2 }}
+spec:
+  secretName: argocd-{{ $profile }}-tls
+  issuerRef:
+    name: {{ $exp.issuer | default "letsencrypt-production" | quote }}
+    kind: ClusterIssuer
+  dnsNames:
+    - {{ $exp.host | quote }}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: argocd-{{ $profile }}
+  namespace: argocd
+  {{- include "estabilis.metadata" $ | nindent 2 }}
+  annotations:
+    {{- $mws := list }}
+    {{- if $exp.allowed_cidrs }}
+    {{- $mws = append $mws (printf "argocd-%s@kubernetescrd" $mwIPName) }}
+    {{- end }}
+    {{- if $exp.basic_auth }}
+    {{- $mws = append $mws (printf "argocd-%s@kubernetescrd" $mwAuthName) }}
+    {{- end }}
+    {{- if $mws }}
+    traefik.ingress.kubernetes.io/router.middlewares: {{ join "," $mws | quote }}
+    {{- end }}
+    external-dns.alpha.kubernetes.io/hostname: {{ $exp.host | quote }}
+spec:
+  ingressClassName: {{ $exp.ingress_class | default "traefik" | quote }}
+  rules:
+    - host: {{ $exp.host | quote }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: argocd-server
+                port:
+                  number: 80
+  tls:
+    - secretName: argocd-{{ $profile }}-tls
+      hosts:
+        - {{ $exp.host | quote }}
+{{- end }}
+{{- end }}

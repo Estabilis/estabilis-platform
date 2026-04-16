@@ -1,0 +1,6 @@
+apiVersion: v2
+name: argocd-ingress
+description: ArgoCD UI external ingress — multi-exposure per ADR 0014
+version: 0.1.0
+appVersion: "0.1.0"
+type: application
