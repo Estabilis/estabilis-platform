@@ -104,21 +104,27 @@ spec:
         ignoreMissingValueFiles: true
         parameters:
           {{- include "platform-root.provenanceParameters" $ | nindent 10 }}
+          {{- $dnsProvider := .Values.global.dnsProvider | default .Values.global.provider }}
           - name: global.provider
             value: "{{ .Values.global.provider }}"
+          - name: global.dnsProvider
+            value: "{{ $dnsProvider }}"
           - name: global.letsencryptEmail
             value: "{{ .Values.global.letsencryptEmail }}"
           - name: global.domain
             value: "{{ .Values.global.domain }}"
           - name: global.effectiveDomain
             value: "{{ .Values.global.effectiveDomain }}"
-          {{- if eq .Values.global.provider "azure" }}
+          {{- if eq $dnsProvider "azure" }}
           - name: global.subscriptionId
             value: "{{ .Values.global.subscriptionId }}"
           - name: global.resourceGroup
             value: "{{ .Values.global.resourceGroup }}"
           - name: identity.certManager.clientId
             value: "{{ .Values.identity.certManager.clientId }}"
+          {{- else if eq $dnsProvider "cloudflare" }}
+          - name: global.cloudflareApiToken
+            value: "{{ .Values.global.cloudflareApiToken }}"
           {{- end }}
     - repoURL: {{ .Values.platformGitopsRepoUrl }}
       targetRevision: {{ .Values.platformGitopsVersion }}

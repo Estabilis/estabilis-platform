@@ -54,13 +54,13 @@ output "velero_backup_storage_account_name" {
 }
 
 output "dns_zone_name" {
-  description = "Name of the DNS zone (effective_domain, may include env subdomain)."
-  value       = azurerm_dns_zone.platform.name
+  description = "Name of the Azure DNS zone (empty string when dns_provider = 'cloudflare' — zone is external)."
+  value       = var.dns_provider == "azure" ? azurerm_dns_zone.platform[0].name : ""
 }
 
 output "dns_zone_name_servers" {
-  description = "Name servers for the DNS zone — configure these at your domain registrar"
-  value       = azurerm_dns_zone.platform.name_servers
+  description = "Name servers for the Azure DNS zone — configure these at your domain registrar. Empty list when dns_provider = 'cloudflare'."
+  value       = var.dns_provider == "azure" ? azurerm_dns_zone.platform[0].name_servers : []
 }
 
 output "cert_manager_client_id" {
@@ -69,8 +69,8 @@ output "cert_manager_client_id" {
 }
 
 output "external_dns_client_id" {
-  description = "Client ID of the external-dns managed identity."
-  value       = azurerm_user_assigned_identity.external_dns.client_id
+  description = "Client ID of the external-dns managed identity. Empty when dns_provider = 'cloudflare' (no identity is provisioned)."
+  value       = var.dns_provider == "azure" ? azurerm_user_assigned_identity.external_dns[0].client_id : ""
 }
 
 output "external_secrets_client_id" {
@@ -137,23 +137,23 @@ output "hub_key_vault_name" {
 # --- App exposures (ADR 0014) — JSON-encoded for CLI consumption ---
 
 output "grafana_exposures_json" {
-  description = "Grafana exposures serialized as JSON. Consumed by the estabilis CLI to set global.grafanaExposures helm parameter on platform-root."
-  value       = jsonencode({ for k, v in var.grafana_exposures : k => v if v.enabled })
+  description = "Grafana exposures serialized as JSON (with auto-derived hosts applied). Consumed by the estabilis CLI to set global.grafanaExposures helm parameter on platform-root."
+  value       = jsonencode({ for k, v in local.grafana_exposures_resolved : k => v if v.enabled })
 }
 
 output "loki_exposures_json" {
-  description = "Loki exposures serialized as JSON."
-  value       = jsonencode({ for k, v in var.loki_exposures : k => v if v.enabled })
+  description = "Loki exposures serialized as JSON (with auto-derived hosts applied)."
+  value       = jsonencode({ for k, v in local.loki_exposures_resolved : k => v if v.enabled })
 }
 
 output "argocd_exposures_json" {
-  description = "ArgoCD UI exposures serialized as JSON."
-  value       = jsonencode({ for k, v in var.argocd_exposures : k => v if v.enabled })
+  description = "ArgoCD UI exposures serialized as JSON (with auto-derived hosts applied)."
+  value       = jsonencode({ for k, v in local.argocd_exposures_resolved : k => v if v.enabled })
 }
 
 output "hubble_ui_exposures_json" {
-  description = "Hubble UI exposures serialized as JSON."
-  value       = jsonencode({ for k, v in var.hubble_ui_exposures : k => v if v.enabled })
+  description = "Hubble UI exposures serialized as JSON (with auto-derived hosts applied)."
+  value       = jsonencode({ for k, v in local.hubble_ui_exposures_resolved : k => v if v.enabled })
 }
 
 output "network_dataplane" {

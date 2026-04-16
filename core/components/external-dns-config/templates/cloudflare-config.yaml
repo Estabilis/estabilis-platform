@@ -1,0 +1,11 @@
+{{- if eq .Values.global.dnsProvider "cloudflare" }}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: external-dns-cloudflare-config
+  namespace: external-dns
+  {{- include "estabilis.metadata" . | nindent 2 }}
+type: Opaque
+stringData:
+  api-token: {{ .Values.global.cloudflareApiToken | quote }}
+{{- end }}

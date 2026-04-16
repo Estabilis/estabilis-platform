@@ -7,8 +7,13 @@ locals {
 }
 
 # ========================== external-dns ==================================
+# Azure DNS resources are only provisioned when dns_provider = "azure".
+# When dns_provider = "cloudflare", external-dns authenticates to the
+# Cloudflare API with a static token (no Workload Identity, no DNS zone,
+# no role assignment) and the zone is managed outside Terraform.
 
 resource "azurerm_user_assigned_identity" "external_dns" {
+  count               = var.dns_provider == "azure" ? 1 : 0
   name                = "mi-${local.base_name}-external-dns"
   location            = azurerm_resource_group.platform.location
   resource_group_name = azurerm_resource_group.platform.name
@@ -16,8 +21,9 @@ resource "azurerm_user_assigned_identity" "external_dns" {
 }
 
 resource "azurerm_federated_identity_credential" "external_dns" {
+  count                     = var.dns_provider == "azure" ? 1 : 0
   name                      = "fic-${local.base_name}-external-dns"
-  user_assigned_identity_id = azurerm_user_assigned_identity.external_dns.id
+  user_assigned_identity_id = azurerm_user_assigned_identity.external_dns[0].id
   audience                  = ["api://AzureADTokenExchange"]
   issuer                    = local.aks_oidc_issuer_url
   subject                   = "system:serviceaccount:external-dns:external-dns"
@@ -25,15 +31,17 @@ resource "azurerm_federated_identity_credential" "external_dns" {
 
 # DNS Zone — uses effective_domain (includes env subdomain when host_pattern=subdomain)
 resource "azurerm_dns_zone" "platform" {
+  count               = var.dns_provider == "azure" ? 1 : 0
   name                = local.effective_domain
   resource_group_name = azurerm_resource_group.platform.name
   tags                = local.tags
 }
 
 resource "azurerm_role_assignment" "external_dns_dns_contributor" {
-  scope                = azurerm_dns_zone.platform.id
+  count                = var.dns_provider == "azure" ? 1 : 0
+  scope                = azurerm_dns_zone.platform[0].id
   role_definition_name = "DNS Zone Contributor"
-  principal_id         = azurerm_user_assigned_identity.external_dns.principal_id
+  principal_id         = azurerm_user_assigned_identity.external_dns[0].principal_id
 }
 
 # ========================== external-secrets ==============================
@@ -146,7 +154,8 @@ resource "azurerm_federated_identity_credential" "cert_manager" {
 }
 
 resource "azurerm_role_assignment" "cert_manager_dns_contributor" {
-  scope                = azurerm_dns_zone.platform.id
+  count                = var.dns_provider == "azure" ? 1 : 0
+  scope                = azurerm_dns_zone.platform[0].id
   role_definition_name = "DNS Zone Contributor"
   principal_id         = azurerm_user_assigned_identity.cert_manager.principal_id
 }

@@ -43,12 +43,15 @@ global:
     buildId: ""
 
   # Client configuration — injected by terraform from client tfvars
-  provider: ""            # injected by terraform
+  provider: ""            # injected by terraform (cloud: azure | aws)
+  dnsProvider: ""         # injected by terraform (dns: azure | cloudflare) — defaults to provider when empty
   domain: ""              # injected by terraform (base domain)
   effectiveDomain: ""     # injected by terraform (computed: may include env subdomain)
   hostPattern: "subdomain" # injected by terraform (subdomain | prefix | suffix)
   environment: ""         # injected by terraform
   letsencryptEmail: ""    # injected by terraform
+  cloudflareZoneId: ""    # injected by terraform when dnsProvider=cloudflare
+  cloudflareApiToken: ""  # injected by terraform when dnsProvider=cloudflare (sensitive)
 
   # Azure resource outputs — injected by terraform
   clusterName: ""

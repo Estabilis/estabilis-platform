@@ -42,6 +42,48 @@ locals {
   is_prod_env      = contains(["prod", "prd", "production"], var.environment)
   effective_domain = var.host_pattern == "subdomain" && !local.is_prod_env ? "${var.environment}.${var.domain}" : var.domain
 
+  # Per-app host derivation from host_pattern + environment + domain.
+  # Applied when an exposure's `host` field is empty. Rule (prod always
+  # drops the env segment — "prd-grafana.acme.com" would be awkward):
+  #   subdomain prod:     {app}.{domain}
+  #   subdomain non-prod: {app}.{env}.{domain}
+  #   prefix    prod:     {app}.{domain}
+  #   prefix    non-prod: {env}-{app}.{domain}
+  #   suffix    prod:     {app}.{domain}
+  #   suffix    non-prod: {app}-{env}.{domain}
+  _app_host = {
+    for app in ["grafana", "argocd", "loki", "hubble"] : app => (
+      local.is_prod_env ? "${app}.${var.domain}" :
+      var.host_pattern == "subdomain" ? "${app}.${var.environment}.${var.domain}" :
+      var.host_pattern == "prefix" ? "${var.environment}-${app}.${var.domain}" :
+      "${app}-${var.environment}.${var.domain}"
+    )
+  }
+
+  # Resolved exposures — applies the auto-derived host when the user left
+  # it empty in tfvars. Explicit values always win. Downstream outputs
+  # (platform-outputs.tf, outputs.tf) consume these, not var.*_exposures.
+  grafana_exposures_resolved = {
+    for k, v in var.grafana_exposures : k => merge(v, {
+      host = length(v.host) > 0 ? v.host : local._app_host.grafana
+    })
+  }
+  loki_exposures_resolved = {
+    for k, v in var.loki_exposures : k => merge(v, {
+      host = length(v.host) > 0 ? v.host : local._app_host.loki
+    })
+  }
+  argocd_exposures_resolved = {
+    for k, v in var.argocd_exposures : k => merge(v, {
+      host = length(v.host) > 0 ? v.host : local._app_host.argocd
+    })
+  }
+  hubble_ui_exposures_resolved = {
+    for k, v in var.hubble_ui_exposures : k => merge(v, {
+      host = length(v.host) > 0 ? v.host : local._app_host.hubble
+    })
+  }
+
   # CAF naming — {type}-{prefix}-platform-{env}-{region}
   env_code = {
     dev  = "dev"

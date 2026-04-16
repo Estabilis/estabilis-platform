@@ -1,8 +1,10 @@
 global:
   provider: ""
-  tenantId: ""
-  subscriptionId: ""
-  resourceGroup: ""
+  dnsProvider: ""           # "azure" | "cloudflare" — chooses which config Secret is rendered
+  tenantId: ""              # used when dnsProvider=azure
+  subscriptionId: ""        # used when dnsProvider=azure
+  resourceGroup: ""         # used when dnsProvider=azure
+  cloudflareApiToken: ""    # used when dnsProvider=cloudflare
 identity:
   externalDns:
-    clientId: ""
+    clientId: ""            # used when dnsProvider=azure (workload identity)

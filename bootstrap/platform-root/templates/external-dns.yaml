@@ -1,6 +1,10 @@
 {{- /* optional: downstream can disable via components.external-dns: false */ -}}
 {{- if ne (index .Values.components "external-dns") false }}
-{{- if eq .Values.global.provider "azure" }}
+{{- /* external-dns-config renders a provider-specific Secret
+       (azure.json for Azure DNS, api-token for Cloudflare) consumed by the
+       external-dns chart. Rendered for any non-empty dnsProvider. */ -}}
+{{- $dnsProvider := .Values.global.dnsProvider | default .Values.global.provider -}}
+{{- if $dnsProvider }}
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -21,6 +25,9 @@ spec:
           {{- include "platform-root.provenanceParameters" $ | nindent 10 }}
           - name: global.provider
             value: "{{ .Values.global.provider }}"
+          - name: global.dnsProvider
+            value: "{{ $dnsProvider }}"
+          {{- if eq $dnsProvider "azure" }}
           - name: global.tenantId
             value: "{{ .Values.global.tenantId }}"
           - name: global.subscriptionId
@@ -29,6 +36,10 @@ spec:
             value: "{{ .Values.global.resourceGroup }}"
           - name: identity.externalDns.clientId
             value: "{{ .Values.identity.externalDns.clientId }}"
+          {{- else if eq $dnsProvider "cloudflare" }}
+          - name: global.cloudflareApiToken
+            value: "{{ .Values.global.cloudflareApiToken }}"
+          {{- end }}
     - repoURL: {{ .Values.platformRepoUrl }}
       targetRevision: {{ .Values.platformVersion }}
       ref: values
@@ -63,7 +74,7 @@ spec:
       helm:
         valueFiles:
           - $values/core/components/external-dns/values.yaml
-          - $values/core/components/external-dns/values-{{ .Values.global.provider }}.yaml
+          - $values/core/components/external-dns/values-{{ $dnsProvider }}.yaml
           {{- include "platform-root.overrideValueFile" (dict "component" "external-dns" "root" $) | nindent 10 }}
         {{- include "platform-root.ignoreMissingValueFiles" $ | nindent 8 }}
         valuesObject:
@@ -76,10 +87,19 @@ spec:
             value: "{{ .Values.global.effectiveDomain }}"
           - name: txtOwnerId
             value: "{{ .Values.global.clusterName }}"
-          {{- if eq .Values.global.provider "azure" }}
+          {{- if eq $dnsProvider "azure" }}
           - name: serviceAccount.annotations.azure\.workload\.identity/client-id
             value: "{{ .Values.identity.externalDns.clientId }}"
-          {{- else if eq .Values.global.provider "aws" }}
+          {{- else if eq $dnsProvider "cloudflare" }}
+          # Cloudflare — CF_API_TOKEN is injected via env/secretKeyRef in
+          # values-cloudflare.yaml; nothing extra needed here. zoneIdFilters
+          # scopes external-dns to a single zone (defence in depth — token
+          # is already scoped to that zone).
+          {{- if .Values.global.cloudflareZoneId }}
+          - name: zoneIdFilters[0]
+            value: "{{ .Values.global.cloudflareZoneId }}"
+          {{- end }}
+          {{- else if eq $dnsProvider "aws" }}
           # AWS — to be implemented
           # - name: aws.zoneType
           #   value: "public"

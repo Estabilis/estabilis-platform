@@ -58,6 +58,10 @@ resource "kubernetes_config_map" "platform_infrastructure" {
     "global.environment"      = var.environment
     "global.letsencryptEmail" = var.letsencrypt_email
 
+    # DNS provider — selects external-dns values file and cert-manager ClusterIssuer
+    "global.dnsProvider"      = var.dns_provider
+    "global.cloudflareZoneId" = var.cloudflare_zone_id
+
     # Azure resources
     "global.clusterName"               = azurerm_kubernetes_cluster.platform.name
     "global.resourceGroup"             = azurerm_resource_group.platform.name
@@ -74,11 +78,13 @@ resource "kubernetes_config_map" "platform_infrastructure" {
     "global.cnpgBackupSchedule"         = var.cnpg_backup_schedule
     # ADR 0014 — App exposures as a JSON-encoded map(object). Filtered to
     # only enabled profiles to keep the ConfigMap small. Platform-root
-    # decodes with fromJson and iterates over the result.
-    "global.lokiExposures"     = jsonencode({ for k, v in var.loki_exposures : k => v if v.enabled })
-    "global.grafanaExposures"  = jsonencode({ for k, v in var.grafana_exposures : k => v if v.enabled })
-    "global.argocdExposures"   = jsonencode({ for k, v in var.argocd_exposures : k => v if v.enabled })
-    "global.hubbleUiExposures" = jsonencode({ for k, v in var.hubble_ui_exposures : k => v if v.enabled })
+    # decodes with fromJson and iterates over the result. Uses the
+    # *_resolved locals so empty host fields are substituted with the
+    # auto-derived hostname (see _app_host in main.tf).
+    "global.lokiExposures"     = jsonencode({ for k, v in local.loki_exposures_resolved : k => v if v.enabled })
+    "global.grafanaExposures"  = jsonencode({ for k, v in local.grafana_exposures_resolved : k => v if v.enabled })
+    "global.argocdExposures"   = jsonencode({ for k, v in local.argocd_exposures_resolved : k => v if v.enabled })
+    "global.hubbleUiExposures" = jsonencode({ for k, v in local.hubble_ui_exposures_resolved : k => v if v.enabled })
 
     # Gate for hubble-ui-ingress rendering (Hubble UI only exists in ACNS)
     "global.networkDataplane" = var.network_dataplane
@@ -122,12 +128,17 @@ resource "kubernetes_secret" "platform_infrastructure" {
 
     # Workload Identity client IDs
     "identity.certManager.clientId"     = azurerm_user_assigned_identity.cert_manager.client_id
-    "identity.externalDns.clientId"     = azurerm_user_assigned_identity.external_dns.client_id
+    "identity.externalDns.clientId"     = var.dns_provider == "azure" ? azurerm_user_assigned_identity.external_dns[0].client_id : ""
     "identity.externalSecrets.clientId" = azurerm_user_assigned_identity.external_secrets.client_id
-    "identity.loki.clientId"            = azurerm_user_assigned_identity.loki.client_id
-    "identity.mimir.clientId"           = azurerm_user_assigned_identity.mimir.client_id
-    "identity.cnpg.clientId"            = azurerm_user_assigned_identity.cnpg.client_id
-    "identity.velero.clientId"          = azurerm_user_assigned_identity.velero.client_id
+
+    # Cloudflare API token — only populated when dns_provider = "cloudflare".
+    # Consumed by the external-dns-config chart and the cloudflare
+    # cluster-issuer to authenticate to the Cloudflare API.
+    "global.cloudflareApiToken" = var.dns_provider == "cloudflare" ? var.cloudflare_api_token : ""
+    "identity.loki.clientId"    = azurerm_user_assigned_identity.loki.client_id
+    "identity.mimir.clientId"   = azurerm_user_assigned_identity.mimir.client_id
+    "identity.cnpg.clientId"    = azurerm_user_assigned_identity.cnpg.client_id
+    "identity.velero.clientId"  = azurerm_user_assigned_identity.velero.client_id
 
     # Workload-operator (publishes hub-registrar-token to hub Key Vault)
     "identity.workloadOperator.clientId" = var.shared_hub_kv_enabled ? azurerm_user_assigned_identity.workload_operator[0].client_id : ""

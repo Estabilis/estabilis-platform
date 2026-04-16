@@ -1,0 +1,28 @@
+# Cloudflare-specific values for ExternalDNS.
+# Loaded in addition to values.yaml when dnsProvider=cloudflare.
+#
+# Authentication: API token (scope Zone:Read + DNS:Edit on the target zone)
+# mounted from the external-dns-cloudflare-config Secret rendered by the
+# external-dns-config chart. No Workload Identity / Azure AD involved.
+
+provider:
+  name: cloudflare
+
+# No ServiceAccount annotations — Cloudflare provider authenticates purely
+# via the CF_API_TOKEN env var. Keep the chart's default SA.
+serviceAccount:
+  create: true
+
+env:
+  - name: CF_API_TOKEN
+    valueFrom:
+      secretKeyRef:
+        name: external-dns-cloudflare-config
+        key: api-token
+
+# DNS-only mode (no orange cloud proxy). Required when the same records are
+# used by cert-manager HTTP-01 challenges; harmless for DNS-01. Flip to true
+# if you want Cloudflare WAF/caching/DDoS — then also configure Traefik to
+# trust Cloudflare's source IPs to preserve real client IPs.
+extraArgs:
+  - --cloudflare-proxied=false

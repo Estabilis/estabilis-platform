@@ -1,4 +1,4 @@
-{{- if eq .Values.global.provider "azure" }}
+{{- if eq .Values.global.dnsProvider "azure" }}
 apiVersion: v1
 kind: Secret
 metadata:

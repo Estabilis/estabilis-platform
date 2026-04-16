@@ -485,10 +485,10 @@ variable "traefik_internal_enabled" {
 # ---------------------------------------------------------------------------
 
 variable "grafana_exposures" {
-  description = "Grafana ingress exposures. One entry per network profile. Leave empty to not expose Grafana."
+  description = "Grafana ingress exposures. One entry per network profile. Leave empty to not expose Grafana. When host is empty, it is auto-derived from host_pattern + environment + domain (app name: 'grafana')."
   type = map(object({
     enabled       = bool
-    host          = string                      # full hostname, e.g. "hml-grafana.estabilis.io"
+    host          = optional(string, "")        # empty => auto-derived (see locals._app_host in main.tf)
     ingress_class = optional(string, "traefik") # "traefik" (public) or "traefik-internal"
     allowed_cidrs = optional(string, "")        # CSV; empty = no Middleware L7 filter
     issuer        = optional(string, "letsencrypt-production")
@@ -498,10 +498,10 @@ variable "grafana_exposures" {
 }
 
 variable "loki_exposures" {
-  description = "Loki push-API ingress exposures. Typically 'internal' for cluster-to-cluster log shipping. Leave empty to not expose Loki."
+  description = "Loki push-API ingress exposures. Typically 'internal' for cluster-to-cluster log shipping. Leave empty to not expose Loki. When host is empty, it is auto-derived (app name: 'loki')."
   type = map(object({
     enabled       = bool
-    host          = string
+    host          = optional(string, "")
     ingress_class = optional(string, "traefik-internal") # default to internal — loki push is usually VNet-scoped
     allowed_cidrs = optional(string, "")
     issuer        = optional(string, "letsencrypt-production")
@@ -511,10 +511,10 @@ variable "loki_exposures" {
 }
 
 variable "argocd_exposures" {
-  description = "ArgoCD UI ingress exposures. Typically internal — ops team accesses via VPN."
+  description = "ArgoCD UI ingress exposures. Typically internal — ops team accesses via VPN. When host is empty, it is auto-derived (app name: 'argocd')."
   type = map(object({
     enabled       = bool
-    host          = string
+    host          = optional(string, "")
     ingress_class = optional(string, "traefik")
     allowed_cidrs = optional(string, "")
     issuer        = optional(string, "letsencrypt-production")
@@ -524,10 +524,10 @@ variable "argocd_exposures" {
 }
 
 variable "hubble_ui_exposures" {
-  description = "Hubble UI (Cilium ACNS) ingress exposures. Only rendered when network_dataplane=cilium-acns and components.hubble-ui=true."
+  description = "Hubble UI (Cilium ACNS) ingress exposures. Only rendered when network_dataplane=cilium-acns and components.hubble-ui=true. When host is empty, it is auto-derived (app name: 'hubble')."
   type = map(object({
     enabled       = bool
-    host          = string
+    host          = optional(string, "")
     ingress_class = optional(string, "traefik")
     allowed_cidrs = optional(string, "")
     issuer        = optional(string, "letsencrypt-production")
@@ -809,6 +809,44 @@ variable "log_analytics_retention_days" {
   description = "Retention days for Log Analytics Workspace (AKS audit logs)."
   type        = number
   default     = 30
+}
+
+# ---------------------------------------------------------------------------
+# DNS provider
+# ---------------------------------------------------------------------------
+
+variable "dns_provider" {
+  description = "DNS provider for external-dns and cert-manager DNS-01 solver. 'azure' uses Azure DNS + Workload Identity (Terraform manages the zone, managed identity, and role assignment). 'cloudflare' uses Cloudflare API with a static API token — the zone must already exist in Cloudflare and NS records must be delegated there."
+  type        = string
+  default     = "azure"
+
+  validation {
+    condition     = contains(["azure", "cloudflare"], var.dns_provider)
+    error_message = "dns_provider must be one of: azure, cloudflare."
+  }
+}
+
+variable "cloudflare_zone_id" {
+  description = "Cloudflare Zone ID (UUID shown in the Cloudflare Dashboard → domain → Overview → API section). Required when dns_provider = 'cloudflare'."
+  type        = string
+  default     = ""
+
+  validation {
+    condition     = var.dns_provider != "cloudflare" || length(var.cloudflare_zone_id) > 0
+    error_message = "cloudflare_zone_id is required when dns_provider = 'cloudflare'."
+  }
+}
+
+variable "cloudflare_api_token" {
+  description = "Cloudflare API token with Zone:Read + DNS:Edit scopes on the target zone. Required when dns_provider = 'cloudflare'. Pass via secrets.auto.tfvars or TF_VAR_cloudflare_api_token."
+  type        = string
+  default     = ""
+  sensitive   = true
+
+  validation {
+    condition     = var.dns_provider != "cloudflare" || length(var.cloudflare_api_token) > 0
+    error_message = "cloudflare_api_token is required when dns_provider = 'cloudflare'."
+  }
 }
 
 variable "letsencrypt_email" {
