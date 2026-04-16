@@ -15,6 +15,7 @@ spec:
       helm:
         valueFiles:
           - $values/values/platform/cert-manager.yaml
+          - $values/values/platform/cert-manager-{{ .Values.global.provider }}.yaml
           {{- include "platform-root.overrideValueFile" (dict "component" "cert-manager" "root" $) | nindent 10 }}
           {{- include "platform-root.gitopsValueFile" (dict "component" "cert-manager" "root" $) | nindent 10 }}
         ignoreMissingValueFiles: true
@@ -30,7 +31,17 @@ spec:
                 "mode" $mode
                 "paths" (list "webhook" "cainjector" "startupapicheck")
              ) | nindent 10 }}
-        {{- include "platform-root.provenanceParametersBlock" $ | nindent 8 }}
+        parameters:
+          {{- include "platform-root.provenanceParameters" $ | nindent 10 }}
+          {{- if eq .Values.global.provider "azure" }}
+          {{- /* Azure Workload Identity client-id for the cert-manager
+                controller pod — dynamic per-cluster, so injected here. The
+                static labels/annotations ("use: true") live in the provider
+                overlay values file loaded above (cert-manager-azure.yaml). */}}
+          - name: serviceAccount.annotations.azure\.workload\.identity/client-id
+            value: "{{ .Values.identity.certManager.clientId }}"
+            forceString: true
+          {{- end }}
     - repoURL: {{ .Values.platformGitopsRepoUrl }}
       targetRevision: {{ .Values.platformGitopsVersion }}
       ref: values
@@ -60,6 +71,13 @@ spec:
         maxDuration: 3m
     syncOptions:
       - CreateNamespace=true
+      - ServerSideApply=true
+      {{- /* cert-manager's CRDs need Established=True before a Sync hook
+            declares success. ArgoCD's default apply checks the condition
+            synchronously at apply time, which fires before the API server
+            finishes promoting CRDs. SkipDryRunOnMissingResource lets
+            Sync move past this race. */}}
+      - SkipDryRunOnMissingResource=true
       {{- if eq .Values.global.provider "azure" }}
       - RespectIgnoreDifferences=true
       {{- end }}
