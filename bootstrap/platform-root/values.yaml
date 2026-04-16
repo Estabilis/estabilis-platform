@@ -118,7 +118,7 @@ components:
 
   # --- optional ---
   network-policies: true     # optional: network segmentation (disable if using alternative)
-  traefik: true              # optional: ingress controller (disable if no external endpoints)
+  traefik: false             # optional: ingress controller — enable only when exposing apps (L7 ingress + NSG rules + LB)
   opencost: true             # optional: cost tracking (disable if not needed)
   trivy: true                # optional: vulnerability scanning (disable if using alternative)
   velero: true               # optional: backup/restore (disable if handled externally)

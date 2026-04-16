@@ -1,0 +1,22 @@
+{{- /*
+  Emit the Middleware only when allowedCidrs is non-empty. If empty, there's
+  no IP restriction at the L7 level — Grafana remains reachable from whatever
+  the NSG allowed. This keeps the chart installable in clusters that want
+  Grafana exposed but don't care about IP allowlisting at the Middleware layer.
+*/ -}}
+{{- if .Values.allowedCidrs }}
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: grafana-ipallowlist
+  namespace: grafana
+  {{- include "estabilis.metadata" . | nindent 2 }}
+spec:
+  ipAllowList:
+    sourceRange:
+      {{- range splitList "," .Values.allowedCidrs }}
+      - {{ trim . | quote }}
+      {{- end }}
+    ipStrategy:
+      depth: {{ .Values.ipStrategyDepth | default 1 }}
+{{- end }}

@@ -1,0 +1,6 @@
+apiVersion: v2
+name: grafana-ingress
+description: Grafana external ingress — Traefik Middleware for per-app IP allowlist
+version: 0.1.0
+appVersion: "0.1.0"
+type: application

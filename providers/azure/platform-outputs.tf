@@ -75,6 +75,10 @@ resource "kubernetes_config_map" "platform_infrastructure" {
     "global.lokiExternalIngressEnabled" = tostring(var.loki_external_ingress_enabled)
     "global.lokiAllowedCidrs"           = var.loki_allowed_cidrs
 
+    # Grafana external ingress (per-app IP allowlist via Traefik Middleware)
+    "global.grafanaExternalIngressEnabled" = tostring(var.grafana_external_ingress_enabled)
+    "global.grafanaAllowedCidrs"           = var.grafana_allowed_cidrs
+
     # ACR
     "global.acrLoginServer" = var.acr_enabled ? azurerm_container_registry.platform[0].login_server : ""
 

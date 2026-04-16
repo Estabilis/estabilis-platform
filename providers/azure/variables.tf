@@ -449,6 +449,38 @@ variable "nsg_enabled" {
   default     = true
 }
 
+# ---------------------------------------------------------------------------
+# Ingress (L7) — single toggle that controls Traefik presence, NSG HTTP(S)
+# rules, and the public LoadBalancer. Mirror in ArgoCD via
+# components.traefik in overrides/platform-root/values.yaml. Defaults OFF:
+# clusters without external endpoints don't pay for Traefik / LB and don't
+# open 80/443 on the node subnet.
+# ---------------------------------------------------------------------------
+
+variable "traefik_enabled" {
+  description = "Enable Traefik ingress controller. When true, NSG opens 80/443 for ingress_allowed_ip_ranges and the chart is installed (components.traefik must also be true in the platform-root override)."
+  type        = bool
+  default     = false
+}
+
+variable "ingress_allowed_ip_ranges" {
+  description = "Source IP CIDRs allowed to reach the Traefik public LoadBalancer on ports 80/443. Empty list means 'public' (0.0.0.0/0). Distinct from authorized_ip_ranges (which is for the AKS API server)."
+  type        = list(string)
+  default     = []
+}
+
+variable "grafana_external_ingress_enabled" {
+  description = "Expose Grafana externally through Traefik with per-app IP allowlist Middleware. Requires traefik_enabled=true."
+  type        = bool
+  default     = false
+}
+
+variable "grafana_allowed_cidrs" {
+  description = "CSV of CIDRs allowed to reach Grafana via the Traefik ipAllowList Middleware (L7, per-hostname). Empty disables the Middleware, leaving only the NSG + LB layer."
+  type        = string
+  default     = ""
+}
+
 variable "authorized_ip_ranges" {
   description = "List of authorized IP ranges for AKS API server access. Empty list makes API server private."
   type        = list(string)

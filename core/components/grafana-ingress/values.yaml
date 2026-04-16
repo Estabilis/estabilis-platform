@@ -1,0 +1,22 @@
+# Grafana external ingress — per-app access control.
+#
+# Provisions a Traefik Middleware (ipAllowList) in the grafana namespace.
+# The Grafana chart's own Ingress (enabled via overrides/grafana/values.yaml)
+# references this Middleware through the annotation:
+#   traefik.ingress.kubernetes.io/router.middlewares: grafana-grafana-ipallowlist@kubernetescrd
+#
+# Same 2-layer model used by loki-ingress:
+#   Layer 1 (NSG): coarse, port-level — controls who reaches the Traefik LB at all
+#   Layer 2 (this Middleware): fine, per-hostname — controls who reaches Grafana
+#                              after the packet already passed the NSG
+#
+# A CSV of CIDRs is received from platform-root as helm.parameter (global.grafanaAllowedCidrs).
+# Empty CSV means "no IP restriction at Middleware level" — NSG/L7 auth remain.
+
+# Comma-separated CIDRs. Injected by platform-root from var.grafana_allowed_cidrs.
+allowedCidrs: ""
+
+# ipStrategy.depth — how many proxies sit in front of Traefik. Azure LB forwards
+# the client IP in X-Forwarded-For; depth=1 reads the last proxy hop (client IP).
+# Set higher if there's an additional proxy (Cloudflare, etc.).
+ipStrategyDepth: 1

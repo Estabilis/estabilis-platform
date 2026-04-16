@@ -1,0 +1,48 @@
+{{- /*
+  Grafana external ingress — provisions Traefik Middleware (ipAllowList) in
+  the grafana namespace so the Grafana Ingress (created by the grafana chart
+  override in the downstream) can restrict access per-app.
+
+  Depends on: components.traefik = true (CRDs Middleware live in the Traefik chart).
+  Toggled by: global.grafanaExternalIngressEnabled (from Terraform).
+*/ -}}
+{{- if and (ne (index .Values.components "traefik") false) (eq (toString (index .Values.global "grafanaExternalIngressEnabled" | default "false")) "true") }}
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: grafana-ingress
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "9"
+spec:
+  project: platform
+  sources:
+    - repoURL: {{ .Values.platformRepoUrl }}
+      targetRevision: {{ .Values.platformVersion }}
+      path: core/components/grafana-ingress
+      helm:
+        valueFiles:
+          - $values/core/components/grafana-ingress/values.yaml
+          {{- include "platform-root.overrideValueFile" (dict "component" "grafana-ingress" "root" $) | nindent 10 }}
+          {{- include "platform-root.gitopsValueFile" (dict "component" "grafana-ingress" "root" $) | nindent 10 }}
+        ignoreMissingValueFiles: true
+        parameters:
+          {{- include "platform-root.provenanceParameters" $ | nindent 10 }}
+          - name: allowedCidrs
+            value: "{{ index .Values.global "grafanaAllowedCidrs" | default "" }}"
+    - repoURL: {{ .Values.platformRepoUrl }}
+      targetRevision: {{ .Values.platformVersion }}
+      ref: values
+    {{- include "platform-root.overrideSource" . | nindent 4 }}
+    {{- include "platform-root.gitopsSource" . | nindent 4 }}
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: grafana
+  syncPolicy:
+    retry:
+      limit: 10
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 3m
+{{- end }}
