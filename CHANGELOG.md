@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.8.2] - 2026-04-16
+
+### Fixed
+- `core/components/trivy-operator/values.yaml`: trivy CLI scan job
+  containers were OOMing on real-world image scans. The CLI does
+  layer extraction client-side even in ClientServer mode, and the
+  previous limit of 512 MiB was insufficient (`anon-rss ~520 MiB`
+  observed on Transfero HML 2026-04-16). Bumped
+  `trivy.resources.limits.memory` from `512Mi` to `1Gi` and
+  `requests.memory` from `128Mi` to `256Mi` to keep the Burstable
+  QoS ratio reasonable.
+- `operator.scanJobBackoffLimit` reduced from `10` to `3`. With the
+  previous setting an OOM produced 10 noisy events for the same
+  failure (a scan that doesn't fit at attempt 4 won't fit at attempt
+  10 either — the image is the problem, not transient pressure).
+
 ## [0.8.1] - 2026-04-16
 
 ### Changed

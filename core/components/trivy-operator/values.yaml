@@ -25,13 +25,19 @@ containerSecurityContext:
 trivy:
   ignoreUnfixed: true
   storageSize: "4Gi"
+  # Resources for the trivy CLI container inside scan job pods.
+  # 512Mi was OOMing on real-world image scans (anon-rss ~520MB during
+  # layer extraction even in ClientServer mode — observed Transfero HML
+  # 2026-04-16). 1Gi gives headroom for typical multi-layer images
+  # without going overboard. Bump if a specific client has very large
+  # images that still OOM.
   resources:
     requests:
       cpu: 50m
-      memory: 128Mi
+      memory: 256Mi
     limits:
       cpu: 200m
-      memory: 512Mi
+      memory: 1Gi
   server:
     podSecurityContext:
       runAsNonRoot: true
@@ -66,7 +72,11 @@ operator:
   builtInTrivyServer: true
   scanJobsConcurrentLimit: 1
   scanJobRetryAfter: 30s
-  scanJobBackoffLimit: 10
+  # 10 retries × OOM = 10 noisy events for the same scan failure.
+  # Cap at 3: a job that doesn't fit in trivy.resources.limits.memory
+  # after 3 attempts won't fit on the 4th either. The image is the
+  # problem, not transient cluster pressure.
+  scanJobBackoffLimit: 3
   vulnerabilityScannerEnabled: true
   configAuditScannerEnabled: true
   rbacAssessmentScannerEnabled: true
