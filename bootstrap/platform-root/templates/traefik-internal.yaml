@@ -1,0 +1,53 @@
+{{- /*
+  ADR 0014 — optional second Traefik instance for internal (VNet-only)
+  exposures. Produces ingressClass 'traefik-internal' backed by an Azure
+  Internal LoadBalancer. Use alongside the public 'traefik' Deployment
+  when the cluster needs both public and internal endpoints.
+
+  Gated by components.traefik-internal (default false).
+*/ -}}
+{{- if eq (index .Values.components "traefik-internal" | default false) true }}
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: traefik-internal
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "6"
+spec:
+  project: platform
+  sources:
+    - repoURL: https://traefik.github.io/charts
+      chart: traefik
+      targetRevision: "39.0.5"
+      helm:
+        releaseName: traefik-internal
+        valueFiles:
+          - $values/core/components/traefik/values.yaml
+          - $values/core/components/traefik/values-{{ .Values.global.provider }}.yaml
+          - $values/core/components/traefik-internal/values.yaml
+          {{- include "platform-root.overrideValueFile" (dict "component" "traefik-internal" "root" $) | nindent 10 }}
+        {{- include "platform-root.ignoreMissingValueFiles" $ | nindent 8 }}
+        valuesObject:
+          {{- /* Scheduling (ADR 0012) */}}
+          {{- include "platform-root.schedulingValuesTopLevel" (dict
+                "mode" (default "auto" (index .Values.scheduling "traefik-internal"))
+             ) | nindent 10 }}
+    - repoURL: {{ .Values.platformRepoUrl }}
+      targetRevision: {{ .Values.platformVersion }}
+      ref: values
+    {{- include "platform-root.overrideSource" . | nindent 4 }}
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: traefik-internal
+  syncPolicy:
+    {{- include "platform-root.managedNamespaceMetadataExcluded" . | nindent 4 }}
+    retry:
+      limit: 10
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 3m
+    syncOptions:
+      - CreateNamespace=true
+{{- end }}

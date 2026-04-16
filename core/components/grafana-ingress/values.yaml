@@ -1,26 +1,13 @@
-# Grafana external ingress — per-app access control.
+# Grafana external ingress — ADR 0014 (multi-exposure model).
 #
-# Provisions a Traefik Middleware (ipAllowList) in the grafana namespace.
-# The Grafana chart's own Ingress (enabled via overrides/grafana/values.yaml)
-# references this Middleware through the annotation:
-#   traefik.ingress.kubernetes.io/router.middlewares: grafana-grafana-ipallowlist@kubernetescrd
-#
-# Same 2-layer model used by loki-ingress:
-#   Layer 1 (NSG): coarse, port-level — controls who reaches the Traefik LB at all
-#   Layer 2 (this Middleware): fine, per-hostname — controls who reaches Grafana
-#                              after the packet already passed the NSG
-#
-# A CSV of CIDRs is received from platform-root as helm.parameter (global.grafanaAllowedCidrs).
-# Empty CSV means "no IP restriction at Middleware level" — NSG/L7 auth remain.
+# Mirror of loki-ingress/values.yaml. Each entry in exposures becomes a K8s
+# Ingress + Middlewares + Certificate. The Ingress points to the grafana
+# Service (the grafana chart's own Ingress must stay disabled — this chart
+# owns exposure concerns end-to-end).
 
-# Comma-separated CIDRs. Injected by platform-root from var.grafana_allowed_cidrs.
-allowedCidrs: ""
+# Injected by platform-root as a JSON string parameter.
+exposuresJson: "{}"
 
-# ipStrategy — only set when there is an L7 proxy in front of Traefik that adds
-# X-Forwarded-For (e.g. Cloudflare, a WAF). With the Azure Load Balancer alone
-# and Service.externalTrafficPolicy=Local (the platform default), the client's
-# source IP reaches Traefik directly via TCP remoteAddr — no XFF required, and
-# setting ipStrategy.depth>0 would make Traefik look for a header that doesn't
-# exist, rejecting all requests as "unknown source". Leave 0/empty for the
-# default AKS+Azure LB topology.
-ipStrategyDepth: 0
+# KV secret naming prefix for optional BasicAuth (not common for Grafana
+# since it has its own auth, but kept for parity with loki-ingress).
+kvSecretPrefix: "platform-grafana-ingress-auth"

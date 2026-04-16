@@ -72,12 +72,11 @@ resource "kubernetes_config_map" "platform_infrastructure" {
     "global.veleroBackupRetentionHours" = tostring(var.velero_backup_retention_hours)
     "global.cnpgBackupRetentionDays"    = tostring(var.cnpg_backup_retention_days)
     "global.cnpgBackupSchedule"         = var.cnpg_backup_schedule
-    "global.lokiExternalIngressEnabled" = tostring(var.loki_external_ingress_enabled)
-    "global.lokiAllowedCidrs"           = var.loki_allowed_cidrs
-
-    # Grafana external ingress (per-app IP allowlist via Traefik Middleware)
-    "global.grafanaExternalIngressEnabled" = tostring(var.grafana_external_ingress_enabled)
-    "global.grafanaAllowedCidrs"           = var.grafana_allowed_cidrs
+    # ADR 0014 — App exposures as a JSON-encoded map(object). Filtered to
+    # only enabled profiles to keep the ConfigMap small. Platform-root
+    # decodes with fromJson and iterates over the result.
+    "global.lokiExposures"    = jsonencode({ for k, v in var.loki_exposures : k => v if v.enabled })
+    "global.grafanaExposures" = jsonencode({ for k, v in var.grafana_exposures : k => v if v.enabled })
 
     # ACR
     "global.acrLoginServer" = var.acr_enabled ? azurerm_container_registry.platform[0].login_server : ""

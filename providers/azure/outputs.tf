@@ -133,3 +133,15 @@ output "hub_key_vault_name" {
   description = "Name of the Key Vault containing hub connection values for workload clusters."
   value       = var.shared_hub_kv_enabled ? azurerm_key_vault.hub[0].name : null
 }
+
+# --- App exposures (ADR 0014) — JSON-encoded for CLI consumption ---
+
+output "grafana_exposures_json" {
+  description = "Grafana exposures serialized as JSON. Consumed by the estabilis CLI to set global.grafanaExposures helm parameter on platform-root."
+  value       = jsonencode({ for k, v in var.grafana_exposures : k => v if v.enabled })
+}
+
+output "loki_exposures_json" {
+  description = "Loki exposures serialized as JSON."
+  value       = jsonencode({ for k, v in var.loki_exposures : k => v if v.enabled })
+}

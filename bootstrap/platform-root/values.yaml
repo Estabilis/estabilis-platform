@@ -119,6 +119,7 @@ components:
   # --- optional ---
   network-policies: true     # optional: network segmentation (disable if using alternative)
   traefik: false             # optional: ingress controller — enable only when exposing apps (L7 ingress + NSG rules + LB)
+  traefik-internal: false    # optional: second Traefik for VNet-only exposures (ADR 0014 internal class)
   opencost: true             # optional: cost tracking (disable if not needed)
   trivy: true                # optional: vulnerability scanning (disable if using alternative)
   velero: true               # optional: backup/restore (disable if handled externally)

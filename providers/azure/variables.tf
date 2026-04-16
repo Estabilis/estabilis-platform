@@ -469,16 +469,45 @@ variable "ingress_allowed_ip_ranges" {
   default     = []
 }
 
-variable "grafana_external_ingress_enabled" {
-  description = "Expose Grafana externally through Traefik with per-app IP allowlist Middleware. Requires traefik_enabled=true."
+variable "traefik_internal_enabled" {
+  description = "Enable a second Traefik instance dedicated to internal (VNet-only) exposures. When true, installs core/components/traefik-internal chart producing an ingressClass 'traefik-internal' backed by an Azure Internal LoadBalancer. Consumed by exposures with ingress_class='traefik-internal'."
   type        = bool
   default     = false
 }
 
-variable "grafana_allowed_cidrs" {
-  description = "CSV of CIDRs allowed to reach Grafana via the Traefik ipAllowList Middleware (L7, per-hostname). Empty disables the Middleware, leaving only the NSG + LB layer."
-  type        = string
-  default     = ""
+# ---------------------------------------------------------------------------
+# App exposures — map(object) model (ADR 0014). Each entry is a separate
+# K8s Ingress + Traefik Middleware(s) + Certificate. Operator chooses
+# ingress_class per profile to pin public vs internal routing.
+#
+# Key convention: profile name (e.g. "internal", "external", "vpn"); becomes
+# part of resource names.
+# ---------------------------------------------------------------------------
+
+variable "grafana_exposures" {
+  description = "Grafana ingress exposures. One entry per network profile. Leave empty to not expose Grafana."
+  type = map(object({
+    enabled       = bool
+    host          = string                      # full hostname, e.g. "hml-grafana.estabilis.io"
+    ingress_class = optional(string, "traefik") # "traefik" (public) or "traefik-internal"
+    allowed_cidrs = optional(string, "")        # CSV; empty = no Middleware L7 filter
+    issuer        = optional(string, "letsencrypt-production")
+    basic_auth    = optional(bool, false) # BasicAuth Middleware (htpasswd via ExternalSecret)
+  }))
+  default = {}
+}
+
+variable "loki_exposures" {
+  description = "Loki push-API ingress exposures. Typically 'internal' for cluster-to-cluster log shipping. Leave empty to not expose Loki."
+  type = map(object({
+    enabled       = bool
+    host          = string
+    ingress_class = optional(string, "traefik-internal") # default to internal — loki push is usually VNet-scoped
+    allowed_cidrs = optional(string, "")
+    issuer        = optional(string, "letsencrypt-production")
+    basic_auth    = optional(bool, true) # loki uses BasicAuth by default for push API
+  }))
+  default = {}
 }
 
 variable "authorized_ip_ranges" {
@@ -500,12 +529,6 @@ variable "argocd_chart_version" {
 # ---------------------------------------------------------------------------
 # Observability – External Access
 # ---------------------------------------------------------------------------
-
-variable "loki_external_ingress_enabled" {
-  description = "Expose Loki push API externally via Traefik with BasicAuth. Requires loki-ingress-auth secret in grafana namespace."
-  type        = bool
-  default     = false
-}
 
 # ---------------------------------------------------------------------------
 # Backup
@@ -760,12 +783,6 @@ variable "log_analytics_retention_days" {
   description = "Retention days for Log Analytics Workspace (AKS audit logs)."
   type        = number
   default     = 30
-}
-
-variable "loki_allowed_cidrs" {
-  description = "Comma-separated list of CIDRs allowed to push logs to Loki external ingress. Empty string disables IP restriction."
-  type        = string
-  default     = ""
 }
 
 variable "letsencrypt_email" {

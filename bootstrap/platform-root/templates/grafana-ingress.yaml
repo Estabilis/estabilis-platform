@@ -1,12 +1,12 @@
 {{- /*
-  Grafana external ingress — provisions Traefik Middleware (ipAllowList) in
-  the grafana namespace so the Grafana Ingress (created by the grafana chart
-  override in the downstream) can restrict access per-app.
-
-  Depends on: components.traefik = true (CRDs Middleware live in the Traefik chart).
-  Toggled by: global.grafanaExternalIngressEnabled (from Terraform).
+  ADR 0014 — Grafana external ingress Application. Same pattern as
+  loki-ingress: renders iff at least one exposure is enabled in
+  global.grafanaExposures and components.traefik is true.
 */ -}}
-{{- if and (ne (index .Values.components "traefik") false) (eq (toString (index .Values.global "grafanaExternalIngressEnabled" | default "false")) "true") }}
+{{- $exposures := fromJson (default "{}" (index .Values.global "grafanaExposures" | default "")) -}}
+{{- $hasEnabled := false -}}
+{{- range $_, $exp := $exposures }}{{- if $exp.enabled }}{{- $hasEnabled = true }}{{- end }}{{- end }}
+{{- if and (ne (index .Values.components "traefik") false) $hasEnabled }}
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -28,8 +28,9 @@ spec:
         ignoreMissingValueFiles: true
         parameters:
           {{- include "platform-root.provenanceParameters" $ | nindent 10 }}
-          - name: allowedCidrs
-            value: "{{ index .Values.global "grafanaAllowedCidrs" | default "" }}"
+          - name: exposuresJson
+            value: {{ index .Values.global "grafanaExposures" | default "{}" | quote }}
+            forceString: true
     - repoURL: {{ .Values.platformRepoUrl }}
       targetRevision: {{ .Values.platformVersion }}
       ref: values

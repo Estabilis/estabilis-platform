@@ -1,0 +1,22 @@
+# Traefik internal — values loaded on top of core/components/traefik/values.yaml
+# + values-azure.yaml. Overrides the Service to use an Azure Internal LB and
+# renames the ingressClass so exposures can target it explicitly.
+
+service:
+  annotations:
+    # Azure-managed cloud provider creates an Internal LoadBalancer (private
+    # IP in the VNet, not internet-routable). Consumers in the same VNet
+    # (peered or not) resolve and reach directly.
+    service.beta.kubernetes.io/azure-load-balancer-internal: "true"
+    service.beta.kubernetes.io/azure-load-balancer-health-probe-request-path: /ping
+
+ingressClass:
+  enabled: true
+  isDefaultClass: false
+  name: traefik-internal
+
+providers:
+  kubernetesIngress:
+    ingressClass: traefik-internal
+  kubernetesCRD:
+    ingressClass: traefik-internal

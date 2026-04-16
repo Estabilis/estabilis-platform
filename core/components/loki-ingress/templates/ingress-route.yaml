@@ -1,83 +1,110 @@
-{{- if .Values.allowedCidrs }}
+{{- /*
+  ADR 0014 — iterate over exposures map, rendering Ingress + Middlewares +
+  Certificate + ExternalSecret per enabled profile. Same backend Service
+  (loki-gateway) is shared across profiles; only the edge differs.
+*/ -}}
+{{- $exposures := fromJson (default "{}" .Values.exposuresJson) -}}
+{{- range $profile, $exp := $exposures }}
+{{- if $exp.enabled }}
+{{- $mwList := list }}
+{{- $resourceSuffix := $profile }}
+{{- $mwIPName := printf "loki-%s-ipallowlist" $profile }}
+{{- $mwAuthName := printf "loki-%s-auth" $profile }}
+---
+{{- if $exp.allowed_cidrs }}
 apiVersion: traefik.io/v1alpha1
 kind: Middleware
 metadata:
-  name: loki-ingress-ipallowlist
+  name: {{ $mwIPName }}
   namespace: grafana
-  {{- include "estabilis.metadata" . | nindent 2 }}
+  {{- include "estabilis.metadata" $ | nindent 2 }}
 spec:
   ipAllowList:
     sourceRange:
-      {{- range splitList "," .Values.allowedCidrs }}
+      {{- range splitList "," $exp.allowed_cidrs }}
       - {{ trim . | quote }}
       {{- end }}
-    ipStrategy:
-      depth: 1
 ---
 {{- end }}
+{{- if $exp.basic_auth }}
 apiVersion: traefik.io/v1alpha1
 kind: Middleware
 metadata:
-  name: loki-ingress-auth
+  name: {{ $mwAuthName }}
   namespace: grafana
-  {{- include "estabilis.metadata" . | nindent 2 }}
+  {{- include "estabilis.metadata" $ | nindent 2 }}
 spec:
   basicAuth:
-    secret: loki-ingress-auth
+    secret: {{ $mwAuthName }}
 ---
-apiVersion: cert-manager.io/v1
-kind: Certificate
-metadata:
-  name: loki-external-tls
-  namespace: grafana
-  {{- include "estabilis.metadata" . | nindent 2 }}
-spec:
-  secretName: loki-external-tls
-  issuerRef:
-    name: letsencrypt-production
-    kind: ClusterIssuer
-  dnsNames:
-    - {{ .Values.global.host }}
----
-apiVersion: traefik.io/v1alpha1
-kind: IngressRoute
-metadata:
-  name: loki-external
-  namespace: grafana
-  {{- include "estabilis.metadata" . | nindent 2 }}
-spec:
-  entryPoints:
-    - websecure
-  routes:
-    - match: Host(`{{ .Values.global.host }}`) && PathPrefix(`/loki/api/v1/push`)
-      kind: Rule
-      middlewares:
-        {{- if .Values.allowedCidrs }}
-        - name: loki-ingress-ipallowlist
-        {{- end }}
-        - name: loki-ingress-auth
-      services:
-        - name: grafana-loki-gateway
-          port: 80
-  tls:
-    secretName: loki-external-tls
----
-# ExternalSecret for BasicAuth credentials — pull htpasswd from Key Vault
 apiVersion: external-secrets.io/v1
 kind: ExternalSecret
 metadata:
-  name: loki-ingress-auth
+  name: {{ $mwAuthName }}
   namespace: grafana
-  {{- include "estabilis.metadata" . | nindent 2 }}
+  {{- include "estabilis.metadata" $ | nindent 2 }}
 spec:
   refreshInterval: 1h
   secretStoreRef:
     name: platform-secret-store
     kind: ClusterSecretStore
   target:
-    name: loki-ingress-auth
+    name: {{ $mwAuthName }}
     creationPolicy: Owner
   data:
     - secretKey: users
       remoteRef:
-        key: {{ .Values.kvSecrets.lokiIngressAuth | quote }}
+        key: {{ printf "%s-%s" $.Values.kvSecretPrefix $profile | quote }}
+---
+{{- end }}
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: loki-{{ $profile }}-tls
+  namespace: grafana
+  {{- include "estabilis.metadata" $ | nindent 2 }}
+spec:
+  secretName: loki-{{ $profile }}-tls
+  issuerRef:
+    name: {{ $exp.issuer | default "letsencrypt-production" | quote }}
+    kind: ClusterIssuer
+  dnsNames:
+    - {{ $exp.host | quote }}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: loki-{{ $profile }}
+  namespace: grafana
+  {{- include "estabilis.metadata" $ | nindent 2 }}
+  annotations:
+    {{- $mws := list }}
+    {{- if $exp.allowed_cidrs }}
+    {{- $mws = append $mws (printf "grafana-%s@kubernetescrd" $mwIPName) }}
+    {{- end }}
+    {{- if $exp.basic_auth }}
+    {{- $mws = append $mws (printf "grafana-%s@kubernetescrd" $mwAuthName) }}
+    {{- end }}
+    {{- if $mws }}
+    traefik.ingress.kubernetes.io/router.middlewares: {{ join "," $mws | quote }}
+    {{- end }}
+    external-dns.alpha.kubernetes.io/hostname: {{ $exp.host | quote }}
+spec:
+  ingressClassName: {{ $exp.ingress_class | default "traefik" | quote }}
+  rules:
+    - host: {{ $exp.host | quote }}
+      http:
+        paths:
+          - path: /loki/api/v1/push
+            pathType: Prefix
+            backend:
+              service:
+                name: grafana-loki-gateway
+                port:
+                  number: 80
+  tls:
+    - secretName: loki-{{ $profile }}-tls
+      hosts:
+        - {{ $exp.host | quote }}
+{{- end }}
+{{- end }}

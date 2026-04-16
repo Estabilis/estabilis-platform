@@ -1,7 +1,13 @@
-{{- /* conditional: enabled via global.lokiExternalIngressEnabled, depends on traefik and loki */ -}}
-{{- if and
-      (ne (index .Values.components "traefik") false)
-      (or (eq (.Values.global.lokiExternalIngressEnabled | toString) "true") (eq (.Values.global.lokiExternalIngressEnabled | toString) "True")) }}
+{{- /*
+  ADR 0014 — Loki external ingress Application. Renders when at least one
+  exposure profile is enabled in global.lokiExposures (JSON map injected by
+  Terraform via platform-root helm parameter). Depends on components.traefik
+  being true (shared Traefik CRDs — Middleware type).
+*/ -}}
+{{- $exposures := fromJson (default "{}" (index .Values.global "lokiExposures" | default "")) -}}
+{{- $hasEnabled := false -}}
+{{- range $_, $exp := $exposures }}{{- if $exp.enabled }}{{- $hasEnabled = true }}{{- end }}{{- end }}
+{{- if and (ne (index .Values.components "traefik") false) $hasEnabled }}
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -22,14 +28,9 @@ spec:
         {{- include "platform-root.ignoreMissingValueFiles" $ | nindent 8 }}
         parameters:
           {{- include "platform-root.provenanceParameters" $ | nindent 10 }}
-          - name: global.domain
-            value: "{{ .Values.global.domain }}"
-          - name: global.effectiveDomain
-            value: "{{ .Values.global.effectiveDomain }}"
-          - name: global.host
-            value: {{ include "estabilis.host" (dict "app" "loki" "global" .Values.global) | quote }}
-          - name: allowedCidrs
-            value: "{{ .Values.global.lokiAllowedCidrs }}"
+          - name: exposuresJson
+            value: {{ index .Values.global "lokiExposures" | default "{}" | quote }}
+            forceString: true
     - repoURL: {{ .Values.platformRepoUrl }}
       targetRevision: {{ .Values.platformVersion }}
       ref: values

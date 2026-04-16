@@ -1,12 +1,24 @@
-global:
-  domain: ""
-  effectiveDomain: ""
-  host: ""
+# Loki external ingress — ADR 0014 (multi-exposure model).
+#
+# Each entry in `exposures` becomes a K8s Ingress + Traefik Middleware(s)
+# + Certificate. Operator declares profiles (internal, external, vpn, ...)
+# and the chart renders them independently.
+#
+# exposures is a map(object) injected by platform-root as a JSON string
+# (helm parameter `exposuresJson`). The template decodes it with fromJson.
+#
+# Each object shape:
+#   enabled        bool  — gate (only enabled profiles render resources)
+#   host           str   — full hostname, e.g. "loki-push-internal.estabilis.io"
+#   ingress_class  str   — "traefik" (public LB) or "traefik-internal" (VNet LB)
+#   allowed_cidrs  str   — CSV of CIDRs; empty skips the ipAllowList Middleware
+#   issuer         str   — cert-manager ClusterIssuer name
+#   basic_auth     bool  — wire BasicAuth Middleware backed by ExternalSecret
 
-kvSecrets:
-  lokiIngressAuth: "platform-loki-ingress-auth"
+# Default off; Terraform passes the real map via exposuresJson parameter.
+exposuresJson: "{}"
 
-# CIDRs allowed to push logs to Loki.
-# Empty string = no IP restriction (basic auth only).
-# Example: "10.0.0.0/8,172.16.0.0/12"
-allowedCidrs: ""
+# Key Vault secret naming pattern for BasicAuth htpasswd. The expected
+# secret name in the KV for each enabled profile is:
+#   <kvSecretPrefix>-<profile>     (e.g. platform-loki-ingress-auth-internal)
+kvSecretPrefix: "platform-loki-ingress-auth"
