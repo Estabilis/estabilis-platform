@@ -16,7 +16,11 @@
 # Comma-separated CIDRs. Injected by platform-root from var.grafana_allowed_cidrs.
 allowedCidrs: ""
 
-# ipStrategy.depth — how many proxies sit in front of Traefik. Azure LB forwards
-# the client IP in X-Forwarded-For; depth=1 reads the last proxy hop (client IP).
-# Set higher if there's an additional proxy (Cloudflare, etc.).
-ipStrategyDepth: 1
+# ipStrategy — only set when there is an L7 proxy in front of Traefik that adds
+# X-Forwarded-For (e.g. Cloudflare, a WAF). With the Azure Load Balancer alone
+# and Service.externalTrafficPolicy=Local (the platform default), the client's
+# source IP reaches Traefik directly via TCP remoteAddr — no XFF required, and
+# setting ipStrategy.depth>0 would make Traefik look for a header that doesn't
+# exist, rejecting all requests as "unknown source". Leave 0/empty for the
+# default AKS+Azure LB topology.
+ipStrategyDepth: 0

@@ -17,6 +17,8 @@ spec:
       {{- range splitList "," .Values.allowedCidrs }}
       - {{ trim . | quote }}
       {{- end }}
+    {{- if and .Values.ipStrategyDepth (gt (int .Values.ipStrategyDepth) 0) }}
     ipStrategy:
-      depth: {{ .Values.ipStrategyDepth | default 1 }}
+      depth: {{ .Values.ipStrategyDepth }}
+    {{- end }}
 {{- end }}
