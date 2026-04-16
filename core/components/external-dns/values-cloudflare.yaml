@@ -20,9 +20,11 @@ env:
         name: external-dns-cloudflare-config
         key: api-token
 
-# DNS-only mode (no orange cloud proxy). Required when the same records are
-# used by cert-manager HTTP-01 challenges; harmless for DNS-01. Flip to true
-# if you want Cloudflare WAF/caching/DDoS — then also configure Traefik to
-# trust Cloudflare's source IPs to preserve real client IPs.
-extraArgs:
-  - --cloudflare-proxied=false
+# DNS-only mode is the external-dns default for the Cloudflare provider
+# (cfg.CloudflareProxied = false), so we don't pass --cloudflare-proxied
+# here. Attempting to pass "--cloudflare-proxied=false" crashes the pod
+# with "flag parsing error: unexpected false" on external-dns v0.20.0 —
+# for that provider, the boolean flag only accepts the bare form (enable).
+# To enable proxying in the future, set `extraArgs: [--cloudflare-proxied]`
+# and configure Traefik to trust Cloudflare's source IPs (preserves client
+# IP through the proxy).

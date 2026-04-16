@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.7.1] - 2026-04-16
+
+### Fixed
+- Removed `--cloudflare-proxied=false` from
+  `core/components/external-dns/values-cloudflare.yaml`. external-dns
+  v0.20.0 crashes with `flag parsing error: unexpected false` when that
+  flag carries an explicit `=false` value. Default is already unproxied,
+  so the flag is unnecessary. To re-enable proxy mode in the future,
+  set `extraArgs: [--cloudflare-proxied]` (bare form).
+
 ## [0.7.0] - 2026-04-16
 
 ### Added
