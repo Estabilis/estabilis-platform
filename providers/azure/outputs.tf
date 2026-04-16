@@ -160,3 +160,15 @@ output "network_dataplane" {
   description = "AKS network dataplane (default|cilium|cilium-acns). Used by platform-root to gate ACNS-specific features like Hubble UI ingress."
   value       = var.network_dataplane
 }
+
+# --- ACR push automation (ADR 0015) ---
+
+output "azdo_acr_push_service_connection_name" {
+  description = "Name of the Azure DevOps Service Connection created for ACR push (when azdo_push_automation_enabled=true). Pipelines reference this name in YAML."
+  value       = var.acr_enabled && var.azdo_push_automation_enabled ? azuredevops_serviceendpoint_azurerm.acr_push[0].service_endpoint_name : null
+}
+
+output "azdo_acr_push_sp_app_id" {
+  description = "Application (Client) ID of the SP that owns AcrPush. Useful for debugging the SC binding."
+  value       = var.acr_enabled && var.azdo_push_automation_enabled ? azuread_application.acr_push_azdo[0].client_id : null
+}

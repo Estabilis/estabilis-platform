@@ -15,6 +15,15 @@ provider "azuread" {
   tenant_id = var.tenant_id
 }
 
+# ADR 0015 (WIP) — Azure DevOps Service Connection automation for ACR push.
+# Authenticates via az cli (no PAT required) when AZURE_CONFIG_DIR points to a
+# session that has access to the target ADO organization. Provider block is
+# always declared; resources are gated by var.azdo_push_automation_enabled
+# so it is a no-op when the feature is off.
+provider "azuredevops" {
+  org_service_url = var.azdo_organization_url
+}
+
 provider "kubernetes" {
   host                   = azurerm_kubernetes_cluster.platform.kube_admin_config[0].host
   client_certificate     = base64decode(azurerm_kubernetes_cluster.platform.kube_admin_config[0].client_certificate)

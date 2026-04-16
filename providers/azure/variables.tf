@@ -719,6 +719,37 @@ variable "acr_push_principal_ids" {
   default     = []
 }
 
+# ---------------------------------------------------------------------------
+# Azure DevOps automation (ADR 0015) — opt-in feature: Terraform creates an
+# AAD App + SP + AcrPush role + ADO Service Connection (Workload Identity
+# Federation, Manual mode) + Federated Identity Credential. Pipelines then
+# reference the Service Connection by name to push images/charts to the ACR
+# without managing any secret.
+#
+# Caller permissions required when enabled:
+#   - Tenant: Application Administrator (to create AAD App + SP)
+#   - ADO project: Project Administrator OR Service Connection Administrator
+# Authentication is via az cli (no PAT) — provider piggybacks on AZURE_CONFIG_DIR.
+# ---------------------------------------------------------------------------
+
+variable "azdo_push_automation_enabled" {
+  description = "Create a Terraform-managed Service Principal + ADO Service Connection (WIF) for ACR push. When true, azdo_organization_url and azdo_project must be set."
+  type        = bool
+  default     = false
+}
+
+variable "azdo_organization_url" {
+  description = "Azure DevOps organization URL (e.g., https://dev.azure.com/<org>). Required when azdo_push_automation_enabled=true."
+  type        = string
+  default     = ""
+}
+
+variable "azdo_project" {
+  description = "Azure DevOps project name where the Service Connection will be created. Required when azdo_push_automation_enabled=true."
+  type        = string
+  default     = ""
+}
+
 variable "acr_ci_identity_enabled" {
   description = "Create a dedicated managed identity for CI/CD push to ACR. Outputs client_id for federated credential setup."
   type        = bool
