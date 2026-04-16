@@ -4,7 +4,16 @@
   Terraform via platform-root helm parameter). Depends on components.traefik
   being true (shared Traefik CRDs — Middleware type).
 */ -}}
-{{- $exposures := fromJson (default "{}" (index .Values.global "lokiExposures" | default "")) -}}
+{{- $raw := index .Values.global "lokiExposures" | default "" -}}
+{{- $jsonStr := "{}" -}}
+{{- if $raw }}
+  {{- if or (hasPrefix "{" $raw) (hasPrefix "[" $raw) }}
+    {{- $jsonStr = $raw }}
+  {{- else }}
+    {{- $jsonStr = b64dec $raw }}
+  {{- end }}
+{{- end }}
+{{- $exposures := fromJson $jsonStr -}}
 {{- $hasEnabled := false -}}
 {{- range $_, $exp := $exposures }}{{- if $exp.enabled }}{{- $hasEnabled = true }}{{- end }}{{- end }}
 {{- if and (ne (index .Values.components "traefik") false) $hasEnabled }}
@@ -29,7 +38,7 @@ spec:
         parameters:
           {{- include "platform-root.provenanceParameters" $ | nindent 10 }}
           - name: exposuresJson
-            value: {{ index .Values.global "lokiExposures" | default "{}" | quote }}
+            value: {{ $raw | quote }}
             forceString: true
     - repoURL: {{ .Values.platformRepoUrl }}
       targetRevision: {{ .Values.platformVersion }}

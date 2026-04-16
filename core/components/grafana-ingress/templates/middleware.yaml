@@ -5,7 +5,15 @@
     ingress.enabled: false
   otherwise a second Ingress is created with different middlewares).
 */ -}}
-{{- $exposures := fromJson (default "{}" .Values.exposuresJson) -}}
+{{- /* exposuresJson arrives either as raw JSON (helm template CLI) or as
+      base64 (estabilis CLI v0.15.2+ encodes to survive helm --set parsing).
+      Detect by first char. */ -}}
+{{- $raw := .Values.exposuresJson | default "{}" -}}
+{{- $jsonStr := $raw -}}
+{{- if and $raw (not (or (hasPrefix "{" $raw) (hasPrefix "[" $raw))) }}
+  {{- $jsonStr = b64dec $raw }}
+{{- end }}
+{{- $exposures := fromJson $jsonStr -}}
 {{- range $profile, $exp := $exposures }}
 {{- if $exp.enabled }}
 {{- $mwIPName := printf "grafana-%s-ipallowlist" $profile }}

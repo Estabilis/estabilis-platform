@@ -3,7 +3,20 @@
   loki-ingress: renders iff at least one exposure is enabled in
   global.grafanaExposures and components.traefik is true.
 */ -}}
-{{- $exposures := fromJson (default "{}" (index .Values.global "grafanaExposures" | default "")) -}}
+{{- /* CLI (v0.15.2+) base64-encodes JSON helm params so they survive
+      helm's --set metachar parsing through both layers (platform-root →
+      child App). This template only *inspects* to decide whether to
+      render the App; decoding happens in the child chart. */ -}}
+{{- $raw := index .Values.global "grafanaExposures" | default "" -}}
+{{- $jsonStr := "{}" -}}
+{{- if $raw }}
+  {{- if or (hasPrefix "{" $raw) (hasPrefix "[" $raw) }}
+    {{- $jsonStr = $raw }}
+  {{- else }}
+    {{- $jsonStr = b64dec $raw }}
+  {{- end }}
+{{- end }}
+{{- $exposures := fromJson $jsonStr -}}
 {{- $hasEnabled := false -}}
 {{- range $_, $exp := $exposures }}{{- if $exp.enabled }}{{- $hasEnabled = true }}{{- end }}{{- end }}
 {{- if and (ne (index .Values.components "traefik") false) $hasEnabled }}
@@ -28,8 +41,11 @@ spec:
         ignoreMissingValueFiles: true
         parameters:
           {{- include "platform-root.provenanceParameters" $ | nindent 10 }}
+          {{- /* Pass the raw value through (either base64 or JSON). The
+                child chart's values.yaml template inspects first char to
+                decide whether to b64dec before fromJson. */}}
           - name: exposuresJson
-            value: {{ index .Values.global "grafanaExposures" | default "{}" | quote }}
+            value: {{ $raw | quote }}
             forceString: true
     - repoURL: {{ .Values.platformRepoUrl }}
       targetRevision: {{ .Values.platformVersion }}
