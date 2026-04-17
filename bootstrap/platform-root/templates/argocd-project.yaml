@@ -149,6 +149,7 @@ spec:
     - "https://kyverno.github.io/kyverno"
     - "https://charts.external-secrets.io"
     - "https://prometheus-community.github.io/helm-charts"
+    - "https://kubernetes-sigs.github.io/external-dns"
   destinations:
     # Hub (workload-bootstrap + ApplicationSets live here)
     - server: https://kubernetes.default.svc
