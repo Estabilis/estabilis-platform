@@ -82,6 +82,7 @@ resource "kubernetes_config_map" "platform_infrastructure" {
     # *_resolved locals so empty host fields are substituted with the
     # auto-derived hostname (see _app_host in main.tf).
     "global.lokiExposures"     = jsonencode({ for k, v in local.loki_exposures_resolved : k => v if v.enabled })
+    "global.mimirExposures"    = jsonencode({ for k, v in local.mimir_exposures_resolved : k => v if v.enabled })
     "global.grafanaExposures"  = jsonencode({ for k, v in local.grafana_exposures_resolved : k => v if v.enabled })
     "global.argocdExposures"   = jsonencode({ for k, v in local.argocd_exposures_resolved : k => v if v.enabled })
     "global.hubbleUiExposures" = jsonencode({ for k, v in local.hubble_ui_exposures_resolved : k => v if v.enabled })

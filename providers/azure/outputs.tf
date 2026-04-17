@@ -146,6 +146,11 @@ output "loki_exposures_json" {
   value       = jsonencode({ for k, v in local.loki_exposures_resolved : k => v if v.enabled })
 }
 
+output "mimir_exposures_json" {
+  description = "Mimir exposures serialized as JSON (with auto-derived hosts applied)."
+  value       = jsonencode({ for k, v in local.mimir_exposures_resolved : k => v if v.enabled })
+}
+
 output "argocd_exposures_json" {
   description = "ArgoCD UI exposures serialized as JSON (with auto-derived hosts applied)."
   value       = jsonencode({ for k, v in local.argocd_exposures_resolved : k => v if v.enabled })

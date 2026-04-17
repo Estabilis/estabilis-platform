@@ -510,6 +510,19 @@ variable "loki_exposures" {
   default = {}
 }
 
+variable "mimir_exposures" {
+  description = "Mimir remote-write ingress exposures. Used by workload clusters to push metrics to the hub. When host is empty, it is auto-derived (app name: 'mimir')."
+  type = map(object({
+    enabled       = bool
+    host          = optional(string, "")
+    ingress_class = optional(string, "traefik")
+    allowed_cidrs = optional(string, "")
+    issuer        = optional(string, "letsencrypt-production")
+    basic_auth    = optional(bool, false)
+  }))
+  default = {}
+}
+
 variable "argocd_exposures" {
   description = "ArgoCD UI ingress exposures. Typically internal — ops team accesses via VPN. When host is empty, it is auto-derived (app name: 'argocd')."
   type = map(object({

@@ -61,7 +61,7 @@ locals {
   #   suffix    prod:     {app}.{domain}
   #   suffix    non-prod: {app}-{env}.{domain}
   _app_host = {
-    for app in ["grafana", "argocd", "loki", "hubble"] : app => (
+    for app in ["grafana", "argocd", "loki", "mimir", "hubble"] : app => (
       local.is_prod_env ? "${app}.${var.domain}" :
       var.host_pattern == "subdomain" ? "${app}.${var.environment}.${var.domain}" :
       var.host_pattern == "prefix" ? "${var.environment}-${app}.${var.domain}" :
@@ -80,6 +80,11 @@ locals {
   loki_exposures_resolved = {
     for k, v in var.loki_exposures : k => merge(v, {
       host = length(v.host) > 0 ? v.host : local._app_host.loki
+    })
+  }
+  mimir_exposures_resolved = {
+    for k, v in var.mimir_exposures : k => merge(v, {
+      host = length(v.host) > 0 ? v.host : local._app_host.mimir
     })
   }
   argocd_exposures_resolved = {

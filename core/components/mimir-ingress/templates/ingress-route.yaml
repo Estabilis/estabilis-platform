@@ -1,7 +1,8 @@
 {{- /*
   ADR 0014 — iterate over exposures map, rendering Ingress + Middlewares +
-  Certificate + ExternalSecret per enabled profile. Same backend Service
-  (loki-gateway) is shared across profiles; only the edge differs.
+  Certificate + ExternalSecret per enabled profile. Backend Service is
+  grafana-mimir-gateway (Mimir's write path via the gateway). Only the
+  /api/v1/push path is exposed — query endpoints are NOT accessible.
 */ -}}
 {{- $raw := .Values.exposuresJson | default "{}" -}}
 {{- $jsonStr := $raw -}}
@@ -13,8 +14,8 @@
 {{- if $exp.enabled }}
 {{- $mwList := list }}
 {{- $resourceSuffix := $profile }}
-{{- $mwIPName := printf "loki-%s-ipallowlist" $profile }}
-{{- $mwAuthName := printf "loki-%s-auth" $profile }}
+{{- $mwIPName := printf "mimir-%s-ipallowlist" $profile }}
+{{- $mwAuthName := printf "mimir-%s-auth" $profile }}
 ---
 {{- if $exp.allowed_cidrs }}
 apiVersion: traefik.io/v1alpha1
@@ -65,11 +66,11 @@ spec:
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
-  name: loki-{{ $profile }}-tls
+  name: mimir-{{ $profile }}-tls
   namespace: grafana
   {{- include "estabilis.metadata" $ | nindent 2 }}
 spec:
-  secretName: loki-{{ $profile }}-tls
+  secretName: mimir-{{ $profile }}-tls
   issuerRef:
     name: {{ $exp.issuer | default "letsencrypt-production" | quote }}
     kind: ClusterIssuer
@@ -79,7 +80,7 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: loki-{{ $profile }}
+  name: mimir-{{ $profile }}
   namespace: grafana
   {{- include "estabilis.metadata" $ | nindent 2 }}
   annotations:
@@ -100,15 +101,15 @@ spec:
     - host: {{ $exp.host | quote }}
       http:
         paths:
-          - path: /loki/api/v1/push
+          - path: /api/v1/push
             pathType: Prefix
             backend:
               service:
-                name: grafana-loki
+                name: grafana-mimir-gateway
                 port:
-                  number: 3100
+                  number: 80
   tls:
-    - secretName: loki-{{ $profile }}-tls
+    - secretName: mimir-{{ $profile }}-tls
       hosts:
         - {{ $exp.host | quote }}
 {{- end }}

@@ -1,0 +1,22 @@
+# Mimir external ingress — ADR 0014 (multi-exposure model).
+#
+# Each entry in `exposures` becomes a K8s Ingress + Traefik Middleware(s)
+# + Certificate. Operator declares profiles (push, internal, ...)
+# and the chart renders them independently.
+#
+# exposures is a map(object) injected by platform-root as a JSON string
+# (helm parameter `exposuresJson`). The template decodes it with fromJson.
+#
+# Each object shape:
+#   enabled        bool  — gate (only enabled profiles render resources)
+#   host           str   — full hostname, e.g. "hml-mimir.estabilis-transfero.dev"
+#   ingress_class  str   — "traefik" (public LB) or "traefik-internal" (VNet LB)
+#   allowed_cidrs  str   — CSV of CIDRs; empty skips the ipAllowList Middleware
+#   issuer         str   — cert-manager ClusterIssuer name
+#   basic_auth     bool  — wire BasicAuth Middleware backed by ExternalSecret
+
+# Default off; Terraform passes the real map via exposuresJson parameter.
+exposuresJson: "{}"
+
+# Key Vault secret naming pattern for BasicAuth htpasswd.
+kvSecretPrefix: "platform-mimir-ingress-auth"

@@ -1,0 +1,60 @@
+{{- /*
+  ADR 0014 — Mimir remote-write ingress Application. Renders when at least
+  one exposure profile is enabled in global.mimirExposures (JSON map injected
+  by Terraform via platform-root helm parameter). Depends on components.traefik
+  being true (shared Traefik CRDs — Middleware type).
+*/ -}}
+{{- $raw := index .Values.global "mimirExposures" | default "" -}}
+{{- $jsonStr := "{}" -}}
+{{- if $raw }}
+  {{- if or (hasPrefix "{" $raw) (hasPrefix "[" $raw) }}
+    {{- $jsonStr = $raw }}
+  {{- else }}
+    {{- $jsonStr = b64dec $raw }}
+  {{- end }}
+{{- end }}
+{{- $exposures := fromJson $jsonStr -}}
+{{- $hasEnabled := false -}}
+{{- range $_, $exp := $exposures }}{{- if $exp.enabled }}{{- $hasEnabled = true }}{{- end }}{{- end }}
+{{- if and (ne (index .Values.components "traefik") false) $hasEnabled }}
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: mimir-ingress
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "9"
+spec:
+  project: platform
+  sources:
+    - repoURL: {{ .Values.platformRepoUrl }}
+      targetRevision: {{ .Values.platformVersion }}
+      path: core/components/mimir-ingress
+      helm:
+        valueFiles:
+          - $values/core/components/mimir-ingress/values.yaml
+          {{- include "platform-root.overrideValueFile" (dict "component" "mimir-ingress" "root" $) | nindent 10 }}
+        {{- include "platform-root.ignoreMissingValueFiles" $ | nindent 8 }}
+        parameters:
+          {{- include "platform-root.provenanceParameters" $ | nindent 10 }}
+          - name: exposuresJson
+            value: {{ $raw | quote }}
+            forceString: true
+    - repoURL: {{ .Values.platformRepoUrl }}
+      targetRevision: {{ .Values.platformVersion }}
+      ref: values
+    {{- include "platform-root.overrideSource" . | nindent 4 }}
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: grafana
+  syncPolicy:
+    {{- include "platform-root.managedNamespaceMetadata" . | nindent 4 }}
+    retry:
+      limit: 10
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 3m
+    syncOptions:
+      - CreateNamespace=true
+{{- end }}
