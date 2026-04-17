@@ -150,6 +150,7 @@ spec:
     - "https://charts.external-secrets.io"
     - "https://prometheus-community.github.io/helm-charts"
     - "https://kubernetes-sigs.github.io/external-dns"
+    - "https://grafana.github.io/helm-charts"
   destinations:
     # Hub (workload-bootstrap + ApplicationSets live here)
     - server: https://kubernetes.default.svc
