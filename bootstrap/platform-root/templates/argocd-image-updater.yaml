@@ -1,0 +1,40 @@
+{{- /* optional: downstream can disable via components.argocd-image-updater: false */ -}}
+{{- if ne (index .Values.components "argocd-image-updater") false }}
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: argocd-image-updater
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "4"
+spec:
+  project: platform
+  sources:
+    - repoURL: https://argoproj.github.io/argo-helm
+      chart: argocd-image-updater
+      targetRevision: "1.1.5"
+      helm:
+        valueFiles:
+          - $values/values/platform/argocd-image-updater.yaml
+          {{- include "platform-root.overrideValueFile" (dict "component" "argocd-image-updater" "root" $) | nindent 10 }}
+          {{- include "platform-root.gitopsValueFile" (dict "component" "argocd-image-updater" "root" $) | nindent 10 }}
+        {{- include "platform-root.ignoreMissingValueFiles" $ | nindent 8 }}
+        {{- include "platform-root.provenanceParametersBlock" $ | nindent 8 }}
+    - repoURL: {{ .Values.platformGitopsRepoUrl }}
+      targetRevision: {{ .Values.platformGitopsVersion }}
+      ref: values
+    {{- include "platform-root.overrideSource" . | nindent 4 }}
+    {{- include "platform-root.gitopsSource" . | nindent 4 }}
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      selfHeal: true
+    retry:
+      limit: 10
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 3m
+{{- end }}

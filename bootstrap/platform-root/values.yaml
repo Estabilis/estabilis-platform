@@ -125,6 +125,7 @@ components:
   trivy: true                # optional: vulnerability scanning (disable if using alternative)
   velero: true               # optional: backup/restore (disable if handled externally)
   external-dns: true         # optional: DNS record management (disable if manual DNS)
+  argocd-image-updater: false # optional: auto-update container images via registry polling (opt-in)
 
   # --- observability (disable individually or set all to false) ---
   grafana: true              # observability: dashboards and visualization
