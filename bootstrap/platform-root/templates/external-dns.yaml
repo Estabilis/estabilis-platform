@@ -84,7 +84,7 @@ spec:
              ) | nindent 10 }}
         parameters:
           - name: domainFilters[0]
-            value: "{{ .Values.global.effectiveDomain }}"
+            value: "{{ .Values.global.domain }}"
           - name: txtOwnerId
             value: "{{ .Values.global.clusterName }}"
           {{- if eq $dnsProvider "azure" }}

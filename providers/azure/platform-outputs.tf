@@ -53,8 +53,6 @@ resource "kubernetes_config_map" "platform_infrastructure" {
     # Global
     "global.provider"         = "azure"
     "global.domain"           = var.domain
-    "global.effectiveDomain"  = local.effective_domain
-    "global.hostPattern"      = var.host_pattern
     "global.environment"      = var.environment
     "global.letsencryptEmail" = var.letsencrypt_email
 

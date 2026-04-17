@@ -29,10 +29,10 @@ resource "azurerm_federated_identity_credential" "external_dns" {
   subject                   = "system:serviceaccount:external-dns:external-dns"
 }
 
-# DNS Zone — uses effective_domain (includes env subdomain when host_pattern=subdomain)
+# DNS Zone — uses domain (the zone root, e.g. estabilis.io)
 resource "azurerm_dns_zone" "platform" {
   count               = var.dns_provider == "azure" ? 1 : 0
-  name                = local.effective_domain
+  name                = var.domain
   resource_group_name = azurerm_resource_group.platform.name
   tags                = local.tags
 }

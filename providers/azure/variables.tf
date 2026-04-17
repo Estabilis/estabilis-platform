@@ -11,19 +11,8 @@ variable "location" {
 }
 
 variable "domain" {
-  description = "Primary domain name for the platform (e.g. estabilis.io)."
+  description = "DNS zone root (e.g. estabilis.io). Must match the actual zone in Cloudflare or Azure DNS. Hostnames are derived as {app}.{cluster_name}.{domain}."
   type        = string
-}
-
-variable "host_pattern" {
-  description = "How application hostnames are constructed: subdomain (app.env.domain), prefix (env-app.domain), suffix (app-env.domain)."
-  type        = string
-  default     = "subdomain"
-
-  validation {
-    condition     = contains(["subdomain", "prefix", "suffix"], var.host_pattern)
-    error_message = "host_pattern must be one of: subdomain, prefix, suffix."
-  }
 }
 
 variable "environment" {
@@ -485,7 +474,7 @@ variable "traefik_internal_enabled" {
 # ---------------------------------------------------------------------------
 
 variable "grafana_exposures" {
-  description = "Grafana ingress exposures. One entry per network profile. Leave empty to not expose Grafana. When host is empty, it is auto-derived from host_pattern + environment + domain (app name: 'grafana')."
+  description = "Grafana ingress exposures. One entry per network profile. Leave empty to not expose Grafana. When host is empty, it is auto-derived as {app}.{cluster_name}.{domain} (app name: 'grafana')."
   type = map(object({
     enabled       = bool
     host          = optional(string, "")        # empty => auto-derived (see locals._app_host in main.tf)

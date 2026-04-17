@@ -113,8 +113,6 @@ spec:
             value: "{{ .Values.global.letsencryptEmail }}"
           - name: global.domain
             value: "{{ .Values.global.domain }}"
-          - name: global.effectiveDomain
-            value: "{{ .Values.global.effectiveDomain }}"
           {{- if eq $dnsProvider "azure" }}
           - name: global.subscriptionId
             value: "{{ .Values.global.subscriptionId }}"

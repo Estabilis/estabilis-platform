@@ -42,31 +42,16 @@ resource "azurerm_resource_group" "platform" {
 }
 
 # ---------------------------------------------------------------------------
-# Effective domain — computed from host_pattern + environment + domain
+# Host derivation — {app}.{cluster_name}.{domain}
 # ---------------------------------------------------------------------------
-# subdomain: dev.acme.com (prod uses bare domain: acme.com)
-# prefix/suffix: acme.com (environment is in the hostname, not the domain)
 
 locals {
-  is_prod_env      = contains(["prod", "prd", "production"], var.environment)
-  effective_domain = var.host_pattern == "subdomain" && !local.is_prod_env ? "${var.environment}.${var.domain}" : var.domain
-
-  # Per-app host derivation from host_pattern + environment + domain.
-  # Applied when an exposure's `host` field is empty. Rule (prod always
-  # drops the env segment — "prd-grafana.acme.com" would be awkward):
-  #   subdomain prod:     {app}.{domain}
-  #   subdomain non-prod: {app}.{env}.{domain}
-  #   prefix    prod:     {app}.{domain}
-  #   prefix    non-prod: {env}-{app}.{domain}
-  #   suffix    prod:     {app}.{domain}
-  #   suffix    non-prod: {app}-{env}.{domain}
+  # Host derivation: {app}.{cluster_name}.{domain}
+  # The cluster name carries environment + region, so no separate env prefix.
+  # Explicit host values in exposure tfvars always win over auto-derivation.
   _app_host = {
-    for app in ["grafana", "argocd", "loki", "mimir", "hubble"] : app => (
-      local.is_prod_env ? "${app}.${var.domain}" :
-      var.host_pattern == "subdomain" ? "${app}.${var.environment}.${var.domain}" :
-      var.host_pattern == "prefix" ? "${var.environment}-${app}.${var.domain}" :
-      "${app}-${var.environment}.${var.domain}"
-    )
+    for app in ["grafana", "argocd", "loki", "mimir", "hubble"] : app =>
+    "${app}.${azurerm_kubernetes_cluster.platform.name}.${var.domain}"
   }
 
   # Resolved exposures — applies the auto-derived host when the user left
