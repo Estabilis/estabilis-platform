@@ -1,0 +1,5 @@
+apiVersion: v2
+name: mimir-ingress
+description: Mimir remote-write push endpoint ingress (ADR 0014)
+version: 0.1.0
+type: application
