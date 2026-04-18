@@ -19,7 +19,7 @@ spec:
         parameters:
           - name: acrLoginServer
             value: "{{ .Values.global.sharedAcrLoginServer }}"
-          {{- include "platform-root.provenanceParametersBlock" $ | nindent 8 }}
+          {{- include "platform-root.provenanceParameters" $ | nindent 10 }}
     {{- include "platform-root.overrideSource" . | nindent 4 }}
     {{- include "platform-root.gitopsSource" . | nindent 4 }}
   destination:
