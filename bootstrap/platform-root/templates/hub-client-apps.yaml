@@ -1,0 +1,85 @@
+{{- /*
+  ADR 0017 — Hub-targeted client applications.
+
+  ApplicationSet that discovers client-authored infrastructure under
+  the client gitops repo at `platforms/{deploymentId}/hub-apps/*` and
+  creates one ArgoCD Application per subdirectory on the hub. The
+  Application spec is rendered by THIS AppSet from path + wrapper
+  parameters — clients do NOT write an inner `application.yaml`. This
+  eliminates the self-ref targetRevision drift that plagues the
+  workload-cluster `apps/` path (issue #100).
+
+  Each `hub-apps/{name}/` is a directory whose `manifests/` subtree is
+  applied by ArgoCD as raw K8s YAML. The client declares the namespace
+  in `manifests/namespace.yaml`. Kyverno mutates PSS labels on the
+  namespace automatically (same mechanism as app-* namespaces). If the
+  app requires enforce=privileged, the wrapper appends the namespace
+  to `policies.inject_pss_labels.extraPrivilegedNamespaces`
+  (estabilis-platform-gitops v0.26.0+).
+
+  Authorized namespaces are listed in `clientHubAppNamespaces` at the
+  platform-root level (operator-managed via the wrapper). Every
+  namespace referenced in a hub-apps manifest MUST appear in that
+  list; otherwise ArgoCD rejects the Application for violating the
+  platform-client-infra AppProject destinations.
+
+  Only active when clientGitopsRepoUrl and deploymentId are set (same
+  gate as the `$gitops` override sources).
+
+  See ADR 0017 for the full design + client responsibilities
+  checklist.
+*/ -}}
+{{- if and .Values.clientGitopsRepoUrl .Values.deploymentId }}
+---
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: hub-client-apps
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - git:
+        repoURL: {{ .Values.clientGitopsRepoUrl | quote }}
+        revision: {{ required "clientGitopsRepoVersion is required when clientGitopsRepoUrl is set" .Values.clientGitopsRepoVersion | quote }}
+        directories:
+          - path: "platforms/{{ .Values.deploymentId }}/hub-apps/*"
+  template:
+    metadata:
+      name: "{{ `{{ .path.basename }}` }}-{{ .Values.deploymentId }}"
+      annotations:
+        argocd.argoproj.io/sync-wave: "10"
+      labels:
+        estabilis.io/managed-by: client-gitops
+        estabilis.io/tier: hub-client-infra
+        estabilis.io/component: "{{ `{{ .path.basename }}` }}"
+    spec:
+      project: platform-client-infra
+      source:
+        repoURL: {{ .Values.clientGitopsRepoUrl | quote }}
+        targetRevision: {{ .Values.clientGitopsRepoVersion | quote }}
+        path: "{{ `{{ .path.path }}` }}/manifests"
+        directory:
+          recurse: true
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: "{{ `{{ .path.basename }}` }}"
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        retry:
+          limit: 10
+          backoff:
+            duration: 10s
+            factor: 2
+            maxDuration: 3m
+        syncOptions:
+          # Client owns the namespace manifest in manifests/namespace.yaml.
+          # Platform does not pre-create — the namespace is part of the
+          # Application's desired state, declared by the client, mutated
+          # by Kyverno.
+          - CreateNamespace=false
+          - ServerSideApply=true
+{{- end }}
