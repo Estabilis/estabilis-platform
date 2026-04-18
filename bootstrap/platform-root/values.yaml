@@ -73,6 +73,7 @@ global:
   lokiExternalIngressEnabled: ""
   lokiAllowedCidrs: ""
   acrLoginServer: ""
+  sharedAcrLoginServer: "" # injected by terraform — shared ACR for workload images (Image Updater)
 
 # Workload Identity client IDs — injected by terraform
 identity:

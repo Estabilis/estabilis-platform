@@ -89,7 +89,8 @@ resource "kubernetes_config_map" "platform_infrastructure" {
     "global.networkDataplane" = var.network_dataplane
 
     # ACR
-    "global.acrLoginServer" = var.acr_enabled ? azurerm_container_registry.platform[0].login_server : ""
+    "global.acrLoginServer"       = var.acr_enabled ? azurerm_container_registry.platform[0].login_server : ""
+    "global.sharedAcrLoginServer" = var.shared_acr_login_server
 
     # Cost
     "global.azureOfferId" = local.azure_offer_id

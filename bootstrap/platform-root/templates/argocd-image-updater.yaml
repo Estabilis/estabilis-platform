@@ -1,5 +1,40 @@
 {{- /* optional: downstream can disable via components.argocd-image-updater: false */ -}}
 {{- if ne (index .Values.components "argocd-image-updater") false }}
+{{- if .Values.global.sharedAcrLoginServer }}
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: acr-image-updater-credentials
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+spec:
+  project: platform
+  sources:
+    - repoURL: {{ .Values.platformGitopsRepoUrl }}
+      targetRevision: {{ .Values.platformGitopsVersion }}
+      path: components/acr-image-updater-credentials
+      helm:
+        parameters:
+          - name: acrLoginServer
+            value: "{{ .Values.global.sharedAcrLoginServer }}"
+          {{- include "platform-root.provenanceParametersBlock" $ | nindent 8 }}
+    {{- include "platform-root.overrideSource" . | nindent 4 }}
+    {{- include "platform-root.gitopsSource" . | nindent 4 }}
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      selfHeal: true
+    retry:
+      limit: 10
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 3m
+---
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -19,6 +54,14 @@ spec:
           {{- include "platform-root.overrideValueFile" (dict "component" "argocd-image-updater" "root" $) | nindent 10 }}
           {{- include "platform-root.gitopsValueFile" (dict "component" "argocd-image-updater" "root" $) | nindent 10 }}
         {{- include "platform-root.ignoreMissingValueFiles" $ | nindent 8 }}
+        valuesObject:
+          config:
+            registries:
+              - name: shared-acr
+                api_url: "https://{{ .Values.global.sharedAcrLoginServer }}"
+                prefix: "{{ .Values.global.sharedAcrLoginServer }}"
+                credentials: "pullsecret:argocd/acr-image-updater-credentials"
+                credsexpire: 30m
         {{- include "platform-root.provenanceParametersBlock" $ | nindent 8 }}
     - repoURL: {{ .Values.platformGitopsRepoUrl }}
       targetRevision: {{ .Values.platformGitopsVersion }}
@@ -37,4 +80,5 @@ spec:
         duration: 10s
         factor: 2
         maxDuration: 3m
+{{- end }}
 {{- end }}

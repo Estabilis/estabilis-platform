@@ -642,6 +642,12 @@ variable "acr_enabled" {
   default     = false
 }
 
+variable "shared_acr_login_server" {
+  description = "Login server of the shared ACR (e.g. acrtransferosharedhml.azurecr.io). Used by ArgoCD Image Updater to monitor container registries. Leave empty if not using Image Updater."
+  type        = string
+  default     = ""
+}
+
 variable "acr_sku" {
   description = "ACR SKU. Basic (~$5/mo), Standard (~$10/mo), Premium (~$50/mo, supports private endpoint + geo-replication)."
   type        = string
