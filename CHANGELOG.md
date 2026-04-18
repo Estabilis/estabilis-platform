@@ -1,5 +1,56 @@
 # Changelog
 
+## [0.11.0] - 2026-04-18
+
+### Added
+
+- **ADR 0017 — Hub-targeted client applications.** New structural tier
+  for client-authored infrastructure Applications that must run on the
+  platform hub (not on workload clusters). Two new pieces:
+
+  - `bootstrap/platform-root/templates/hub-client-apps.yaml` — new
+    ApplicationSet that discovers `platforms/{deploymentId}/hub-apps/*`
+    in the client gitops repo and creates one Application per
+    subdirectory on the hub. The ApplicationSet renders the Application
+    spec directly from the path plus wrapper parameters — clients do
+    NOT write an inner `application.yaml`. This eliminates the
+    self-referential `targetRevision` drift that plagues the workload
+    `apps/` path (issue #100).
+
+  - `bootstrap/platform-root/templates/argocd-project.yaml` — new
+    `platform-client-infra` AppProject authorizing client hub-apps
+    against an **explicit** namespace allowlist (no wildcards). The
+    allowlist is driven by the new `clientHubAppNamespaces` value,
+    operator-managed in the client's wrapper
+    `overrides/platform-root/values.yaml`.
+
+  `ClusterRole` / `ClusterRoleBinding` / `CustomResourceDefinition` /
+  `ValidatingWebhookConfiguration` / `MutatingWebhookConfiguration`
+  are **intentionally** allowed in the project's resource whitelist,
+  because legitimate hub-apps (admission webhooks, operators with
+  cluster-wide reach, CRD providers) need them. Risk is audited by the
+  upstream Kyverno catalog, not blocked by the project — per ADR 0017
+  "upstream proposes, client disposes".
+
+### Added (values)
+
+- `clientHubAppNamespaces` (defaults to `[]`) in
+  `bootstrap/platform-root/values.yaml`. Empty list = no hub-apps
+  authorized (safe default).
+
+### Documentation
+
+- ADR 0017 (Draft) in estabilis-platform-tools/docs/adr/.
+- Tracking issue Estabilis/estabilis-platform-tools#118.
+
+### Notes
+
+- Version metadata jumps from 0.8.2 → 0.11.0. Tags v0.9.0, v0.9.1,
+  v0.9.2, v0.9.3, v0.10.0, v0.10.1, v0.10.2 were cut without
+  CHANGELOG entries. Fix-forward: 0.11.0 is the first release with
+  a documented changelog entry since 0.8.2. Backfill tracked
+  separately if needed.
+
 ## [0.8.2] - 2026-04-16
 
 ### Fixed

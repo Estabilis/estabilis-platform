@@ -230,6 +230,60 @@ spec:
   namespaceResourceWhitelist:
     - group: "*"
       kind: "*"
+{{- if .Values.clientGitopsRepoUrl }}
+---
+# ADR 0017 — platform-client-infra project
+# For client-authored infrastructure Applications deployed to the HUB
+# cluster (not workload clusters). Discovered from the client gitops
+# repo at platforms/{deploymentId}/hub-apps/* by the hub-client-apps
+# ApplicationSet. Destinations are driven by clientHubAppNamespaces
+# (explicit allowlist declared in the wrapper) — no wildcards.
+#
+# ClusterRole / ClusterRoleBinding / CRD are intentionally allowed
+# because legitimate hub-apps (webhook admission controllers,
+# operators with cluster-wide reach, CRD providers) need them. Risk is
+# audited by the Kyverno catalog, not blocked by the project —
+# ADR 0017 "upstream proposes, client disposes".
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: platform-client-infra
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  description: Client-authored infrastructure Applications on the platform hub (ADR 0017)
+  sourceRepos:
+    - {{ .Values.clientGitopsRepoUrl | quote }}
+    {{- if .Values.global.sharedAcrLoginServer }}
+    - {{ printf "%s/charts" .Values.global.sharedAcrLoginServer | quote }}
+    {{- end }}
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: argocd
+    {{- range .Values.clientHubAppNamespaces }}
+    - server: https://kubernetes.default.svc
+      namespace: {{ . | quote }}
+    {{- end }}
+  clusterResourceWhitelist:
+    - group: "*"
+      kind: Namespace
+    - group: "*"
+      kind: ClusterRole
+    - group: "*"
+      kind: ClusterRoleBinding
+    - group: apiextensions.k8s.io
+      kind: CustomResourceDefinition
+    - group: admissionregistration.k8s.io
+      kind: "*"
+    - group: kyverno.io
+      kind: PolicyException
+    - group: networking.k8s.io
+      kind: "*"
+  namespaceResourceWhitelist:
+    - group: "*"
+      kind: "*"
+{{- end }}
 {{- if and .Values.configRepoUrl .Values.configRepoVersion }}
 ---
 # Applications project — for client custom apps in app-* namespaces

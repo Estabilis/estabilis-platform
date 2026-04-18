@@ -164,6 +164,24 @@ clientGitopsRepoUrl: ""
 clientGitopsRepoVersion: ""
 deploymentId: ""
 
+# ---------------------------------------------------------------------------
+# Hub-targeted client applications (ADR 0017)
+# ---------------------------------------------------------------------------
+# Namespaces on the hub that `platform-client-infra` AppProject is
+# authorized to deploy into. Each entry adds a `server=kubernetes.default.svc,
+# namespace=<ns>` to the project's destinations list and allows the
+# hub-client-apps ApplicationSet to create Applications whose manifests
+# target that namespace.
+#
+# Empty list = no hub-apps authorized (safe default). Every namespace
+# declared in a `hub-apps/{name}/manifests/namespace.yaml` MUST appear
+# in this list, otherwise ArgoCD rejects the Application for violating
+# its project.
+#
+# Operator-managed via overrides/platform-root/values.yaml in the
+# client's platform downstream — NOT client-mutable.
+clientHubAppNamespaces: []
+
 # Scheduling policy per component (ADR 0012 — tracked in
 # Estabilis/estabilis-platform-tools#97). Empty by default — each
 # Application template uses its opinionated mode ("auto" for most,
