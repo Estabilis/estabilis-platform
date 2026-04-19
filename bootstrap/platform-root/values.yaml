@@ -182,6 +182,30 @@ deploymentId: ""
 # client's platform downstream — NOT client-mutable.
 clientHubAppNamespaces: []
 
+# Additional cluster-scoped resource kinds authorized for the
+# `platform-client-infra` AppProject. Appended to the project's
+# `clusterResourceWhitelist` baseline (which already includes
+# Namespace, ClusterRole, ClusterRoleBinding, CRD,
+# admissionregistration.k8s.io/*, networking.k8s.io/*, and
+# kyverno.io/PolicyException).
+#
+# Why this exists: legitimate hub-apps sometimes ship resources the
+# baseline doesn't cover (e.g. KEDA registers an APIService in
+# apiregistration.k8s.io for its external-metrics adapter; Istio and
+# other service meshes register networking.istio.io types). Upstream
+# defines the GOVERNANCE CLASSES permitted; the client declares the
+# specific kinds their own hub-apps need. This follows ADR 0017's
+# "upstream proposes, client disposes" principle and avoids forcing
+# a platform PR for every new hub-app kind.
+#
+# Client sets this in overrides/platform-root/values.yaml:
+#   clientHubAppExtraClusterResources:
+#     - group: apiregistration.k8s.io
+#       kind: APIService
+#
+# Default empty — no extras beyond the baseline.
+clientHubAppExtraClusterResources: []
+
 # Scheduling policy per component (ADR 0012 — tracked in
 # Estabilis/estabilis-platform-tools#97). Empty by default — each
 # Application template uses its opinionated mode ("auto" for most,

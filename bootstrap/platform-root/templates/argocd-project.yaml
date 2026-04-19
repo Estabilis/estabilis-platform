@@ -280,6 +280,15 @@ spec:
       kind: PolicyException
     - group: networking.k8s.io
       kind: "*"
+    {{- /* ADR 0017 extension — client-declared additional cluster-scoped
+           kinds their hub-apps need. Appended via wrapper override at
+           overrides/platform-root/values.yaml.clientHubAppExtraClusterResources.
+           Upstream defines governance classes; client declares specific
+           kinds their own hub-apps require. */}}
+    {{- range .Values.clientHubAppExtraClusterResources }}
+    - group: {{ .group | quote }}
+      kind: {{ .kind | quote }}
+    {{- end }}
   namespaceResourceWhitelist:
     - group: "*"
       kind: "*"
