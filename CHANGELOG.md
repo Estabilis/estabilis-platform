@@ -1,5 +1,34 @@
 # Changelog
 
+## [0.12.0] - 2026-04-19
+
+### Added
+
+- **`clientHubAppExtraClusterResources` extension point on the
+  `platform-client-infra` AppProject** (ADR 0017). The project's
+  `clusterResourceWhitelist` now appends a client-declared list of
+  additional `(group, kind)` pairs sourced from wrapper overrides.
+  This lets the client authorize cluster-scoped resource kinds their
+  own hub-apps need — for example KEDA's `APIService`
+  (`apiregistration.k8s.io`) for the external-metrics adapter, or an
+  Istio/Linkerd install's mesh-specific kinds — without opening a
+  platform PR for every case.
+
+  Default is an empty list. Upstream defines the governance classes
+  permitted (Namespace, ClusterRole, ClusterRoleBinding, CRD,
+  admissionregistration.k8s.io/*, networking.k8s.io/*,
+  kyverno.io/PolicyException) and this value extends them. Matches
+  the spirit of ADR 0017's "upstream proposes, client disposes".
+
+  Files:
+
+  - `bootstrap/platform-root/values.yaml` — adds
+    `clientHubAppExtraClusterResources: []` default next to
+    `clientHubAppNamespaces`.
+  - `bootstrap/platform-root/templates/argocd-project.yaml` — range
+    over that list appended to the `platform-client-infra`
+    `clusterResourceWhitelist`.
+
 ## [0.11.0] - 2026-04-18
 
 ### Added
