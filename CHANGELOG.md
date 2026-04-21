@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.12.1] - 2026-04-21
+
+### Fixed — `terraform validate` rejects `cost-export.tf`
+
+`recurrence_period_end_date` used `formatdate("YYYY", plantimestamp()) + 10`.
+During `terraform validate` (ahead of any plan), `plantimestamp()`
+evaluates to `0001-01-01T00:00:00Z`; `formatdate("YYYY", ...)` returns
+the string `"1"`, which arithmetic-added to `10` yields `11`, and the
+final string becomes `"11-01-01T00:00:00Z"` — year `11`, rejected by
+the `azurerm` provider as invalid RFC3339.
+
+Replace with `formatdate("YYYY-MM-DD", timeadd(plantimestamp(),
+"87600h"))` which always produces a zero-padded 4-digit year and
+stays well-formed under both `validate` (zero-epoch → year 0011)
+and real plan (current-time + 10y).
+
+Unblocks PR validation pipelines on every downstream repo that
+references this module (transfero-platform-azure-eastus2-hml, etc.).
+
 ## [0.12.0] - 2026-04-19
 
 ### Added
