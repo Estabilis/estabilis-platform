@@ -1,5 +1,35 @@
 # Changelog
 
+## [0.12.2] - 2026-04-21
+
+### Fixed — `argocd-image-updater` chart pinned to track v0.x (annotation-based)
+
+`bootstrap/platform-root/templates/argocd-image-updater.yaml` pinned the
+upstream chart to `1.1.5` (app v1.1.1). The v1.0.0 release
+(2025-11-11) is a rewrite to CRD-only — the controller no longer
+reads `argocd-image-updater.argoproj.io/*` annotations on ArgoCD
+Applications. Our write-back design (ADR 0016 D3) stores the
+image-list / update-strategy / write-back-target as Application
+annotations, so the v1.x controller silently ignored them — 0
+`ImageUpdater` CRs on cluster, 0 write-backs performed.
+
+Downgrade to chart `0.14.0` (app v0.17.0) — the latest chart on the
+annotation-based `master-annotation-based` upstream branch. Restores
+the contract documented in ADR 0016. Do NOT bump past `0.14.x` without
+migrating every consumer Application to the `ImageUpdater` CRD first.
+
+See `docs/adr/0019-argocd-image-updater-v0x-correction.md` (estabilis-
+platform-tools) for the full postmortem.
+
+Post-upgrade cleanup on the cluster: the v1.x chart's Deployment
+(`argocd-image-updater-controller`) has a different name than the
+v0.x chart's (`argocd-image-updater`) and will be orphaned by the
+Helm upgrade. Delete it after sync:
+
+```
+kubectl -n argocd delete deploy argocd-image-updater-controller
+```
+
 ## [0.12.1] - 2026-04-21
 
 ### Fixed — `terraform validate` rejects `cost-export.tf`
