@@ -45,9 +45,17 @@ metadata:
 spec:
   project: platform
   sources:
+    # Chart pinned to the track v0.x (annotation-based).
+    # Upstream v1.0.0 (2025-11-11) is a rewrite to CRD-only — it no longer
+    # reads `argocd-image-updater.argoproj.io/*` annotations on ArgoCD
+    # Applications. Our write-back design (ADR 0016 D3) depends on those
+    # annotations. Chart 0.14.0 → app v0.17.0 is the latest annotation-
+    # based release. Do NOT bump to 1.x without also migrating every
+    # consumer App to the ImageUpdater CRD.
+    # See: https://github.com/argoproj-labs/argocd-image-updater/pull/1190
     - repoURL: https://argoproj.github.io/argo-helm
       chart: argocd-image-updater
-      targetRevision: "1.1.5"
+      targetRevision: "0.14.0"
       helm:
         valueFiles:
           - $values/values/platform/argocd-image-updater.yaml
