@@ -23,7 +23,7 @@ spec:
   project: platform
   source:
     repoURL: {{ .Values.clientGitopsRepoUrl }}
-    targetRevision: {{ .Values.clientGitopsRepoVersion | default "HEAD" }}
+    targetRevision: {{ include "platform-root.clientGitopsRef" . | default "HEAD" }}
     path: platforms/{{ .Values.deploymentId }}/policies/exceptions
     directory:
       recurse: true

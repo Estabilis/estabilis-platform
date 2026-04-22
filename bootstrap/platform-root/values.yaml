@@ -5,10 +5,17 @@
 # All other values are defaults that can be overridden by the client
 # via the multi-source mechanism.
 
-platformRepoUrl: ""       # injected by terraform
-platformVersion: ""       # injected by terraform
-configRepoUrl: ""         # injected by terraform
-configRepoVersion: ""     # injected by terraform
+platformRepoUrl: ""         # injected by terraform
+platformVersion: ""         # injected by terraform
+configRepoUrl: ""           # injected by terraform
+
+# Git ref for the config repo. Prefer `configRepoRevision` (added
+# v0.13.0 per ADR 0020) which accepts branches (main / release/<env>)
+# for continuous reconciliation OR tags for pinned releases.
+# `configRepoVersion` is retained for backcompat — when both are set,
+# `configRepoRevision` wins.
+configRepoRevision: ""      # injected by terraform (new)
+configRepoVersion: ""       # DEPRECATED: use configRepoRevision
 
 # ---------------------------------------------------------------------------
 # Supply-chain provenance — ADR 0005 Phase 2
@@ -161,7 +168,15 @@ customApps: {}
 #
 # Set by the CLI at render time (same mechanism as global.provenance.*).
 clientGitopsRepoUrl: ""
-clientGitopsRepoVersion: ""
+
+# Git ref for the client gitops repo. Prefer `clientGitopsRepoRevision`
+# (added v0.13.0 per ADR 0020) which accepts branches (main /
+# release/<env>) for continuous reconciliation OR tags for pinned
+# releases. `clientGitopsRepoVersion` is retained for backcompat —
+# when both are set, `clientGitopsRepoRevision` wins.
+clientGitopsRepoRevision: ""
+clientGitopsRepoVersion: ""  # DEPRECATED: use clientGitopsRepoRevision
+
 deploymentId: ""
 
 # ---------------------------------------------------------------------------

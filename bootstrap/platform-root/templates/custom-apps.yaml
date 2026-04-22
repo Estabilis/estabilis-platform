@@ -1,5 +1,5 @@
 {{- /* conditional: downstream custom apps — enabled when configRepoUrl is set */ -}}
-{{- if and .Values.configRepoUrl .Values.configRepoVersion }}
+{{- if include "platform-root.overrideEnabled" . }}
 {{- range $name, $app := .Values.customApps }}
 ---
 apiVersion: argoproj.io/v1alpha1
@@ -16,7 +16,7 @@ spec:
   project: applications
   source:
     repoURL: {{ $.Values.configRepoUrl }}
-    targetRevision: {{ $.Values.configRepoVersion }}
+    targetRevision: {{ include "platform-root.configRepoRef" $ }}
     path: {{ $app.path }}
   destination:
     server: https://kubernetes.default.svc

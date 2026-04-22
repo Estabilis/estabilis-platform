@@ -92,26 +92,74 @@ Usage in Application templates:
       ref: values
     {{- include "platform-root.overrideSource" . | nindent 4 }}
 */}}
+{{/*
+Ref resolver helpers — resolve the effective git ref for each repo,
+preferring the new *Revision values over the legacy *Version values.
+Adopted in v0.13.0 per ADR 0020 (GitOps-native continuous
+reconciliation) to allow consumers to track branches for own-content
+repos (config overrides, client gitops). Tag pinning remains the
+pattern for external dependencies (upstream Estabilis tags, charts,
+container images).
+
+Both legacy (configRepoVersion / clientGitopsRepoVersion) and new
+(configRepoRevision / clientGitopsRepoRevision) values are accepted.
+When both are set, the *Revision wins. When both are empty but the
+corresponding URL is configured, `overrideEnabled` returns false
+(backcompat: missing refs silently disabled the helpers already).
+*/}}
+
+{{- define "platform-root.configRepoRef" -}}
+{{- if .Values.configRepoRevision -}}
+{{- .Values.configRepoRevision -}}
+{{- else if .Values.configRepoVersion -}}
+{{- .Values.configRepoVersion -}}
+{{- end -}}
+{{- end -}}
+
+{{- define "platform-root.clientGitopsRef" -}}
+{{- if .Values.clientGitopsRepoRevision -}}
+{{- .Values.clientGitopsRepoRevision -}}
+{{- else if .Values.clientGitopsRepoVersion -}}
+{{- .Values.clientGitopsRepoVersion -}}
+{{- end -}}
+{{- end -}}
+
+{{- define "platform-root.clientGitopsRefRequired" -}}
+{{- $ref := include "platform-root.clientGitopsRef" . -}}
+{{- if not $ref -}}
+{{- fail "clientGitopsRepoRevision (or legacy clientGitopsRepoVersion) is required when clientGitopsRepoUrl is set" -}}
+{{- end -}}
+{{- $ref -}}
+{{- end -}}
+
+{{- define "platform-root.configRepoRefRequired" -}}
+{{- $ref := include "platform-root.configRepoRef" . -}}
+{{- if not $ref -}}
+{{- fail "configRepoRevision (or legacy configRepoVersion) is required when configRepoUrl is set" -}}
+{{- end -}}
+{{- $ref -}}
+{{- end -}}
+
 {{- define "platform-root.overrideEnabled" -}}
-{{- and .Values.configRepoUrl .Values.configRepoVersion -}}
+{{- and .Values.configRepoUrl (include "platform-root.configRepoRef" .) -}}
 {{- end -}}
 
 {{- define "platform-root.overrideSource" -}}
-{{- if and .Values.configRepoUrl .Values.configRepoVersion }}
+{{- if include "platform-root.overrideEnabled" . }}
 - repoURL: {{ .Values.configRepoUrl }}
-  targetRevision: {{ .Values.configRepoVersion }}
+  targetRevision: {{ include "platform-root.configRepoRef" . }}
   ref: overrides
 {{- end }}
 {{- end -}}
 
 {{- define "platform-root.overrideValueFile" -}}
-{{- if and .root.Values.configRepoUrl .root.Values.configRepoVersion }}
+{{- if include "platform-root.overrideEnabled" .root }}
 - $overrides/overrides/{{ .component }}/values.yaml
 {{- end }}
 {{- end -}}
 
 {{- define "platform-root.ignoreMissingValueFiles" -}}
-{{- if and .Values.configRepoUrl .Values.configRepoVersion }}
+{{- if include "platform-root.overrideEnabled" . }}
 ignoreMissingValueFiles: true
 {{- end }}
 {{- end -}}
@@ -207,7 +255,7 @@ per-platform override paths scoped by deploymentId.
 {{- define "platform-root.gitopsSource" -}}
 {{- if and .Values.clientGitopsRepoUrl .Values.deploymentId }}
 - repoURL: {{ .Values.clientGitopsRepoUrl }}
-  targetRevision: {{ .Values.clientGitopsRepoVersion | default "HEAD" }}
+  targetRevision: {{ include "platform-root.clientGitopsRef" . | default "HEAD" }}
   ref: gitops
 {{- end }}
 {{- end -}}
