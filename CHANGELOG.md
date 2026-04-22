@@ -1,5 +1,41 @@
 # Changelog
 
+## [0.12.4] - 2026-04-22
+
+### Added — `valueFiles` block on `acr-image-updater-credentials` Application
+
+The platform-root Application template for `acr-image-updater-credentials`
+previously supported overrides only via `helm.parameters`. Per-cluster
+overrides of component values (e.g. `secretStoreName` added by
+estabilis-platform-gitops v0.30.0 for multi-KV tenant separation) could
+not be set from the downstream config repo or client-gitops repo.
+
+Adds a `valueFiles:` block mirroring the pattern used by
+`cluster-secret-store`:
+
+```yaml
+valueFiles:
+  - $values/components/acr-image-updater-credentials/values.yaml
+  - $values/values/platform/acr-image-updater-credentials.yaml
+  {{- include "platform-root.overrideValueFile" ... }}
+  {{- include "platform-root.gitopsValueFile" ... }}
+```
+
+Also adds a second source declaring the platform-gitops `ref: values`
+so the `$values/...` paths resolve (the Application previously had no
+explicit values ref).
+
+### Impact
+
+- Any consumer of `acr-image-updater-credentials` can now override its
+  values via a standard override file, e.g.
+  `<config-repo>/overrides/acr-image-updater-credentials/values.yaml`.
+- Enables the planned Transfero shared-infra cutover
+  (`secretStoreName: shared-infra-secret-store`) without per-cluster
+  upstream bumps.
+- Backcompat: `ignoreMissingValueFiles: true` included via helper, so
+  deployments without override files continue to work unchanged.
+
 ## [0.12.3] - 2026-04-22
 
 ### Added — `external_secrets_principal_id` output

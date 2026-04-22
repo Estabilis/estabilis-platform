@@ -16,10 +16,28 @@ spec:
       targetRevision: {{ .Values.platformGitopsVersion }}
       path: components/acr-image-updater-credentials
       helm:
+        # ValueFiles pulled from config-repo (`overrides/`) and client-
+        # gitops (`overrides/` under `platforms/<deploymentId>/`). Match
+        # the pattern used by cluster-secret-store so tenant-level KV
+        # separation (e.g. `secretStoreName: shared-infra-secret-store`)
+        # can be declared via a simple override file — no upstream bump
+        # needed per deployment. Added in estabilis-platform v0.12.4.
+        valueFiles:
+          - $values/components/acr-image-updater-credentials/values.yaml
+          - $values/values/platform/acr-image-updater-credentials.yaml
+          {{- include "platform-root.overrideValueFile" (dict "component" "acr-image-updater-credentials" "root" $) | nindent 10 }}
+          {{- include "platform-root.gitopsValueFile" (dict "component" "acr-image-updater-credentials" "root" $) | nindent 10 }}
+        {{- include "platform-root.ignoreMissingValueFiles" $ | nindent 8 }}
         parameters:
           - name: acrLoginServer
             value: "{{ .Values.global.sharedAcrLoginServer }}"
           {{- include "platform-root.provenanceParameters" $ | nindent 10 }}
+    # Platform-gitops $values ref — needed by the `$values/...` paths
+    # above. Declared explicitly here because this Application is single-
+    # source otherwise; cluster-secret-store declares the same ref.
+    - repoURL: {{ .Values.platformGitopsRepoUrl }}
+      targetRevision: {{ .Values.platformGitopsVersion }}
+      ref: values
     {{- include "platform-root.overrideSource" . | nindent 4 }}
     {{- include "platform-root.gitopsSource" . | nindent 4 }}
   destination:
