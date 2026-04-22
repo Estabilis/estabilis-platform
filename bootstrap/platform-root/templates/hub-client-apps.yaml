@@ -42,7 +42,7 @@ spec:
   generators:
     - git:
         repoURL: {{ .Values.clientGitopsRepoUrl | quote }}
-        revision: {{ required "clientGitopsRepoVersion is required when clientGitopsRepoUrl is set" .Values.clientGitopsRepoVersion | quote }}
+        revision: {{ include "platform-root.clientGitopsRefRequired" . | quote }}
         directories:
           - path: "platforms/{{ .Values.deploymentId }}/hub-apps/*"
   template:
@@ -58,7 +58,7 @@ spec:
       project: platform-client-infra
       source:
         repoURL: {{ .Values.clientGitopsRepoUrl | quote }}
-        targetRevision: {{ .Values.clientGitopsRepoVersion | quote }}
+        targetRevision: {{ include "platform-root.clientGitopsRefRequired" . | quote }}
         path: "{{ `{{ .path.path }}` }}/manifests"
         directory:
           recurse: true

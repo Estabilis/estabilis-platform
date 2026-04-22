@@ -1,5 +1,57 @@
 # Changelog
 
+## [0.13.0] - 2026-04-22
+
+### Added — `configRepoRevision` and `clientGitopsRepoRevision` values
+
+Part of ADR 0020 (GitOps-native continuous reconciliation). Lets
+consumers track a branch (e.g. `main`, `release/prod`) instead of
+pinning a specific tag for **own-content repos** (config overrides
++ client gitops). Tag pinning for **external dependencies** (upstream
+Estabilis versions, container images, external helm charts) is
+unchanged.
+
+Changes:
+
+- `bootstrap/platform-root/values.yaml`: add `configRepoRevision`
+  and `clientGitopsRepoRevision`. Legacy `configRepoVersion` and
+  `clientGitopsRepoVersion` are **retained for backcompat** — when
+  both are set, the `*Revision` wins.
+- `bootstrap/platform-root/templates/_helpers.tpl`: new helpers
+  `configRepoRef`, `configRepoRefRequired`, `clientGitopsRef`,
+  `clientGitopsRefRequired`. Existing helpers `overrideEnabled` /
+  `overrideSource` / `overrideValueFile` / `ignoreMissingValueFiles`
+  / `gitopsSource` refactored to consume the new resolvers.
+- `bootstrap/platform-root/templates/custom-apps.yaml`: Application
+  `targetRevision` uses `configRepoRef`.
+- `bootstrap/platform-root/templates/client-kyverno-exceptions.yaml`:
+  Application `targetRevision` uses `clientGitopsRef`.
+- `bootstrap/platform-root/templates/hub-client-apps.yaml`:
+  ApplicationSet `generators.git.revision` and generated Application
+  `targetRevision` use `clientGitopsRefRequired` (fail-loud when
+  URL is set but ref missing).
+
+### Migration path
+
+- **No action required**: continue setting the legacy `*Version`
+  values via Terraform / tfvars. Chart renders identically to v0.12.4.
+- **Adopt branch tracking**: set `*Revision` in overrides to a branch
+  name (`main`, `release/prod`), leave `*Version` empty. Enables
+  continuous reconciliation per ADR 0020.
+
+### Compatibility
+
+100% backward-compatible. Verified via `helm template` in legacy
+and revision modes — external chart pins unchanged, only own-content
+targetRevision transitions between tag and branch based on values
+provided.
+
+### Companion bump
+
+`estabilis-platform-gitops` v0.31.0 introduces matching values at
+the workload-bootstrap chart level. Use both together when adopting
+continuous reconciliation.
+
 ## [0.12.4] - 2026-04-22
 
 ### Added — `valueFiles` block on `acr-image-updater-credentials` Application
