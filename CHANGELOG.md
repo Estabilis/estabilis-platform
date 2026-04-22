@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.12.3] - 2026-04-22
+
+### Added — `external_secrets_principal_id` output
+
+New `providers/azure/outputs.tf` output exposing the principal ID
+(object ID) of the `external-secrets` managed identity. The existing
+`external_secrets_client_id` output only carries the client ID (used
+by workload-identity federation), but cross-module RBAC wiring
+(`azurerm_role_assignment`) requires the principal ID.
+
+Motivation: enables downstream Terraform repos (e.g. shared-infra
+wrappers that own their own Key Vault) to grant `Key Vault Secrets
+User` to the same MI that ESO uses on the cluster, without
+duplicating the identity. Before this output, a shared-infra repo
+had to either (a) write its secrets to the platform-owned KV (the
+only one the MI could read), creating cross-module ownership
+coupling, or (b) provision its own duplicate MI.
+
+Additive, backward-compatible. Existing consumers unaffected.
+
 ## [0.12.2] - 2026-04-21
 
 ### Fixed — `argocd-image-updater` chart pinned to track v0.x (annotation-based)

@@ -78,6 +78,11 @@ output "external_secrets_client_id" {
   value       = azurerm_user_assigned_identity.external_secrets.client_id
 }
 
+output "external_secrets_principal_id" {
+  description = "Principal ID (object ID) of the external-secrets managed identity. Exported so downstream modules that provision additional Key Vaults can grant `Key Vault Secrets User` to this MI via `azurerm_role_assignment`, instead of the MI being limited to the platform KV. Consumed by shared-infra Terraform repos that write secrets to a dedicated KV which the cluster's external-secrets controller must read."
+  value       = azurerm_user_assigned_identity.external_secrets.principal_id
+}
+
 output "loki_client_id" {
   description = "Client ID of the Loki managed identity."
   value       = azurerm_user_assigned_identity.loki.client_id
