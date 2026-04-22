@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.13.1] - 2026-04-22
+
+### Fixed — AKS `admissionsenforcer` namespaceSelector drift on webhooks
+
+AKS clusters have a managed field manager named `admissionsenforcer`
+that injects `namespaceSelector.matchExpressions` on every
+`ValidatingWebhookConfiguration` and `MutatingWebhookConfiguration` to
+exclude managed-plane namespaces (`kubernetes.azure.com/managedby=aks`,
+`control-plane=true`). Any webhook declaring `namespaceSelector: {}`
+in git shows perpetual cosmetic OutOfSync — the field is owned by the
+AKS admission controller, not by git.
+
+Adds `resource.customizations.ignoreDifferences` entries in `argocd-cm`
+scoped to `admissionregistration.k8s.io/{Validating,Mutating}WebhookConfiguration`.
+
+- `core/components/argocd/values.yaml`: two new customizations ignoring
+  `.webhooks[]?.namespaceSelector`.
+
+Safe on non-AKS clusters: the jqPathExpressions match no webhooks when
+`admissionsenforcer` doesn't exist, so the rule is a no-op elsewhere.
+
+First observed on keda-admission; affects any webhook deployed on AKS.
+
 ## [0.13.0] - 2026-04-22
 
 ### Added — `configRepoRevision` and `clientGitopsRepoRevision` values
