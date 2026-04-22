@@ -41,6 +41,26 @@ configs:
         - .metadata.annotations."estabilis.io/build-id"
         - .metadata.annotations."estabilis.io/git-revision"
         - .metadata.annotations."estabilis.io/git-source"
+    # AKS `admissionsenforcer` field manager injects
+    # `namespaceSelector.matchExpressions` on every Validating/Mutating
+    # WebhookConfiguration to exclude managed-plane namespaces
+    # (kubernetes.azure.com/managedby=aks, control-plane=true). The
+    # field is owned by the AKS admission controller — git sources
+    # declaring `namespaceSelector: {}` will show perpetual drift on
+    # live clusters. Ignoring eliminates cosmetic OutOfSync without
+    # affecting behavior (the matchExpressions are beneficial and
+    # non-deterministically ordered, so declaring them in git would
+    # just move the drift around).
+    #
+    # Safe on non-AKS clusters: jqPathExpressions match no webhooks
+    # when admissionsenforcer doesn't exist, so the rule is a no-op
+    # elsewhere.
+    resource.customizations.ignoreDifferences.admissionregistration.k8s.io_ValidatingWebhookConfiguration: |
+      jqPathExpressions:
+        - .webhooks[]?.namespaceSelector
+    resource.customizations.ignoreDifferences.admissionregistration.k8s.io_MutatingWebhookConfiguration: |
+      jqPathExpressions:
+        - .webhooks[]?.namespaceSelector
     resource.customizations.health.postgresql.cnpg.io_Cluster: |
       hs = {}
       if obj.status == nil or obj.status.phase == nil then
