@@ -31,12 +31,12 @@ variable "environment" {
 }
 
 variable "deployment_id" {
-  description = "Deployment identifier used as key in the client GitOps repo (e.g., platform-aws-useast1-hml). Maps to platforms/{deployment_id}/ in the gitops repo."
+  description = "Deployment identifier used as key in the client GitOps repo (e.g., platform-aws-us-east-1-hml). Maps to platforms/{deployment_id}/ in the gitops repo."
   type        = string
 
   validation {
     condition     = length(var.deployment_id) > 0
-    error_message = "deployment_id is required (e.g., platform-aws-useast1-hml)."
+    error_message = "deployment_id is required (e.g., platform-aws-us-east-1-hml)."
   }
 }
 
