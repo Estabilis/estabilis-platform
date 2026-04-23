@@ -44,6 +44,15 @@ module "karpenter" {
   iam_role_use_name_prefix      = false
   node_iam_role_use_name_prefix = false
 
+  # Explicit per-cluster names. Without this override, the upstream module
+  # defaults the controller role to the generic `KarpenterController`
+  # (hardcoded string) and the node role to `Karpenter-<cluster>`. Two
+  # Estabilis deployments in the same AWS account would collide on
+  # `KarpenterController`. Pinning both to include the cluster name gives
+  # unambiguous ownership per deployment.
+  iam_role_name      = "Karpenter-${module.eks.cluster_name}"
+  node_iam_role_name = "KarpenterNode-${module.eks.cluster_name}"
+
   tags = {
     (var.karpenter_discovery_tag_key) = local.cluster_name
   }

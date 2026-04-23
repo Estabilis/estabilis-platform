@@ -1,5 +1,78 @@
 # Changelog
 
+## [0.15.2] - 2026-04-23
+
+### Fixed — tfstate resources are destroyable; Karpenter roles are per-cluster
+
+Two blockers discovered after the first successful `terraform apply`:
+
+#### Fix 1 — `prevent_destroy = true` blocked `terraform destroy` even on
+empty buckets and lock tables
+
+`aws_s3_bucket.tfstate` and `aws_dynamodb_table.tfstate_lock` shipped
+with `lifecycle { prevent_destroy = true }`, which cannot be disabled
+via a variable (Terraform does not support variable-driven
+`prevent_destroy`). Operators rebuilding an HML/test deployment hit:
+
+```
+Error: Instance cannot be destroyed
+  Resource ... has lifecycle.prevent_destroy set, but the plan calls
+  for this resource to be destroyed.
+```
+
+The only workarounds were editing the module cache by hand or running
+a targeted destroy excluding those two resources — both bad UX.
+
+Removed the `lifecycle.prevent_destroy` block from both resources.
+The safety net that still applies:
+
+- `s3_force_destroy = false` (default) — Terraform refuses to delete
+  a bucket that has objects (including the real tfstate file).
+- `s3_tfstate_protect_critical = true` (opt-in, default false) —
+  enables Object Lock (governance mode) on the tfstate bucket for
+  production deployments that need WORM semantics.
+
+DynamoDB lock table holds only active terraform lock records
+(ephemeral) so no equivalent guard is needed.
+
+- `providers/aws/tfstate.tf`: remove `lifecycle { prevent_destroy }`
+  from `aws_s3_bucket.tfstate` and `aws_dynamodb_table.tfstate_lock`,
+  document the remaining safety guards in comments.
+
+#### Fix 2 — Karpenter IAM role names are per-cluster
+
+The `terraform-aws-modules/eks/aws//modules/karpenter` submodule
+defaults `iam_role_name` to the hardcoded string `"KarpenterController"`
+(not a function of the cluster name). The node role default does
+include `Karpenter-<cluster>`, but the controller role did not. With
+`iam_role_use_name_prefix = false` (required by v0.15.1 to avoid the
+38-char name_prefix cap), the controller role lands in IAM as the
+literal `"KarpenterController"`.
+
+Consequence: two Estabilis deployments in the same AWS account would
+both try to create `KarpenterController` → collision on the second
+apply.
+
+Pinned both role names explicitly to include the cluster name:
+
+```
+iam_role_name      = "Karpenter-${module.eks.cluster_name}"
+node_iam_role_name = "KarpenterNode-${module.eks.cluster_name}"
+```
+
+Node role default already included the cluster name; we set it
+explicitly too for consistency with the controller naming scheme.
+
+- `providers/aws/karpenter.tf`: explicit `iam_role_name` and
+  `node_iam_role_name` inputs to the module.
+
+### Backward compatibility
+
+v0.15.1 was only deployed once (cortex test, currently being torn
+down for a rebuild with `name_prefix = "cortex"`). Next apply of the
+cortex test pins v0.15.2 so the new Karpenter role names and the
+destroyable tfstate land together. No other deployments exist.
+
 ## [0.15.1] - 2026-04-23
 
 ### Fixed — `terraform plan` regressions in the AWS provider
