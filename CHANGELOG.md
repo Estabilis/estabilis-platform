@@ -1,5 +1,62 @@
 # Changelog
 
+## [0.15.1] - 2026-04-23
+
+### Fixed — `terraform plan` regressions in the AWS provider
+
+Two bugs surfaced when running `terraform plan` for real (both slipped
+through `terraform validate` because the type/length checks are only
+exercised at plan-time once module resource attributes resolve).
+
+#### Fix 1 — `cluster_encryption_config` ternary type mismatch
+
+```
+Error: Inconsistent conditional result types
+  The 'true' value includes object attribute "provider_key_arn",
+  which is absent in the 'false' value.
+```
+
+Terraform 1.7+ enforces matching types on both ternary branches. The
+`true` branch returned `{resources, provider_key_arn}`, the `false`
+branch returned `{}`. Swapped the false branch to `null`, which
+disables encryption cleanly without forcing the shape duplication.
+
+- `providers/aws/eks.tf` — `cluster_encryption_config` now returns
+  `null` when `cluster_secrets_encryption_enabled = false`.
+
+#### Fix 2 — IAM role `name_prefix` overflow
+
+```
+Error: expected length of name_prefix to be in the range (1 - 38),
+got eks-estabilis-cortex-platform-prd-useast1-cluster-
+```
+
+The EKS module defaults `iam_role_use_name_prefix = true`, which caps
+role names at 38 chars (AWS IAM `name_prefix` limit — the module
+leaves room for the 26-char Terraform-generated suffix inside the
+64-char total IAM role name budget). Our CAF-style cluster names
+(`eks-{prefix}-platform-{env}-{region}`) already consume 30–41 chars
+before the module appends `-cluster-`, so any `name_prefix > 5 chars`
+would overflow.
+
+Flipped to `iam_role_use_name_prefix = false` on both `module.eks`
+(cascades to Fargate profile IAM roles) and `module.karpenter`
+(covers the controller IRSA + node IAM roles). The resulting role
+names fit in the 64-char `name` budget without truncating any CAF
+tag segment.
+
+- `providers/aws/eks.tf` — `iam_role_use_name_prefix = false` on
+  the EKS module call.
+- `providers/aws/karpenter.tf` — `iam_role_use_name_prefix = false`
+  + `node_iam_role_use_name_prefix = false` on the Karpenter module.
+
+### Backward compatibility
+
+Since v0.14.0 was the first AWS release and no deployment reached
+`terraform apply` before this fix (both bugs blocked plan), flipping
+`iam_role_use_name_prefix` has **no migration impact** — there are
+no existing IAM roles with `name_prefix` random suffixes to rename.
+
 ## [0.15.0] - 2026-04-23
 
 ### Added — configurable Karpenter discovery tag-key
