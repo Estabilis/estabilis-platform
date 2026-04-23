@@ -38,6 +38,12 @@ module "karpenter" {
   namespace       = "karpenter"
   service_account = "karpenter"
 
+  # Same IAM role naming constraint as module.eks — our cluster names
+  # exceed the 38-char name_prefix budget. Use full names (64-char
+  # budget) so `Karpenter-${cluster_name}` fits.
+  iam_role_use_name_prefix      = false
+  node_iam_role_use_name_prefix = false
+
   tags = {
     (var.karpenter_discovery_tag_key) = local.cluster_name
   }

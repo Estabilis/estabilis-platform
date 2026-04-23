@@ -145,15 +145,28 @@ module "eks" {
   cloudwatch_log_group_retention_in_days = var.cluster_log_retention_days
 
   # --- Secrets encryption (envelope) --------------------------------------
+  # Ternary must return matching types on both branches (Terraform 1.7+
+  # strict type check). `null` disables encryption cleanly without forcing
+  # the "false" branch to echo the full object shape.
   cluster_encryption_config = var.cluster_secrets_encryption_enabled ? {
     resources        = ["secrets"]
     provider_key_arn = aws_kms_key.cluster_secrets.arn
-  } : {}
+  } : null
 
   # --- Authentication (Access Entries, AWS best practice) -----------------
   authentication_mode                      = var.authentication_mode
   enable_cluster_creator_admin_permissions = var.enable_cluster_creator_admin_permissions
   access_entries                           = local.eks_access_entries_map
+
+  # --- IAM role naming ----------------------------------------------------
+  # The EKS module defaults to `iam_role_use_name_prefix = true`, which
+  # caps role names at 38 chars (AWS IAM name_prefix limit — the module
+  # leaves room for the 26-char Terraform-generated suffix inside the
+  # 64-char total budget). Our CAF-style cluster names
+  # (`eks-{prefix}-platform-{env}-{region}`) plus the module's `-cluster`
+  # suffix routinely exceed 38 chars. Using `false` switches to
+  # name-mode, which allows the full 64-char budget.
+  iam_role_use_name_prefix = false
 
   # --- Addons --------------------------------------------------------------
   cluster_addons = local.effective_addons
