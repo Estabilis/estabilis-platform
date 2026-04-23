@@ -1,0 +1,59 @@
+name: pre-commit
+
+# Runs the same hooks developers run locally (see .pre-commit-config.yaml).
+# Mirrors the local config — zero drift. Blocks merge on any failure.
+#
+# Trigger matrix:
+#   pull_request → gate new contributions
+#   push to main → catches anything that bypassed the PR gate (direct push,
+#                  amended tag-move, etc.)
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: pre-commit-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pre-commit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "~1.10"
+          terraform_wrapper: false
+
+      - name: Setup TFLint
+        uses: terraform-linters/setup-tflint@v4
+        with:
+          tflint_version: latest
+
+      - name: Cache TFLint plugins
+        uses: actions/cache@v4
+        with:
+          path: ~/.tflint.d/plugins
+          key: tflint-${{ runner.os }}-${{ hashFiles('.tflint.hcl') }}
+          restore-keys: |
+            tflint-${{ runner.os }}-
+
+      - name: Initialize TFLint plugins
+        run: tflint --init
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run pre-commit
+        uses: pre-commit/action@v3.0.1
