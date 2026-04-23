@@ -2,6 +2,31 @@
 
 ## [0.15.2] - 2026-04-23
 
+### Changed — region_code in resource names uses AWS-official format
+
+Resource names derived from `base_name` previously stripped dashes
+from the AWS region (`us-east-1` → `useast1`) for visual parity with
+the Azure provider's `eastus2` format. Every AWS CLI, tag, and AWS
+doc refers to the region with dashes, so the compact form created
+cognitive overhead without benefit.
+
+Now the region is inserted verbatim:
+
+```
+cluster_name: eks-cortex-platform-prd-us-east-1   (was: eks-cortex-platform-prd-useast1)
+```
+
+All derivatives (S3 buckets, IAM roles, KMS aliases, DynamoDB) follow.
+Dashes inside the region are safe in every AWS resource name we create.
+
+**Breaking**: existing AWS deployments on v0.15.1 produce different
+resource names on v0.15.2. Since v0.15.1 had only one deployment
+(cortex test, being destroyed) and no production use, no migration is
+needed beyond re-applying the test.
+
+- `providers/aws/main.tf`: `locals.region_code = var.region` (dropped
+  the `replace()` call).
+
 ### Fixed — tfstate resources are destroyable; Karpenter roles are per-cluster
 
 Two blockers discovered after the first successful `terraform apply`:
