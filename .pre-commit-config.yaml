@@ -1,0 +1,93 @@
+# Pre-commit hooks for estabilis-platform.
+#
+# Install once per clone:
+#   pip install pre-commit
+#   pre-commit install              # pre-commit stage
+#   pre-commit install --hook-type commit-msg
+#
+# Run manually on all files:
+#   pre-commit run --all-files
+#
+# Upgrade pinned revs:
+#   pre-commit autoupdate
+---
+repos:
+  # ---------------------------------------------------------------------------
+  # Terraform — format, validate syntax, and static analysis via tflint.
+  # terraform_validate uses retry-once-with-cleanup so stale .terraform caches
+  # don't cause spurious failures when upstream modules change.
+  # ---------------------------------------------------------------------------
+  - repo: https://github.com/antonbabenko/pre-commit-terraform
+    rev: v1.96.3
+    hooks:
+      - id: terraform_fmt
+      - id: terraform_validate
+        args:
+          - --hook-config=--retry-once-with-cleanup=true
+      - id: terraform_tflint
+        args:
+          - --args=--minimum-failure-severity=error
+
+  # ---------------------------------------------------------------------------
+  # Core hygiene + security from the official pre-commit-hooks collection.
+  # ---------------------------------------------------------------------------
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: detect-private-key
+      - id: detect-aws-credentials
+        args:
+          - --allow-missing-credentials
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args:
+          - --maxkb=500
+      - id: check-yaml
+        args:
+          - --allow-multiple-documents
+        # Helm templates contain {{ }} placeholders that are not valid YAML
+        # until rendered. Exclude them from the syntax check.
+        exclude: |
+          (?x)^(
+            bootstrap/platform-root/templates/.*\.yaml|
+            core/components/.*/templates/.*\.yaml
+          )$
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+        args:
+          - --markdown-linebreak-ext=md
+      - id: mixed-line-ending
+        args:
+          - --fix=lf
+
+  # ---------------------------------------------------------------------------
+  # Deep secret scan — catches AWS/Azure/GitHub/GitLab/Cloudflare/OpenAI
+  # tokens that the regex-based detect-* hooks miss. Config lives in
+  # .gitleaks.toml at the repo root.
+  # ---------------------------------------------------------------------------
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.21.2
+    hooks:
+      - id: gitleaks
+
+  # ---------------------------------------------------------------------------
+  # Commit message — enforce Conventional Commits so CHANGELOG + release
+  # tagging stay machine-parseable.
+  # ---------------------------------------------------------------------------
+  - repo: https://github.com/compilerla/conventional-pre-commit
+    rev: v3.6.0
+    hooks:
+      - id: conventional-pre-commit
+        stages: [commit-msg]
+        args:
+          - feat
+          - fix
+          - chore
+          - docs
+          - refactor
+          - test
+          - build
+          - ci
+          - perf
+          - style
+          - revert
