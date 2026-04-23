@@ -1,0 +1,39 @@
+name: gitleaks
+
+# Hard-gate secret scanning independent of pre-commit. Rationale:
+#   - pre-commit on PR scans the PR diff. If a secret landed in a previous
+#     commit that gets rebased/amended, pre-commit on the new PR misses it.
+#   - This job scans the FULL history on every push to main so any leak
+#     gets caught even if someone force-pushes or bypasses pre-commit locally.
+#
+# Shares .gitleaks.toml with the local pre-commit setup — single source of
+# truth for allowlists and custom rules.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: gitleaks-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # scan full history
+
+      - name: Run gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_CONFIG: .gitleaks.toml
