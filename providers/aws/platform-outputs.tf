@@ -97,10 +97,11 @@ resource "kubernetes_config_map" "platform_infrastructure" {
     "global.hubbleUiExposures" = jsonencode({ for k, v in local.hubble_ui_exposures_resolved : k => v if v.enabled })
 
     # Autoscaler + Karpenter wiring
-    "global.autoscaler"              = var.autoscaler
-    "global.karpenterQueueName"      = var.autoscaler == "karpenter" ? module.karpenter[0].queue_name : ""
-    "global.karpenterNodeRoleName"   = var.autoscaler == "karpenter" ? module.karpenter[0].node_iam_role_name : ""
-    "global.karpenterControllerRole" = var.autoscaler == "karpenter" ? module.karpenter[0].iam_role_arn : ""
+    "global.autoscaler"               = var.autoscaler
+    "global.karpenterQueueName"       = var.autoscaler == "karpenter" ? module.karpenter[0].queue_name : ""
+    "global.karpenterNodeRoleName"    = var.autoscaler == "karpenter" ? module.karpenter[0].node_iam_role_name : ""
+    "global.karpenterControllerRole"  = var.autoscaler == "karpenter" ? module.karpenter[0].iam_role_arn : ""
+    "global.karpenterDiscoveryTagKey" = var.karpenter_discovery_tag_key
 
     # ECR
     "global.ecrRegistry" = length(var.ecr_repositories) > 0 && var.ecr_enabled ? "${data.aws_caller_identity.current.account_id}.dkr.ecr.${var.region}.amazonaws.com" : ""

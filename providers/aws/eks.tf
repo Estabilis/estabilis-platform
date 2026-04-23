@@ -190,15 +190,16 @@ module "eks" {
 
   # --- Node SG tags for Karpenter discovery -------------------------------
   node_security_group_tags = var.autoscaler == "karpenter" ? {
-    "karpenter.sh/discovery" = local.cluster_name
+    (var.karpenter_discovery_tag_key) = local.cluster_name
   } : {}
 
-  tags = merge(
-    {
-      # Karpenter uses this to find the cluster when provisioning new nodes
-      "karpenter.sh/discovery" = local.cluster_name
-    },
-  )
+  tags = {
+    # Karpenter uses this to find the cluster when provisioning new nodes.
+    # Tag-key is configurable via var.karpenter_discovery_tag_key so multiple
+    # Karpenter-managed clusters can share a VPC without overwriting each
+    # other's subnet tags.
+    (var.karpenter_discovery_tag_key) = local.cluster_name
+  }
 }
 
 # ---------------------------------------------------------------------------
@@ -211,7 +212,7 @@ resource "aws_ec2_tag" "existing_private_karpenter_discovery" {
   for_each = var.vpc_mode == "existing" && var.autoscaler == "karpenter" ? toset(var.private_subnet_ids) : []
 
   resource_id = each.value
-  key         = "karpenter.sh/discovery"
+  key         = var.karpenter_discovery_tag_key
   value       = local.cluster_name
 }
 

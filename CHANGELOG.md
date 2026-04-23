@@ -1,5 +1,63 @@
 # Changelog
 
+## [0.15.0] - 2026-04-23
+
+### Added — configurable Karpenter discovery tag-key
+
+New variable `karpenter_discovery_tag_key` in `providers/aws/` (default
+`"karpenter.sh/discovery"` — unchanged behavior for existing deployments).
+
+### Motivation
+
+AWS allows a single value per tag-key per resource. When two
+Karpenter-managed clusters share a VPC, both tagging subnets with the
+community-convention key `karpenter.sh/discovery` would silently
+overwrite each other — one cluster's Karpenter would stop finding
+its subnets. Before this change, the upstream hardcoded that key in
+five places (subnet create-mode tags, `aws_ec2_tag` for existing-mode,
+EKS module top-level `tags`, `node_security_group_tags`, and Karpenter
+module `tags`), so the only safe option was `autoscaler =
+"cluster_autoscaler"` or `"none"` when sharing a VPC.
+
+### How it works
+
+Every place that previously hardcoded the key now uses
+`var.karpenter_discovery_tag_key`. The default is the community
+convention, so single-cluster VPCs keep their tag untouched. When two
+clusters share a VPC, each sets a unique key:
+
+- Cluster A (existing): `karpenter.sh/discovery = cluster-a`
+- Cluster B (new):      `estabilis.io/discovery = cluster-b`
+
+Both keys coexist on the same subnets. Each cluster's EC2NodeClass
+(installed via ArgoCD in Phase 2) configures `subnetSelectorTerms` to
+match its own key.
+
+### Platform outputs
+
+`platform-outputs.tf` now emits `global.karpenterDiscoveryTagKey` in
+the `platform-infrastructure` ConfigMap so the Phase 2 Karpenter Helm
+chart can render its EC2NodeClass with the correct subnet/SG selector.
+
+### Backward compatibility
+
+The default matches the hardcoded value from v0.14.0. No Azure
+deployment is affected (the variable is AWS-only). Existing AWS
+deployments that do not override the variable produce an
+identical Terraform plan.
+
+### Changes
+
+- `providers/aws/variables.tf`: new `karpenter_discovery_tag_key`
+  variable with validation (non-empty).
+- `providers/aws/eks.tf`: `module.eks.tags`,
+  `node_security_group_tags`, and
+  `aws_ec2_tag.existing_private_karpenter_discovery` all use the var.
+- `providers/aws/vpc.tf`: private subnet tag (create mode) uses the var.
+- `providers/aws/karpenter.tf`: module tag uses the var.
+- `providers/aws/platform-outputs.tf`: new `global.karpenterDiscoveryTagKey`
+  ConfigMap entry.
+
 ## [0.14.0] - 2026-04-23
 
 ### Added — AWS provider (Phase 1 — landing zone)

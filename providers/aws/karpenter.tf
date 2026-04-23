@@ -39,7 +39,7 @@ module "karpenter" {
   service_account = "karpenter"
 
   tags = {
-    "karpenter.sh/discovery" = local.cluster_name
+    (var.karpenter_discovery_tag_key) = local.cluster_name
   }
 }
 
