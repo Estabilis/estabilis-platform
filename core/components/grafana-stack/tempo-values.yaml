@@ -61,4 +61,3 @@ affinity:
             - key: "estabilis.io/pool-type"
               operator: In
               values: ["regular"]
-
