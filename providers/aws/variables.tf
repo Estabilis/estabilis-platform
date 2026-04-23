@@ -294,6 +294,17 @@ variable "karpenter_node_iam_role_additional_policies" {
   default     = {}
 }
 
+variable "karpenter_discovery_tag_key" {
+  description = "Tag key used by Karpenter's EC2NodeClass subnetSelectorTerms + securityGroupSelectorTerms to discover AWS resources. Defaults to the community convention 'karpenter.sh/discovery'. Override only when the VPC already hosts another Karpenter-managed cluster using that key — AWS allows a single value per tag-key per resource, so sharing the key would make the clusters overwrite each other's subnet tags. Recommended override when sharing: 'estabilis.io/discovery'."
+  type        = string
+  default     = "karpenter.sh/discovery"
+
+  validation {
+    condition     = length(var.karpenter_discovery_tag_key) > 0
+    error_message = "karpenter_discovery_tag_key cannot be empty."
+  }
+}
+
 # ---------------------------------------------------------------------------
 # EKS — Addons
 # ---------------------------------------------------------------------------
