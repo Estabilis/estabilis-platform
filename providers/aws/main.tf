@@ -65,9 +65,12 @@ locals {
     prod = "prd"
   }[var.environment]
 
-  # Compact region code for resource names: us-east-1 -> useast1.
-  # Keeps names short and avoids dash-on-dash segments (estabilis-platform-prd-useast1).
-  region_code = replace(var.region, "-", "")
+  # Region code used in resource names. Uses the AWS-official region string
+  # (with dashes) so names match every AWS CLI, tag, and documentation.
+  # Example: us-east-1 -> eks-{prefix}-platform-{env}-us-east-1. Dashes
+  # inside region_code are harmless — every AWS resource name that we
+  # derive (EKS cluster, IAM roles, S3 buckets, KMS aliases) allows them.
+  region_code = var.region
 
   base_name = "${var.name_prefix}-platform-${local.env_code}-${local.region_code}"
 
