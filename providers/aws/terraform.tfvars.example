@@ -1,0 +1,233 @@
+# ============================================================================
+# Estabilis Platform — AWS provider inputs
+# ============================================================================
+# Copy this file to terraform.tfvars and fill in the required values.
+#
+#   cp terraform.tfvars.example terraform.tfvars
+#
+# Then run:
+#   terraform init
+#   terraform plan
+#   terraform apply
+#
+# Terraform loads terraform.tfvars automatically (no -var-file needed).
+# For secrets, use secrets.auto.tfvars (gitignored, auto-loaded).
+#
+# Variable precedence (low → high):
+#   1. default in variables.tf
+#   2. TF_VAR_<name> env var
+#   3. terraform.tfvars (this file)
+#   4. *.auto.tfvars (alphabetical)
+#   5. -var-file=<path> on the CLI
+#   6. -var <name>=<value> on the CLI
+# ============================================================================
+
+# ----------------------------------------------------------------------------
+# Required
+# ----------------------------------------------------------------------------
+
+domain            = "CHANGE_ME_DOMAIN"       # e.g. "estabilis.io" — must match the DNS zone
+letsencrypt_email = "CHANGE_ME_EMAIL"        # ACME account email (cert-manager)
+
+deployment_id = "platform-aws-useast1-hml"   # Unique key in the client GitOps repo (platforms/<deployment_id>/)
+
+platform_repo_url   = "https://github.com/Estabilis/estabilis-platform.git"
+platform_revision   = "v0.14.0"              # Prefer tag; branch (e.g. "main") also works via ADR 0020
+
+config_repo_url      = "https://github.com/Estabilis/<client>-platform-config.git"
+config_repo_revision = "v0.1.0"
+
+client_gitops_repo_url      = "https://github.com/Estabilis/<client>-gitops.git"
+client_gitops_repo_revision = "main"
+
+# ----------------------------------------------------------------------------
+# Optional — uncomment to override defaults
+# ----------------------------------------------------------------------------
+
+# --- Core ---
+# name_prefix  = "estabilis"
+# region       = "us-east-1"                # Any AWS region
+# environment  = "prod"                     # dev | uat | hml | stg | prd | prod
+# aws_profile  = ""                         # AWS CLI profile name (SSO); empty = default chain
+
+# --- EKS cluster ---
+# kubernetes_version                   = "1.34"
+# cluster_endpoint_public_access       = true
+# cluster_endpoint_private_access      = true
+# cluster_log_types                    = ["api", "audit", "authenticator", "controllerManager", "scheduler"]
+# cluster_log_retention_days           = 30
+# cluster_secrets_encryption_enabled   = true
+
+# --- EKS API endpoint allowlist ---
+# authorized_ip_ranges = ["1.2.3.4/32"]     # Empty list + public endpoint requires allow_public_api_endpoint = true
+# allow_public_api_endpoint = false         # Set true ONLY if you intentionally want 0.0.0.0/0
+
+# --- Authentication (Access Entries) ---
+# authentication_mode                      = "API"
+# enable_cluster_creator_admin_permissions = true
+# eks_access_entries = [
+#   {
+#     principal_arn = "arn:aws:iam::123456789012:role/PlatformAdmins"
+#     policy_arn    = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
+#   },
+# ]
+
+# --- Compute strategy ---
+# autoscaler = "karpenter"                  # karpenter | cluster_autoscaler | none
+# fargate_profile_namespaces = []           # extra namespaces that must run on Fargate
+
+# --- Managed node group (only when autoscaler = "cluster_autoscaler") ---
+# mng_instance_types  = ["t3a.medium", "t3.medium"]
+# mng_capacity_type   = "ON_DEMAND"          # ON_DEMAND | SPOT
+# mng_min_size        = 2
+# mng_max_size        = 4
+# mng_desired_size    = 2
+# mng_disk_size_gb    = 50
+
+# --- Networking ---
+# vpc_mode                = "create"         # create | existing
+# vpc_cidr                = "10.0.0.0/16"
+# availability_zone_count = 3                # EKS requires >= 2
+
+# vpc_id             = "vpc-xxxxxxxx"        # Required when vpc_mode = "existing"
+# private_subnet_ids = ["subnet-aaa", "subnet-bbb"]
+# public_subnet_ids  = ["subnet-ccc", "subnet-ddd"]
+
+# public_subnets_enabled = true              # Needed for NAT Gateway + public ALB
+# nat_gateway_enabled    = true
+# nat_gateway_az_count   = 1                 # 1 = shared (SPOF, cheap); availability_zone_count = HA, ~$32/mo each
+
+# --- Security Groups ---
+# security_groups_hardening_enabled = true
+# ingress_allowed_ip_ranges = ["1.2.3.4/32"] # 80/443 sources when ingress_controller = "traefik"
+# extra_ingress_rules = {
+#   on-prem = {
+#     description = "Allow on-prem VPN"
+#     from_port   = 5432
+#     to_port     = 5432
+#     cidr_blocks = ["10.100.0.0/16"]
+#   }
+# }
+
+# --- VPC endpoints ---
+# vpc_endpoints_gateway = {
+#   s3       = true
+#   dynamodb = true
+# }
+# vpc_endpoints_interface = {
+#   ecr_api              = false
+#   ecr_dkr              = false
+#   sts                  = false
+#   secretsmanager       = false
+#   kms                  = false
+#   logs                 = false
+#   ec2                  = false
+#   elasticloadbalancing = false
+#   autoscaling          = false
+# }
+
+# --- VPC Flow Logs ---
+# vpc_flow_logs_enabled       = false
+# vpc_flow_logs_traffic_type  = "ALL"        # ACCEPT | REJECT | ALL
+# vpc_flow_logs_retention_days = 90
+
+# --- Ingress + TLS ---
+# ingress_controller       = "none"          # traefik | alb | none
+# traefik_internal_enabled = false
+
+# acm_enabled            = false             # Wildcard cert for ALB termination
+# acm_extra_domain_names = []
+
+# --- DNS ---
+# dns_provider      = "route53"              # route53 | cloudflare | none
+# route53_zone_mode = "create"               # create | existing
+
+# cloudflare_zone_id   = ""                  # Required when dns_provider = "cloudflare"
+# cloudflare_api_token = ""                  # Put in secrets.auto.tfvars instead
+
+# --- App exposures (ADR 0014) ---
+# grafana_exposures = {
+#   internal = {
+#     enabled       = true
+#     ingress_class = "traefik-internal"
+#     allowed_cidrs = "10.0.0.0/8"
+#     basic_auth    = false
+#   }
+# }
+# loki_exposures   = {}
+# mimir_exposures  = {}
+# argocd_exposures = {}
+# hubble_ui_exposures = {}
+
+# --- Secrets Manager ---
+# secretsmanager_recovery_days           = 7   # 0 (immediate) or 7-30
+# secretsmanager_resource_policy_enabled = true
+
+# --- KMS ---
+# kms_deletion_window_days = 30
+# kms_enable_rotation      = true
+# ebs_encryption_by_default_enabled = true     # Account-region scope — see kms.tf warning
+
+# --- S3 ---
+# s3_force_destroy                              = false
+# s3_versioning_enabled                         = true
+# s3_tfstate_protect_critical                   = false
+# s3_observability_lifecycle_days               = 90
+# s3_velero_lifecycle_days                      = 30
+# s3_flow_logs_lifecycle_days                   = 90
+
+# --- ECR ---
+# ecr_enabled                          = false
+# ecr_repositories                     = []
+# ecr_image_tag_mutability             = "IMMUTABLE"
+# ecr_scan_on_push                     = true
+# ecr_lifecycle_untagged_days          = 14
+# ecr_pull_through_cache_enabled       = false
+# ecr_pull_through_cache_upstreams     = {
+#   # ghcr        = "ghcr.io"
+#   # quay        = "quay.io"
+#   # k8s         = "registry.k8s.io"
+#   # public-ecr  = "public.ecr.aws"
+#   # docker-hub  = "registry-1.docker.io"   # Needs ecr_dockerhub_credentials_secret_arn
+# }
+
+# --- Observability / Backup ---
+# diagnostics_enabled           = true
+# container_insights_enabled    = false        # Opt-in AWS-native alternative to Grafana stack
+# cnpg_backup_retention_days    = 7
+# cnpg_backup_schedule          = "0 2 * * *"
+# velero_backup_retention_hours = 720
+# velero_backup_schedule        = "0 2 * * *"
+
+# --- Cost export (CUR → OpenCost) ---
+# cost_export_enabled     = false              # Only ONE deployment per account should set true
+# cost_export_report_name = ""                 # Defaults to {name_prefix}-{deployment_id}
+
+# --- Shared hub secrets (workload cluster integration) ---
+# shared_hub_secrets_enabled = true
+# shared_hub_secrets_prefix  = ""              # Defaults to estabilis/shared/{name_prefix}
+
+# --- ArgoCD ---
+# argocd_chart_version = "9.4.7"
+
+# --- Platform outputs (GitOps Bridge) ---
+# platform_outputs_enabled = true
+
+# --- CAF tags (all optional; empty values are filtered out) ---
+# tag_app             = ""                     # Defaults to name_prefix
+# tag_tier            = "platform"             # infrastructure | platform | application | database | web | api
+# tag_criticality     = ""                     # mission-critical | high | medium | low
+# tag_confidentiality = ""                     # public | internal | confidential | restricted
+# tag_sla             = ""                     # e.g. "99.95"
+# tag_costcenter      = ""
+# tag_department      = ""
+# tag_budget          = ""
+# tag_businessprocess = ""
+# tag_businessimpact  = ""                     # critical | high | moderate | low | none
+# tag_revenueimpact   = ""                     # high | moderate | low | none
+# tag_opsteam         = ""
+# tag_businessunit    = ""
+
+# extra_tags = {
+#   # Example: PCI-Scope = "out"
+# }
