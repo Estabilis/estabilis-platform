@@ -21,26 +21,35 @@ All resource names use `var.name_prefix` for multi-client support. Product label
 
 ## Key Paths
 
-- `providers/azure/` — All Terraform (AKS, networking, storage, Key Vault, identities, ArgoCD seed, platform-root)
-- `providers/azure/variables.tf` — Central variable definitions; all configurable values live here
+- `providers/azure/` — Terraform for Azure (AKS, networking, storage, Key Vault, identities, ArgoCD seed, platform-root)
+- `providers/aws/` — Terraform for AWS (EKS, VPC, S3, Secrets Manager, IRSA, ArgoCD seed, platform-root)
+- `providers/<provider>/variables.tf` — Central variable definitions; all configurable values live here
 - `bootstrap/platform-root/` — App of Apps Helm chart (ArgoCD Applications for each component)
 - `core/components/<name>/` — Per-component values files referenced by ArgoCD Applications
 - `core/values/defaults.yaml` — Platform-wide defaults (replicas, retention, namespaces)
-- `core/values/azure.yaml` — Azure-specific values
+- `core/values/azure.yaml` / `core/values/aws.yaml` — Provider-specific values
 
 ## Working With This Repo
 
 This repo has no justfile (it's gitignored — justfiles live in estabilis-platform-tools). Operations are run from the client's downstream repo or the tools repo.
 
-For Terraform work:
+Pre-commit hooks are mandatory — install once per clone (see README.md "Development setup"). Before considering any edit complete, run the relevant subset of hooks against the changed files:
+
 ```bash
-cd providers/azure
-terraform init
-terraform plan -var-file=azure.tfvars
-terraform apply -var-file=azure.tfvars
+pre-commit run --files <changed-files>
+# or, for a full sweep:
+pre-commit run --all-files
 ```
 
-Lint: `terraform fmt -check -recursive` in `providers/azure/`
+The hooks enforce `terraform fmt`, `terraform validate`, `tflint`, secret scanning (`gitleaks`, `detect-private-key`, `detect-aws-credentials`), YAML syntax, line-ending normalization, and Conventional Commits. An edit that fails hooks is not done.
+
+For Terraform work:
+```bash
+cd providers/azure   # or providers/aws
+terraform init
+terraform plan  -var-file=<provider>.tfvars
+terraform apply -var-file=<provider>.tfvars
+```
 
 ## Important Conventions
 
