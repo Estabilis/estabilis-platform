@@ -18,11 +18,18 @@ resource "aws_s3_bucket" "tfstate" {
   # bucket creation (cannot be enabled after).
   object_lock_enabled = var.s3_tfstate_protect_critical
 
+  # Primary safety guard against accidental destroy is force_destroy. With
+  # force_destroy = false (default) Terraform refuses to delete a bucket that
+  # still has objects — the real tfstate file(s) in the bucket. Flip to true
+  # only during controlled teardown (e.g., HML rebuild).
+  #
+  # lifecycle.prevent_destroy is intentionally NOT set here: Terraform does
+  # not support variable-driven prevent_destroy, which would force operators
+  # to patch the module cache every time they want to teardown a test
+  # deployment. Object Lock + force_destroy=false + (optionally)
+  # s3_tfstate_protect_critical=true provide equivalent protection for
+  # production use cases.
   force_destroy = var.s3_force_destroy
-
-  lifecycle {
-    prevent_destroy = true
-  }
 }
 
 resource "aws_s3_bucket_versioning" "tfstate" {
@@ -204,7 +211,8 @@ resource "aws_dynamodb_table" "tfstate_lock" {
     enabled = true
   }
 
-  lifecycle {
-    prevent_destroy = true
-  }
+  # Lock table is ephemeral (holds only active terraform lock records).
+  # Recreating it is instant. No prevent_destroy so test deployments can
+  # tear down cleanly. For production extra safety, rely on the S3 bucket's
+  # force_destroy=false and/or Object Lock via s3_tfstate_protect_critical.
 }
