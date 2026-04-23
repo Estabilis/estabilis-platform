@@ -1,5 +1,114 @@
 # Changelog
 
+## [0.14.0] - 2026-04-23
+
+### Added — AWS provider (Phase 1 — landing zone)
+
+Introduces `providers/aws/` alongside `providers/azure/` so the upstream
+platform can target EKS on AWS with the same contract (variable shape,
+`platform-outputs` ConfigMap + Secret, CAF tags, exposures model, hub
+cluster bridge) as AKS on Azure. Phase 1 is landing zone only: no
+`helm_release` in Terraform — Helm charts continue to be installed by
+ArgoCD via `bootstrap/platform-root/`, matching the Azure pattern.
+
+**Scope (28 files, ~4560 lines of Terraform):**
+
+- `eks.tf` — cluster via `terraform-aws-modules/eks/aws` v20.37+, Fargate
+  profiles for `kube-system` + `karpenter` (so `coredns`/`kube-proxy`/
+  Karpenter come up before any EC2 node exists), managed addons (CoreDNS,
+  kube-proxy, VPC CNI with prefix delegation, EBS CSI, Pod Identity
+  Agent), Access Entries as the default auth mode (no `aws-auth`
+  ConfigMap), envelope encryption for Kubernetes Secrets.
+- `vpc.tf` + `nat-gateway.tf` + `security-groups.tf` +
+  `vpc-endpoints.tf` + `vpc-flow-logs.tf` — `vpc_mode = "create" |
+  "existing"`, multi-AZ subnets, per-AZ private route tables, single vs
+  per-AZ NAT toggle, revoked default SG (CIS 5.3), operator-controlled
+  additional SG with HTTP(S) rules gated on `ingress_controller =
+  "traefik"`, S3 + DynamoDB gateway endpoints on by default, interface
+  endpoints opt-in, optional Flow Logs to S3 in Parquet with post-2023
+  policy shape (`aws:SourceAccount` + `aws:SourceArn`).
+- `iam.tf` + `karpenter.tf` + `cluster-autoscaler.tf` +
+  `alb-controller.tf` — one IRSA role per platform component (external-
+  secrets, external-dns, cert-manager, velero, ALB controller, cluster-
+  autoscaler, EBS CSI, workload-operator, Loki, Mimir, CNPG, OpenCost),
+  each trusted via the cluster OIDC provider and scoped to a specific
+  `namespace:serviceaccount`. Karpenter provisions only IAM controller
+  role + node role + SQS interruption queue; chart + CRDs live in
+  ArgoCD.
+- `secrets-manager.tf` + `kms.tf` + `s3.tf` — 1:1 mirror of
+  `keyvault.tf` with same secret names, path-scoped to
+  `estabilis/{deployment_id}/*`. Three KMS CMKs (cluster-secrets,
+  platform-secrets, s3-data) with distinct blast radii + per-service
+  `kms:ViaService` conditions. Every bucket gets SSE-KMS, versioning,
+  `BucketOwnerEnforced` (ACLs disabled), Block Public Access, TLS-only
+  resource policy, lifecycle rules; `tfstate` bucket has
+  `prevent_destroy` + optional Object Lock + optional cross-region
+  replication.
+- `route53.tf` + `acm.tf` + `ecr.tf` + `cost-export.tf` +
+  `diagnostics.tf` — Route53 create-or-lookup, optional wildcard ACM
+  with DNS-01 validation, ECR with scan-on-push + immutable tags +
+  pull-through cache, CUR pinned to `us-east-1` via provider alias
+  (CUR v1 constraint), CloudWatch log groups.
+- `platform-outputs.tf` + `outputs.tf` — ConfigMap + Secret in the
+  `argocd` namespace feeding `bootstrap/platform-root/`, plus the
+  ArgoCD hub-cluster Secret with AWS-flavored bridge annotations
+  (`account-id`, `region`, `hub-secrets-path-prefix`,
+  `workload-operator-role-arn`) per ADR 0010.
+- `terraform.tfvars.example` + `secrets.auto.tfvars.example` — document
+  required vs optional variables with inline guidance on risky toggles
+  (NAT SPOF, EBS account-wide scope, CUR single-per-account,
+  `allow_public_api_endpoint`).
+
+**Hardening:**
+- Public EKS endpoint with empty `authorized_ip_ranges` is gated behind
+  an explicit `allow_public_api_endpoint = true` opt-in (Terraform
+  `check` block fails plan otherwise).
+- Cross-file locals centralized in `locals.tf` so renames don't
+  silently break sibling files.
+- No `Deny` statements on Secrets Manager resource policies (would
+  break rotation and confused-deputy-safe services).
+
+**Out of scope** (deferred, by design): GitHub OIDC CI roles, RDS /
+managed databases, Azure DevOps automation, workload cluster AWS.
+Downstream template rewrite tracked in
+`estabilis-platform-tools#173`.
+
+### Added — pre-commit framework, tflint, gitleaks
+
+Replaces the opt-in bash hooks in `.githooks/` (which required each
+contributor to run `git config core.hooksPath .githooks` manually and
+silently did nothing otherwise) with the portable `pre-commit`
+framework.
+
+- `.pre-commit-config.yaml` — 12 pinned hooks: `terraform_fmt`,
+  `terraform_validate` (retry-once-with-cleanup), `terraform_tflint`
+  with AWS + Azure plugins on the `recommended` ruleset,
+  `detect-private-key`, `detect-aws-credentials` (new — catches
+  access keys that `detect-private-key` misses now that AWS is in
+  scope), `gitleaks` (deep scan), `check-merge-conflict`,
+  `check-added-large-files`, `check-yaml` (Helm templates excluded),
+  `end-of-file-fixer`, `trailing-whitespace`, `mixed-line-ending`,
+  and `conventional-pre-commit` on the `commit-msg` stage.
+- `.tflint.hcl` — plugin pins (`aws` 0.44.0, `azurerm` 0.30.0) and
+  rule overrides.
+- `.gitleaks.toml` — extend default rules + allowlist for docs, ADRs,
+  UUID-shaped placeholders.
+- `README.md` documents the one-time setup
+  (`pip install pre-commit && pre-commit install`).
+- `CLAUDE.md` instructs agents to run `pre-commit run --files ...`
+  before considering edits complete.
+- `.githooks/commit-msg` and `.githooks/pre-commit` removed — the
+  framework owns the hook path now.
+
+### Changed — trailing newlines across `core/components/**`
+
+Mechanical fix surfaced by the new `end-of-file-fixer` hook: 24 files
+(Grafana dashboards, Alloy RBAC, CNPG templates, platform-secrets
+ExternalSecret templates, a handful of Helm values files) were missing
+the terminating newline. No behavioral change — the rendered Helm
+output is byte-identical (YAML `|` literal block scalar applies "clip"
+chomping regardless of source) so no ArgoCD drift.
+
 ## [0.13.1] - 2026-04-22
 
 ### Fixed — AKS `admissionsenforcer` namespaceSelector drift on webhooks
