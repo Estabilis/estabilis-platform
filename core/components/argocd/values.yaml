@@ -177,6 +177,28 @@ repoServer:
         cpu: 50m
         memory: 64Mi
 
+  # Liveness probe override — use the plain `/healthz` endpoint instead
+  # of the chart default `/healthz?full=true`. The `?full=true` handler
+  # does cascading checks through Redis + Git backends + repo cache;
+  # on fresh clusters or CPU-burstable nodes it can hang indefinitely
+  # (observed 2026-04-24 on cortex EKS, MNG t3a.medium nodes: handler
+  # never returned, every poll timed out → CrashLoopBackOff). Liveness
+  # semantic is "is the process responsive" — the plain path is correct;
+  # the full check belongs in readiness.
+  livenessProbe:
+    httpGet:
+      path: /healthz
+      port: metrics
+      scheme: HTTP
+    timeoutSeconds: 5
+    initialDelaySeconds: 30
+    periodSeconds: 10
+  readinessProbe:
+    # Keep the full check on readiness (where "subsystems ready" is the
+    # right semantic), but relax the timeout so a slow cold-start or
+    # burst-credit-drained node does not churn through restarts.
+    timeoutSeconds: 10
+
 redis:
   serviceAccount:
     create: true

@@ -1,5 +1,73 @@
 # Changelog
 
+## [0.17.3] - 2026-04-24
+
+### Fixed — `argocd-repo-server` CrashLoopBackOff on fresh clusters
+
+The upstream `argo-cd` chart v9.x defaults the `repoServer.livenessProbe`
+to `GET /healthz?full=true` on port `metrics` (8084). The `?full=true`
+handler does cascading checks across Redis, Git backends, and the repo
+cache. On a cluster where no Applications have been configured yet
+(the very first seed window), one of those sub-checks hangs without
+an internal timeout, and the handler simply never returns.
+
+Consequence: every kubelet poll of the liveness probe times out,
+kubelet kills the container, kubelet restarts it — CrashLoopBackOff
+with exit code 0 ("Completed" / "clean shutdown"), confusing to read
+because the process is not crashing, it is being SIGTERM'd for
+health-check failure.
+
+Observed on cortex EKS seed 2026-04-24 (MNG `t3a.medium` / `t3.medium`
+nodes). On Azure AKS with `Standard_D2s_v5`-class nodes the symptom
+does not appear — consistent CPU (no burst credits) + the
+`replicas: 2` override mean probe noise is absorbed. AWS burstable
+MNGs expose the latent bug.
+
+### Fix
+
+`core/components/argocd/values.yaml` overrides the `repoServer`
+livenessProbe to use the plain `/healthz` endpoint (not `?full=true`),
+with `timeoutSeconds: 5` and `initialDelaySeconds: 30`. The readiness
+probe keeps the full check (where "subsystems ready" is the right
+semantic) but with `timeoutSeconds: 10` to absorb slow cold-starts.
+
+Semantic split:
+- **Liveness** = "is the process responsive" → plain `/healthz`
+- **Readiness** = "are all subsystems ready" → `/healthz?full=true`
+
+This is how most ArgoCD deployments configure it in production; the
+chart's default choice of `?full=true` for liveness is arguably a
+chart bug, but overriding at the platform level keeps us unblocked.
+
+### Where this fix applies
+
+`core/components/argocd/values.yaml` is the file consumed by the
+`argocd` Application rendered by `platform-root` (self-managed ArgoCD).
+Once platform-root syncs the `argocd` Application after bootstrap, the
+self-manage apply of these values fixes the probe for the steady
+state.
+
+The **bootstrap window** (helm install before ArgoCD takes over via
+self-manage) still uses the CLI's inline `seed_values` in
+`estabilis-platform-tools/src/estabilis/kubernetes.py:_helm_install_argocd`,
+which does NOT carry this override. That window is the vulnerable
+one on AWS — a complementary patch in the tools repo is tracked
+separately.
+
+### Files
+
+- `core/components/argocd/values.yaml`: add `repoServer.livenessProbe`
+  and `repoServer.readinessProbe` blocks.
+- `CHANGELOG.md`: v0.17.3 entry.
+
+### Migration
+
+Existing clusters on v0.17.2 pick up the fix on the next
+`estabilis promote` (or equivalent platform-root refresh) once bumped
+to `v0.17.3`. No destroy of the repo-server Deployment — the
+Deployment is patched in place with new probe config on the next
+ArgoCD reconcile.
+
 ## [0.17.2] - 2026-04-24
 
 ### Fixed — MNG `node_group_name_prefix` overflow + Karpenter outputs under `hybrid` mode
