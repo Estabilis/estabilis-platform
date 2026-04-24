@@ -43,8 +43,18 @@ resource "kubernetes_config_map" "platform_infrastructure" {
 
   data = {
     # Platform versions + revisions (ADR 0020)
+    #
+    # Legacy `platformVersion` key retained for backcompat — many child
+    # Application templates still read `.Values.platformVersion` directly
+    # (not via a helper that prefers `platformRevision`). Writing the
+    # same effective ref to both keys keeps the templates functional
+    # while downstream charts migrate to the *Revision keys. Without
+    # this, bumping only `platform_revision` in tfvars leaves the child
+    # Applications stuck at the old `platform_version` default, which
+    # silently fails to load newer $values files (e.g. loki-values-aws.yaml
+    # added in v0.19.0 only exists at >= v0.19.0 refs).
     "platformRepoUrl"          = var.platform_repo_url
-    "platformVersion"          = var.platform_version
+    "platformVersion"          = local.platform_revision_effective
     "platformRevision"         = local.platform_revision_effective
     "configRepoUrl"            = var.config_repo_url
     "configRepoVersion"        = var.config_repo_version

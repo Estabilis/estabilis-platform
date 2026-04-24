@@ -1,5 +1,76 @@
 # Changelog
 
+## [0.19.1] - 2026-04-24
+
+### Fixed — AWS `platformVersion` ConfigMap key writes stale `var.platform_version` instead of the effective revision
+
+v0.19.0 shipped AWS provider parity (loki/mimir/velero S3 values +
+ClusterSecretStore AWS). After merge + cortex bump + `terraform apply`
+the live velero and grafana-loki Applications failed to load their
+`*-values-aws.yaml` files. Root cause: a latent ADR 0020 migration
+gap in the AWS `platform-outputs.tf` ConfigMap writer.
+
+#### The bug
+
+Child Application templates in `bootstrap/platform-root/templates/*.yaml`
+reference the platform repo via `targetRevision: {{ .Values.platformVersion }}`.
+Their `$values` multi-source ref uses the same `platformVersion` to
+check out the platform repo at the right tag, and `helm.valueFiles`
+resolves files inside that checkout (e.g. `$values/core/components/velero/values-aws.yaml`).
+
+`providers/aws/platform-outputs.tf` wrote the ConfigMap as:
+
+```hcl
+"platformVersion"  = var.platform_version      # literal legacy var
+"platformRevision" = local.platform_revision_effective  # derived
+```
+
+A downstream client that bumps only `platform_revision` in tfvars
+(the documented path since v0.13.0 / ADR 0020) leaves
+`var.platform_version` at its stale default. The ConfigMap's
+`platformVersion` key keeps pointing at the old tag; the `$values`
+source resolves against that old tag; the new `*-values-aws.yaml`
+files added in v0.19.0 are not present in the old ref; and
+`ignoreMissingValueFiles: true` silently skips them.
+
+Observed on cortex 2026-04-24:
+- `platformRevision` in ConfigMap = `v0.19.0` ✓
+- `platformVersion` in ConfigMap = `v0.18.0` (stale) ✗
+- `kubectl -n argocd get application velero -o yaml` → `source[1].targetRevision = v0.18.0`
+- Helm rendered with only `values.yaml` (not `values-aws.yaml`)
+- Velero schema failed: `missing property 'provider' at /configuration/{backup,volumeSnapshot}StorageLocation/0`
+- Loki failed: `You must provide a schema_config for Loki`
+
+Both errors collapsed to "values-aws.yaml didn't load".
+
+### Fix
+
+Write `platformVersion = local.platform_revision_effective` in the
+AWS `platform-outputs.tf` ConfigMap data. Both keys now carry the
+effective git ref. Child templates that read `.Values.platformVersion`
+always see the current platform tag without requiring the client to
+maintain two tfvars in lockstep.
+
+Azure is unaffected — `providers/azure/platform-outputs.tf` was not
+touched (Azure doesn't write `platformRevision` at all, and Azure's
+seed path populates `platformVersion` via CLI tfvars loading where
+operators set both fields historically).
+
+### Migration
+
+Operators on `v0.19.0` on AWS: bump to `v0.19.1`, `terraform apply`
+(ConfigMap data-only change; 1 in-place update). Child Applications
+re-render on next platform-root sync and `*-values-aws.yaml` files
+load correctly.
+
+### Follow-up (not blocking)
+
+Consider a `platform-root.platformRef` helper in `_helpers.tpl` that
+mirrors `clientGitopsRef` (prefer `platformRevision` over
+`platformVersion`) and migrate all `targetRevision: {{ .Values.platformVersion }}`
+call sites to it. That's a larger sweep (~30 files). This PR is the
+minimum to unblock cortex and ship AWS parity.
+
 ## [0.19.0] - 2026-04-24
 
 ### Added — AWS provider parity: Loki/Mimir S3, Velero S3, ClusterSecretStore via Secrets Manager
