@@ -195,6 +195,16 @@ module "eks" {
       disk_size      = var.mng_disk_size_gb
       ami_type       = var.mng_ami_type
       subnet_ids     = local.private_subnet_ids
+
+      # Same IAM role naming constraint as module.eks and module.karpenter:
+      # the CAF-style cluster name ({prefix}-platform-{env}-{region}) plus
+      # the submodule's `-default-eks-node-group` suffix exceeds the 38-char
+      # AWS name_prefix cap. Using false switches to name mode (64-char
+      # budget), and we supply an explicit role name to avoid colliding
+      # with other MNGs if more are added later.
+      iam_role_use_name_prefix = false
+      iam_role_name            = "${local.cluster_name}-default-node"
+
       labels = {
         "estabilis.io/workload-type" = "platform"
         "estabilis.io/pool-type"     = "regular"
