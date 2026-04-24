@@ -44,16 +44,22 @@ spec:
       - CreateNamespace=true
       - ServerSideApply=true
 ---
-{{- /* cnpg-cluster — AZURE-ONLY on Phase 1. The chart wires backup
-      storage against Azure Blob via managed identity; the AWS backup
-      path (Barman Cloud against S3 with IRSA) is not implemented yet.
-      When the AWS backup story lands, replace this gate with a
-      provider-aware rendering (follow-up issue below).
+{{- /* cnpg-cluster — provider-aware rendering (v0.20.0+).
 
-      Tracker: Estabilis/estabilis-platform-tools#186 — this is the
-      "cnpg backup on AWS" slice explicitly deferred. Open a dedicated
-      issue before shipping AWS CNPG backups. */ -}}
-{{- if eq .Values.global.provider "azure" }}
+      The chart under core/components/cnpg-cluster carries two templates:
+        - cluster-azure.yaml: Barman Cloud → Azure Blob Storage, auth
+          via Azure Workload Identity (inheritFromAzureAD: true).
+        - cluster-aws.yaml: Barman Cloud → S3, auth via IRSA
+          (s3Credentials.inheritFromIAMRole: true).
+
+      Each template is gated on `.Values.global.provider`, so this
+      Application emits exactly one Cluster CR + ScheduledBackup +
+      ServiceAccount per cluster.
+
+      The AWS branch lands in v0.20.0, replacing the Azure-only gate
+      that used to guard this Application. Closes the gap flagged in
+      Estabilis/estabilis-platform-tools#186. */ -}}
+{{- if or (eq .Values.global.provider "azure") (eq .Values.global.provider "aws") }}
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -70,16 +76,27 @@ spec:
           - $values/core/components/cnpg-cluster/values.yaml
         parameters:
           {{- include "platform-root.provenanceParameters" $ | nindent 10 }}
-          - name: global.storageAccountName
-            value: "{{ .Values.global.cnpgStorageAccountName }}"
-          - name: global.cnpgBackupContainerName
-            value: "{{ .Values.global.cnpgBackupContainerName }}"
+          - name: global.provider
+            value: "{{ .Values.global.provider }}"
           - name: global.cnpgBackupRetentionDays
             value: "{{ .Values.global.cnpgBackupRetentionDays }}"
           - name: global.cnpgBackupSchedule
             value: "{{ .Values.global.cnpgBackupSchedule }}"
+          {{- if eq .Values.global.provider "azure" }}
+          - name: global.storageAccountName
+            value: "{{ .Values.global.cnpgStorageAccountName }}"
+          - name: global.cnpgBackupContainerName
+            value: "{{ .Values.global.cnpgBackupContainerName }}"
           - name: identity.cnpg.clientId
             value: "{{ .Values.identity.cnpg.clientId }}"
+          {{- else if eq .Values.global.provider "aws" }}
+          - name: global.cnpgBackupBucketName
+            value: "{{ .Values.global.cnpgBackupBucketName }}"
+          - name: global.region
+            value: "{{ .Values.global.region }}"
+          - name: identity.cnpg.roleArn
+            value: "{{ .Values.identity.cnpg.roleArn }}"
+          {{- end }}
     - repoURL: {{ .Values.platformRepoUrl }}
       targetRevision: {{ .Values.platformVersion }}
       ref: values

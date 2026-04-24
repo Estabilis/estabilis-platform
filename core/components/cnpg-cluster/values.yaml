@@ -1,6 +1,12 @@
 global:
+  provider: ""                         # injected by platform-root (azure|aws)
+  # Azure only:
   storageAccountName: ""
   cnpgBackupContainerName: "cnpg-backup"
+  # AWS only:
+  cnpgBackupBucketName: ""
+  region: ""
+  # Provider-agnostic:
   cnpgBackupRetentionDays: 7
   cnpgBackupSchedule: "0 2 * * *"
 postgres:
@@ -14,4 +20,5 @@ postgres:
       memory: "1Gi"
 identity:
   cnpg:
-    clientId: ""
+    clientId: ""                       # Azure only (Workload Identity)
+    roleArn: ""                        # AWS only (IRSA)
