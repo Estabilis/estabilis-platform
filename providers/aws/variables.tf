@@ -227,13 +227,36 @@ variable "fargate_profile_namespaces" {
 }
 
 variable "autoscaler" {
-  description = "Node autoscaling strategy. 'karpenter' (recommended): Fargate for system + Karpenter provisions EC2 on demand. 'cluster_autoscaler': managed node groups with ASG-based autoscaling. 'none': bring-your-own node groups via ArgoCD/manual."
+  description = <<-EOT
+    Node autoscaling strategy. Four modes:
+
+    - 'hybrid' (recommended): managed node group (MNG) with a small
+      always-on EC2 fleet for platform control-plane (ArgoCD,
+      cert-manager, external-secrets, kyverno, ...) + Karpenter
+      infrastructure ready to provision EC2 nodes on demand for
+      workloads. Mirrors the AKS `system pool + user pool` model and
+      eliminates the chicken-and-egg where ArgoCD needs nodes to run
+      but Karpenter's NodePool is created BY ArgoCD.
+
+    - 'karpenter': Fargate for system + karpenter namespaces;
+      Karpenter provisions EC2 for everything else. Requires Karpenter
+      NodePool to be installed via a pre-seed path (not via ArgoCD) or
+      the MNG-less variant of this mode has a chicken-and-egg on
+      ArgoCD bootstrap. Kept for parity with earlier deployments.
+
+    - 'cluster_autoscaler': MNG only, with ASG-based autoscaling.
+      No Karpenter. Simplest model but less flexibility on instance
+      types for workloads.
+
+    - 'none': bring-your-own node groups via ArgoCD or manual
+      Terraform resources in the downstream repo.
+  EOT
   type        = string
-  default     = "karpenter"
+  default     = "hybrid"
 
   validation {
-    condition     = contains(["karpenter", "cluster_autoscaler", "none"], var.autoscaler)
-    error_message = "autoscaler must be one of: karpenter, cluster_autoscaler, none."
+    condition     = contains(["hybrid", "karpenter", "cluster_autoscaler", "none"], var.autoscaler)
+    error_message = "autoscaler must be one of: hybrid, karpenter, cluster_autoscaler, none."
   }
 }
 

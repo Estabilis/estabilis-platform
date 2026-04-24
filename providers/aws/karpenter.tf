@@ -14,11 +14,11 @@
 # The EC2NodeClass + NodePool custom resources are Kubernetes manifests and
 # live in core/components/karpenter/ (Phase 2).
 #
-# Only rendered when var.autoscaler = "karpenter".
+# Rendered when var.autoscaler includes Karpenter ("karpenter" or "hybrid").
 # ---------------------------------------------------------------------------
 
 module "karpenter" {
-  count = var.autoscaler == "karpenter" ? 1 : 0
+  count = contains(["karpenter", "hybrid"], var.autoscaler) ? 1 : 0
 
   source  = "terraform-aws-modules/eks/aws//modules/karpenter"
   version = "~> 20.37"
@@ -60,7 +60,7 @@ module "karpenter" {
 
 # Allow Karpenter controller to garbage-collect orphaned instance profiles.
 resource "aws_iam_role_policy" "karpenter_instance_profile_gc" {
-  count = var.autoscaler == "karpenter" ? 1 : 0
+  count = contains(["karpenter", "hybrid"], var.autoscaler) ? 1 : 0
 
   name = "${local.cluster_name}-karpenter-instance-profile-gc"
   role = module.karpenter[0].iam_role_name

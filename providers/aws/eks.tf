@@ -7,7 +7,10 @@
 #   - Cluster encryption for Kubernetes Secrets via aws_kms_key.cluster_secrets
 #   - Authentication in API-only mode + Access Entries (eks_access_entries)
 #   - Fargate profiles for kube-system + karpenter namespaces (when
-#     autoscaler = "karpenter"), plus any extras in fargate_profile_namespaces
+#     autoscaler is "karpenter" or "hybrid"), plus any extras in
+#     fargate_profile_namespaces
+#   - Managed Node Group for control-plane workloads (when autoscaler is
+#     "cluster_autoscaler" or "hybrid")
 #   - The additional SG from security-groups.tf for operator ingress/extras
 #   - karpenter.sh/discovery tag on cluster + node SG (so Karpenter can find
 #     them for nodeClass lookups)
@@ -48,7 +51,8 @@ locals {
   effective_addons = length(keys(var.cluster_addons)) > 0 ? var.cluster_addons : local.default_addons
 
   # Fargate profiles — kube-system is always included (addons land here),
-  # karpenter when autoscaler = "karpenter". Extras appended from var.
+  # karpenter namespace when autoscaler uses Karpenter ("karpenter" or
+  # "hybrid"). Extras appended from var.
   fargate_profiles_default = merge(
     {
       kube_system = {
@@ -59,7 +63,7 @@ locals {
         subnet_ids = local.private_subnet_ids
       }
     },
-    var.autoscaler == "karpenter" ? {
+    contains(["karpenter", "hybrid"], var.autoscaler) ? {
       karpenter = {
         name = "karpenter"
         selectors = [
@@ -174,9 +178,13 @@ module "eks" {
   # --- Fargate profiles ---------------------------------------------------
   fargate_profiles = local.fargate_profiles_default
 
-  # --- Managed node groups (only when cluster_autoscaler is selected;
-  # karpenter mode uses Fargate + Karpenter-provisioned EC2) --------------
-  eks_managed_node_groups = var.autoscaler == "cluster_autoscaler" ? {
+  # --- Managed node groups -------------------------------------------------
+  # Created when autoscaler provisions a persistent EC2 fleet:
+  #   - 'cluster_autoscaler': MNG is the only compute (no Karpenter)
+  #   - 'hybrid': MNG hosts platform control-plane; Karpenter layers on
+  #     top for workloads
+  # Skipped for 'karpenter' (Karpenter-only) and 'none' (BYO).
+  eks_managed_node_groups = contains(["cluster_autoscaler", "hybrid"], var.autoscaler) ? {
     default = {
       name           = "${local.cluster_name}-default"
       instance_types = var.mng_instance_types
@@ -202,7 +210,8 @@ module "eks" {
   node_security_group_additional_rules = {}
 
   # --- Node SG tags for Karpenter discovery -------------------------------
-  node_security_group_tags = var.autoscaler == "karpenter" ? {
+  # Applied whenever Karpenter is present (both 'karpenter' and 'hybrid').
+  node_security_group_tags = contains(["karpenter", "hybrid"], var.autoscaler) ? {
     (var.karpenter_discovery_tag_key) = local.cluster_name
   } : {}
 
@@ -222,7 +231,7 @@ module "eks" {
 # ---------------------------------------------------------------------------
 
 resource "aws_ec2_tag" "existing_private_karpenter_discovery" {
-  for_each = var.vpc_mode == "existing" && var.autoscaler == "karpenter" ? toset(var.private_subnet_ids) : []
+  for_each = var.vpc_mode == "existing" && contains(["karpenter", "hybrid"], var.autoscaler) ? toset(var.private_subnet_ids) : []
 
   resource_id = each.value
   key         = var.karpenter_discovery_tag_key
