@@ -1,4 +1,4 @@
-{{- if eq .Values.global.provider "azure" }}
+{{- if eq .Values.global.provider "aws" }}
 apiVersion: postgresql.cnpg.io/v1
 kind: Cluster
 metadata:
@@ -16,10 +16,6 @@ spec:
       cpu: {{ .Values.postgres.resources.limits.cpu | quote }}
       memory: {{ .Values.postgres.resources.limits.memory | quote }}
 
-  inheritedMetadata:
-    labels:
-      azure.workload.identity/use: "true"
-
   # PostgreSQL version
   imageName: ghcr.io/cloudnative-pg/postgresql:18.1
 
@@ -33,7 +29,7 @@ spec:
       database: app
       owner: app
 
-  # Roles managed declaratively
+  # Roles managed declaratively — mirrors the Azure variant.
   managed:
     roles:
       - name: grafana
@@ -45,23 +41,31 @@ spec:
         passwordSecret:
           name: grafana-db-credentials
 
-  # Backup to Azure Blob Storage via WAL archiving
+  # Backup to S3 via Barman Cloud.
+  #
+  # `s3Credentials.inheritFromIAMRole: true` makes CNPG rely on the IRSA
+  # annotation set on the ServiceAccount below (no static keys). The IAM
+  # policy is provisioned by providers/aws/iam.tf:
+  #   - aws_iam_role.cnpg — trust scoped to cnpg-system:platform-postgres
+  #   - aws_iam_role_policy.cnpg_s3 — s3:{Get,Put,Delete,List} on the
+  #     cnpg_backup bucket + KMS permissions on aws_kms_key.s3_data.
   backup:
     barmanObjectStore:
-      destinationPath: "https://{{ .Values.global.storageAccountName }}.blob.core.windows.net/{{ .Values.global.cnpgBackupContainerName }}"
-      azureCredentials:
-        inheritFromAzureAD: true
+      destinationPath: "s3://{{ .Values.global.cnpgBackupBucketName }}/platform-postgres"
+      endpointURL: "https://s3.{{ .Values.global.region }}.amazonaws.com"
+      s3Credentials:
+        inheritFromIAMRole: true
     retentionPolicy: "{{ .Values.global.cnpgBackupRetentionDays }}d"
 
+  # AWS EKS uses generic node pools — no provider-specific taint
+  # tolerations. The `estabilis.io/workload-type: platform` toleration
+  # matches the MNG node group annotations written by
+  # providers/aws/eks.tf.
   affinity:
     tolerations:
       - key: "estabilis.io/workload-type"
         operator: "Equal"
         value: "platform"
-        effect: "NoSchedule"
-      - key: "kubernetes.azure.com/scalesetpriority"
-        operator: "Equal"
-        value: "spot"
         effect: "NoSchedule"
     topologyKey: topology.kubernetes.io/zone
     nodeAffinity:
@@ -90,13 +94,15 @@ spec:
   cluster:
     name: platform-postgres
 ---
+# IRSA ServiceAccount consumed by the cnpg Cluster above via its
+# `inheritFromIAMRole` backup credentials path. The role ARN is
+# injected as a helm parameter from the platform-root cnpg.yaml
+# template (identity.cnpg.roleArn → aws_iam_role.cnpg.arn).
 apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: platform-postgres
   namespace: cnpg-system
   annotations:
-    azure.workload.identity/client-id: "{{ .Values.identity.cnpg.clientId }}"
-  labels:
-    azure.workload.identity/use: "true"
+    eks.amazonaws.com/role-arn: "{{ .Values.identity.cnpg.roleArn }}"
 {{- end }}

@@ -1,5 +1,72 @@
 # Changelog
 
+## [0.20.0] - 2026-04-24
+
+### Added — CNPG Postgres Cluster on AWS (Barman Cloud → S3 via IRSA)
+
+Closes the "cnpg backup on AWS" gap tracked in
+Estabilis/estabilis-platform-tools#186 (explicitly deferred on Phase 1).
+
+The `cnpg-cluster` Application was gated azure-only in
+`bootstrap/platform-root/templates/cnpg.yaml`, so AWS clusters ran the
+cnpg operator but never got a `Cluster` CR. Grafana (and any other
+component that talks to `platform-postgres-rw.cnpg-system`) could not
+come up.
+
+### Changes
+
+#### 1. Chart: `core/components/cnpg-cluster/`
+
+- `templates/cluster-azure.yaml` now wrapped in
+  `{{- if eq .Values.global.provider "azure" }}` (was unconditional).
+- **NEW** `templates/cluster-aws.yaml`: emits the same 3 resources as
+  Azure (`Cluster`, `ScheduledBackup`, `ServiceAccount`) with:
+  - `backup.barmanObjectStore.destinationPath: s3://<bucket>/platform-postgres`
+  - `endpointURL: https://s3.<region>.amazonaws.com`
+  - `s3Credentials.inheritFromIAMRole: true` (no static keys)
+  - `ServiceAccount.annotations.eks.amazonaws.com/role-arn` (IRSA)
+  - Generic EKS tolerations (no `kubernetes.azure.com/scalesetpriority`).
+- `values.yaml` grows provider-neutral fields with AWS (bucket, region,
+  roleArn) alongside the Azure (storageAccount, containerName, clientId)
+  originals. Both coexist safely since only one branch renders.
+
+#### 2. platform-root: `bootstrap/platform-root/templates/cnpg.yaml`
+
+- Gate widened from `azure-only` to `azure OR aws`.
+- AWS `{{- else if }}` helm.parameters branch passes:
+  - `global.cnpgBackupBucketName` → `aws_s3_bucket.cnpg_backup.id`
+  - `global.region` → `var.region`
+  - `identity.cnpg.roleArn` → `aws_iam_role.cnpg.arn`
+- Provider-agnostic parameters (retention days, schedule) hoisted
+  outside the provider conditional.
+- Added `global.provider` parameter so the chart templates can gate
+  themselves.
+
+### Terraform: already provisioned
+
+`providers/aws/` already had everything in place since Phase 1:
+- `aws_s3_bucket.cnpg_backup` + encryption/versioning/public-block
+- `aws_iam_role.cnpg` + `aws_iam_role_policy.cnpg_s3` (trust scoped to
+  SA `cnpg-system:platform-postgres`; policy grants S3 CRUD on the
+  cnpg_backup bucket + KMS ops on `aws_kms_key.s3_data`).
+- ConfigMap writes `global.cnpgBackupBucketName` + `identity.cnpg.roleArn`.
+
+### Azure impact
+
+Zero. The azure branch of `cnpg.yaml` carries identical parameter
+names and the `cluster-azure.yaml` template is untouched beyond the
+outer `{{- if azure }}` guard — which never evaluates false on Azure.
+The values.yaml additions are ignored (no template references them
+on Azure).
+
+### Migration
+
+v0.19.4 → v0.20.0 on AWS: pure chart update, no TF churn. Re-seed
+`platform-root`, hard-refresh + sync `cnpg-cluster`. Expect a new
+`Cluster/platform-postgres` CR in `cnpg-system`, followed by
+`platform-postgres-{1,2,3}` Pods and the `platform-postgres-rw`
+Service that `grafana-db` is waiting on.
+
 ## [0.19.4] - 2026-04-24
 
 ### Fixed — AWS ExternalSecret remoteRef.key path prefix
