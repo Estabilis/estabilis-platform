@@ -177,26 +177,39 @@ repoServer:
         cpu: 50m
         memory: 64Mi
 
-  # Liveness probe override — use the plain `/healthz` endpoint instead
-  # of the chart default `/healthz?full=true`. The `?full=true` handler
-  # does cascading checks through Redis + Git backends + repo cache;
-  # on fresh clusters or CPU-burstable nodes it can hang indefinitely
-  # (observed 2026-04-24 on cortex EKS, MNG t3a.medium nodes: handler
-  # never returned, every poll timed out → CrashLoopBackOff). Liveness
-  # semantic is "is the process responsive" — the plain path is correct;
-  # the full check belongs in readiness.
+  # Liveness probe override — disable during bootstrap windows.
+  #
+  # The argo-cd v9.x chart hardcodes the repo-server liveness probe
+  # path as `/healthz?full=true` in its Deployment template; the
+  # values schema only exposes `enabled`, `timeoutSeconds`,
+  # `failureThreshold`, `initialDelaySeconds`, `periodSeconds`,
+  # `successThreshold` — there is NO `httpPath`/`httpGet` key. An
+  # earlier attempt (v0.17.3) to override `httpGet.path` via values
+  # was silently ignored by the chart and did not take effect.
+  #
+  # The `?full=true` handler cascades through Redis + Git backends +
+  # repo cache. On fresh clusters with no Applications configured
+  # (bootstrap window), one of those sub-checks hangs and the handler
+  # never returns. Every kubelet poll times out regardless of the
+  # `timeoutSeconds` budget, kubelet SIGTERMs the container, restart
+  # loop — CrashLoopBackOff (observed 2026-04-24 on cortex EKS seed,
+  # MNG t3a.medium nodes).
+  #
+  # Only deterministic fix at the values layer: disable liveness.
+  # Without it, kubelet does NOT kill the pod on health-check
+  # failures. Readiness still runs and gates the pod's inclusion in
+  # the `argocd-repo-server` Service; if the full-check hangs it
+  # takes the pod temporarily out of rotation without restart.
+  #
+  # Once platform-root reconciles and real Applications are
+  # configured, the `?full=true` handler completes normally, and
+  # operators can re-enable liveness via downstream overrides if
+  # desired. For now the safe default is disabled.
   livenessProbe:
-    httpGet:
-      path: /healthz
-      port: metrics
-      scheme: HTTP
-    timeoutSeconds: 5
-    initialDelaySeconds: 30
-    periodSeconds: 10
+    enabled: false
   readinessProbe:
-    # Keep the full check on readiness (where "subsystems ready" is the
-    # right semantic), but relax the timeout so a slow cold-start or
-    # burst-credit-drained node does not churn through restarts.
+    # Generous timeout so the stuck full-check during bootstrap
+    # doesn't flap the pod in and out of the Service too noisily.
     timeoutSeconds: 10
 
 redis:
