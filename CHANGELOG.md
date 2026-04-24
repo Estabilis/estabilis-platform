@@ -1,5 +1,70 @@
 # Changelog
 
+## [0.17.4] - 2026-04-24
+
+### Fixed — `argocd-repo-server` CrashLoopBackOff — disable liveness probe during bootstrap
+
+Follow-up to v0.17.3. That release tried to override the liveness
+probe `httpGet.path` from `/healthz?full=true` to `/healthz` via
+values. Verification on the cortex seed today revealed the override
+is **silently ignored by the chart**.
+
+Root cause: the `argo-cd` chart v9.x values schema for repo-server
+probes exposes only scalar fields (`enabled`, `timeoutSeconds`,
+`failureThreshold`, `initialDelaySeconds`, `periodSeconds`,
+`successThreshold`) and has NO `httpPath` or `httpGet` key. The probe
+path is hardcoded in the Deployment template as
+`/healthz?full=true` and cannot be customized via values. Our v0.17.3
+override was syntactically valid YAML but semantically a no-op.
+
+Confirmed by:
+
+- `helm get values argocd -n argocd` → release has `httpGet.path=/healthz`
+  in user-supplied values
+- `kubectl get pod ... -o jsonpath` → pod still has
+  `httpGet.path=/healthz?full=true`
+- `helm template ... --values ...` dry-run → same result
+
+The `?full=true` handler cascades through Redis + Git backends + repo
+cache. On fresh clusters (bootstrap window, no Applications
+configured) one sub-check hangs and the handler never returns. Every
+kubelet poll times out and the container is SIGTERMed in a restart
+loop.
+
+Since the path cannot be customized, the only deterministic fix at
+the values layer is to **disable the liveness probe during
+bootstrap**:
+
+```yaml
+repoServer:
+  livenessProbe:
+    enabled: false
+  readinessProbe:
+    timeoutSeconds: 10
+```
+
+Readiness stays on and still gates Service inclusion; without
+liveness, kubelet does not kill the pod on probe failures. When
+platform-root reconciles and real Applications populate the cluster,
+the `?full=true` handler completes normally and liveness can be
+re-enabled via downstream overrides if desired.
+
+### Migration
+
+Operators on v0.17.3: bump module `ref` to `v0.17.4`. On the next
+ArgoCD reconcile of the self-managed `argocd` Application, the probe
+override is applied to the Deployment; a rolling update follows and
+the restart loop stops.
+
+### Related
+
+- v0.17.3 attempted the same fix with `httpGet.path` — unsuccessful
+  because the chart ignores that key. This patch takes the only
+  working route (`enabled: false`).
+- Upstream chart issue: exposing `httpPath` / `httpGet` on
+  `repoServer.livenessProbe` would eliminate the need for this
+  workaround. Worth proposing to `argoproj/argo-helm` later.
+
 ## [0.17.3] - 2026-04-24
 
 ### Fixed — `argocd-repo-server` CrashLoopBackOff on fresh clusters
