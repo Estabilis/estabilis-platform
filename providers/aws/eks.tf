@@ -196,12 +196,22 @@ module "eks" {
       ami_type       = var.mng_ami_type
       subnet_ids     = local.private_subnet_ids
 
-      # Same IAM role naming constraint as module.eks and module.karpenter:
-      # the CAF-style cluster name ({prefix}-platform-{env}-{region}) plus
-      # the submodule's `-default-eks-node-group` suffix exceeds the 38-char
-      # AWS name_prefix cap. Using false switches to name mode (64-char
-      # budget), and we supply an explicit role name to avoid colliding
-      # with other MNGs if more are added later.
+      # Two name-prefix overflows to disable on the submodule when the
+      # cluster name is long (our CAF-style naming blows past both):
+      #
+      #  1. IAM role: submodule constructs `{cluster}-{ng}-eks-node-group-`
+      #     before AWS appends its 26-char random suffix. 38-char cap.
+      #     Switch off the prefix and supply an explicit role name.
+      #
+      #  2. Node-group resource: submodule constructs `{ng}-` (where
+      #     {ng} is the computed name `{cluster}-{default}`). 37-char cap
+      #     for the node_group_name_prefix. Switch off the prefix and let
+      #     the submodule use our explicit `name` directly.
+      #
+      # Both constraints are the same family as module.eks (v0.15.0) and
+      # module.karpenter (v0.15.2). Pinning explicit names keeps future
+      # additional MNGs colliding-free.
+      use_name_prefix          = false
       iam_role_use_name_prefix = false
       iam_role_name            = "${local.cluster_name}-default-node"
 

@@ -212,18 +212,18 @@ output "opencost_role_arn" {
 # ===========================================================================
 
 output "karpenter_queue_name" {
-  description = "SQS interruption queue name for Karpenter (empty when autoscaler != 'karpenter')."
-  value       = var.autoscaler == "karpenter" ? module.karpenter[0].queue_name : ""
+  description = "SQS interruption queue name for Karpenter (empty when autoscaler does not provision Karpenter)."
+  value       = contains(["karpenter", "hybrid"], var.autoscaler) ? module.karpenter[0].queue_name : ""
 }
 
 output "karpenter_node_iam_role_name" {
-  description = "IAM role name used by Karpenter-provisioned nodes (empty when autoscaler != 'karpenter')."
-  value       = var.autoscaler == "karpenter" ? module.karpenter[0].node_iam_role_name : ""
+  description = "IAM role name used by Karpenter-provisioned nodes (empty when autoscaler does not provision Karpenter)."
+  value       = contains(["karpenter", "hybrid"], var.autoscaler) ? module.karpenter[0].node_iam_role_name : ""
 }
 
 output "karpenter_controller_role_arn" {
-  description = "IAM role ARN of the Karpenter controller (empty when autoscaler != 'karpenter')."
-  value       = var.autoscaler == "karpenter" ? module.karpenter[0].iam_role_arn : ""
+  description = "IAM role ARN of the Karpenter controller (empty when autoscaler does not provision Karpenter)."
+  value       = contains(["karpenter", "hybrid"], var.autoscaler) ? module.karpenter[0].iam_role_arn : ""
 }
 
 # ===========================================================================

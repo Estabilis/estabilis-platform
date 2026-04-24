@@ -1,5 +1,52 @@
 # Changelog
 
+## [0.17.2] - 2026-04-24
+
+### Fixed — MNG `node_group_name_prefix` overflow + Karpenter outputs under `hybrid` mode
+
+Two additional issues surfaced when `terraform apply` was retried on
+v0.17.1 against a CAF-style cluster name:
+
+#### 1. `node_group_name_prefix` overflow
+
+The EKS managed-node-group submodule has a second IAM-like name
+construction beyond the role name — `aws_eks_node_group.this.node_group_name_prefix`
+uses `"${var.name}-"` when `var.use_name_prefix = true` (default). Our
+`var.name` for the default MNG is `"${cluster_name}-default"` → prefix
+becomes `"${cluster_name}-default-"` (42 chars) → AWS caps at 37:
+
+```
+Error: expected length of node_group_name_prefix to be in the range
+(0 - 37), got eks-cortex-platform-prd-us-east-1-default-
+```
+
+Fix: set `use_name_prefix = false` on the default MNG so the submodule
+uses our explicit `name` directly. Complements the `iam_role_use_name_prefix`
+fix from v0.17.1.
+
+#### 2. Karpenter outputs go empty under `hybrid`
+
+`outputs.tf` still gated three Karpenter outputs on the strict
+`var.autoscaler == "karpenter"` check missed by the v0.17.0 rollout:
+
+- `karpenter_queue_name`
+- `karpenter_node_iam_role_name`
+- `karpenter_controller_role_arn`
+
+Consequence on a `hybrid` apply: `terraform plan` shows these outputs
+flipping to `""` even though the Karpenter module is still provisioned.
+Downstream consumers reading them see a false "Karpenter disabled"
+signal.
+
+Fix: switch all three to `contains(["karpenter", "hybrid"], var.autoscaler)`.
+Matches the pattern already applied to `platform-outputs.tf` in v0.17.0.
+
+### Migration
+
+Operators hitting either error on v0.17.1 `terraform apply`: bump the
+module `ref` from `v0.17.1` to `v0.17.2` and re-run `terraform plan`/`apply`.
+No other change required.
+
 ## [0.17.1] - 2026-04-24
 
 ### Fixed — MNG default IAM role name_prefix overflow
