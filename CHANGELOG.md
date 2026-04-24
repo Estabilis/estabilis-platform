@@ -1,5 +1,133 @@
 # Changelog
 
+## [0.19.0] - 2026-04-24
+
+### Added — AWS provider parity: Loki/Mimir S3, Velero S3, ClusterSecretStore via Secrets Manager
+
+v0.18.1 → v0.18.3 fixed the AWS seed path enough to get platform-root
+to finish its first sync (rename ConfigMap key, fix AppProject gate,
+gate null `parameters:` in velero/grafana-loki/grafana-mimir). The
+cortex seed then advanced past those and surfaced the deeper gap: AWS
+provider was **not feature-complete** — several components had Azure
+wiring only and no AWS equivalent.
+
+This release ships the missing AWS values + template wiring for three
+stacks: observability (loki, mimir), backup (velero), and secrets
+(ClusterSecretStore). Net effect: an AWS cluster can now reach Healthy
+for the same component set Azure has been shipping since v0.1.x.
+
+#### 1. Loki AWS S3 backend
+
+New `core/components/grafana-stack/loki-values-aws.yaml`:
+- `loki.storage.type: s3`
+- `loki.storage.s3.region` (injected)
+- `loki.storage.bucketNames.{chunks,ruler,admin}` (injected, all point
+  to the shared observability bucket)
+- `schemaConfig.configs[0].object_store: s3`
+- `serviceAccount.annotations.eks.amazonaws.com/role-arn` (injected)
+
+`bootstrap/platform-root/templates/grafana-stack.yaml` `grafana-loki`
+gains a `{{- else if aws }}` helm.parameters branch emitting:
+- `loki.storage.bucketNames.{chunks,ruler,admin}` → `global.observabilityBucketName`
+- `loki.storage.s3.region` → `global.region`
+- `serviceAccount.annotations.eks\.amazonaws\.com/role-arn` → `identity.loki.roleArn`
+
+#### 2. Mimir AWS S3 backend
+
+New `core/components/grafana-stack/mimir-values-aws.yaml`:
+- `mimir.structuredConfig.common.storage.backend: s3`
+- `mimir.structuredConfig.{common,blocks_storage,ruler_storage,alertmanager_storage}.s3.bucket_name` (all injected)
+- `serviceAccount.annotations.eks.amazonaws.com/role-arn` (injected)
+- `global.podLabels: {}` — removes Azure Workload Identity label (IRSA
+  uses annotations, not labels)
+
+`bootstrap/platform-root/templates/grafana-stack.yaml` `grafana-mimir`
+gains the equivalent `{{- else if aws }}` branch.
+
+#### 3. Velero AWS S3 backend
+
+New `core/components/velero/values-aws.yaml`:
+- `configuration.backupStorageLocation[0].provider: aws` (+ bucket/region injected)
+- `configuration.volumeSnapshotLocation[0].provider: aws` (+ region injected)
+- `initContainers[0].image: velero/velero-plugin-for-aws:v1.12.0`
+- `serviceAccount.server.annotations.eks.amazonaws.com/role-arn` (injected)
+
+`bootstrap/platform-root/templates/velero.yaml` gains `{{- else if aws }}`
+helm.parameters:
+- `configuration.backupStorageLocation[0].bucket` → `global.veleroBackupBucketName`
+- `configuration.backupStorageLocation[0].config.region` → `global.region`
+- `configuration.volumeSnapshotLocation[0].config.region` → `global.region`
+- `serviceAccount.server.annotations.eks\.amazonaws\.com/role-arn` → `identity.velero.roleArn`
+- `schedules.platform-daily.*` — shared with Azure path
+
+#### 4. ClusterSecretStore AWS via Secrets Manager
+
+`bootstrap/platform-root/templates/cluster-secret-store.yaml` gate
+widened from `azure`-only to `azure OR aws`. The Application is now
+emitted on both providers; the provider-specific helm parameters
+differ:
+- Azure: `vaultUrl` + `tenantId`
+- AWS: `region`
+
+The underlying chart lives in `estabilis-platform-gitops` at
+`components/cluster-secret-store/`. That chart was updated in
+`estabilis-platform-gitops` **v0.34.0** to support the `provider`
+field and render an AWS ClusterSecretStore via IRSA (JWT
+`serviceAccountRef`). See that repo's CHANGELOG for the chart-side
+details.
+
+**Requires `estabilis-platform-gitops >= v0.34.0`.** Older gitops
+releases don't know the AWS template; platformGitopsVersion must be
+bumped together with this platform release on AWS clusters. Azure
+clusters can roll forward independently since the chart defaults to
+Azure when no `provider` value is set.
+
+#### 5. IAM — loki/mimir S3 scope broadened to bucket-wide
+
+`providers/aws/iam.tf` `data.aws_iam_policy_document.{loki_s3,mimir_s3}`
+previously restricted object access to `<bucket>/loki/*` and
+`<bucket>/mimir/*` prefixes. The loki chart (6.54) and mimir chart
+(6.0.5) do not support a global object-key prefix — objects land at
+bucket root. Without bucket-wide access the components get
+AccessDenied on every PutObject.
+
+Fix: broaden `resources` to `<bucket>/*`. Loki + mimir share the
+`observability` bucket and each has full access. Narrowing to a
+per-component prefix would require provisioning separate buckets —
+tracked as a follow-up if hard isolation between loki/mimir data
+becomes a requirement. Azure is unaffected (separate blob containers
+per component).
+
+### Migration
+
+1. Bump `estabilis-platform-gitops` to v0.34.0+ first.
+2. Bump `estabilis-platform` to v0.19.0.
+3. Update downstream:
+   - `main.tf ref=v0.19.0`
+   - `terraform.tfvars platform_revision = "v0.19.0"`
+   - `overrides/platform-root/values.yaml platformGitopsVersion: "v0.34.0"`
+   - downstream tag
+4. `terraform apply` — expect:
+   - `aws_iam_role_policy.loki_s3` in-place update (resource list)
+   - `aws_iam_role_policy.mimir_s3` in-place update (resource list)
+   - `kubernetes_config_map.platform_infrastructure` in-place update
+     (platformRevision key flip to v0.19.0)
+   - no infrastructure churn beyond those three
+5. Hard refresh + sync `platform-root`. Expect grafana-loki +
+   grafana-mimir + velero + cluster-secret-store + platform-secrets
+   to reach Synced/Healthy.
+
+### Azure impact
+
+- Loki/Mimir/Velero template fixes include `{{- else if aws }}`
+  branches — Azure branches render exactly as before.
+- cluster-secret-store template gate widened; when
+  `global.provider == "azure"` the emitted Application is byte-
+  identical to before (same helm parameters, same values files, same
+  path).
+- IAM changes are in `providers/aws/iam.tf` — never evaluated on
+  Azure.
+
 ## [0.18.3] - 2026-04-24
 
 ### Fixed — AWS null `helm.parameters` in `grafana-loki` and `grafana-mimir` (same anti-pattern as v0.18.2 velero fix)
