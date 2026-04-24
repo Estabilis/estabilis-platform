@@ -1,5 +1,42 @@
 # Changelog
 
+## [0.19.2] - 2026-04-24
+
+### Fixed — Mimir AWS S3 storage collision (blocks/ruler/alertmanager same bucket+prefix)
+
+v0.19.0 shipped `mimir-values-aws.yaml` with `blocks_storage`,
+`ruler_storage`, and `alertmanager_storage` all backed by the shared
+observability S3 bucket without differentiating prefixes. Mimir's chart
+validator rejects this:
+
+```
+error validating config: invalid bucket config:
+  ruler storage: S3 bucket name and storage prefix cannot be the same as
+  the one used in blocks storage config
+```
+
+The grafana-mimir-ruler and grafana-mimir-querier pods CrashLoopBackOff;
+`grafana-mimir-alertmanager` fails to start too.
+
+### Fix
+
+Add `storage_prefix` to each storage class in `mimir-values-aws.yaml`:
+
+```yaml
+blocks_storage:       { storage_prefix: "blocks",       ... }
+ruler_storage:        { storage_prefix: "ruler",        ... }
+alertmanager_storage: { storage_prefix: "alertmanager", ... }
+```
+
+Single bucket, three prefixes — no IAM changes, no new infra.
+
+### Azure impact
+
+Zero. Azure mimir uses `container_name: mimir-blocks` at blocks_storage
+only; ruler + alertmanager inherit common config. Pattern works because
+Azure Blob Storage distinguishes by container_name natively in the
+mimir chart. This is an AWS-specific file edit.
+
 ## [0.19.1] - 2026-04-24
 
 ### Fixed — AWS `platformVersion` ConfigMap key writes stale `var.platform_version` instead of the effective revision
