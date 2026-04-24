@@ -1,5 +1,92 @@
 # Changelog
 
+## [0.18.0] - 2026-04-24
+
+### Added — `modules/github-app-credentials/` (cloud-agnostic) + AWS caller
+
+Organization-scoped GitHub App authentication for ArgoCD git access,
+managed by Terraform. Introduces a transversal module plus the AWS
+provider wiring that makes it usable today. Azure/GCP callers will
+follow the same shape in subsequent releases.
+
+#### Why GitHub App (vs. PAT or deploy keys)
+
+- Belongs to the GitHub organization — **not user-scoped**. When the
+  user who set up the credential leaves the org, the App keeps working.
+- One install covers N repos; **scales to multi-repo clients**.
+- Fine-grained permissions: `Contents: Read-only` is enough.
+- ArgoCD renews installation tokens (1h TTL) automatically — **no
+  external rotation infrastructure needed**.
+
+Deploy keys (per-repo) and per-user PATs are viable fallbacks but don't
+scale or survive personnel changes. Pattern used by the legacy
+`cortex-eks-prod` cluster pinned an SSH key to a specific user account,
+which this release supersedes going forward.
+
+#### Module: `modules/github-app-credentials/`
+
+Cloud-agnostic. Creates one Kubernetes Secret with the
+`argocd.argoproj.io/secret-type: repo-creds` label, carrying
+`githubAppID`, `githubAppInstallationID`, `githubAppPrivateKey`, and a
+normalized `url`. ArgoCD matches repos by URL prefix — one credential
+template covers every repo under the org.
+
+Inputs:
+- `github_app_id`, `github_app_installation_id` (numeric IDs)
+- `github_app_private_key` (PEM, sensitive, validated)
+- `github_org_url` (e.g. `https://github.com/Cortex-Innovation`)
+- `namespace` (default `argocd`), `secret_name` (default derived from org slug)
+
+Outputs: `secret_name`, `namespace`, `org_slug`.
+
+#### AWS wiring: `providers/aws/github-app.tf`
+
+Composes the module call with AWS Secrets Manager mirror:
+
+1. Module creates the in-cluster Kubernetes Secret ArgoCD reads.
+2. `aws_secretsmanager_secret.github_app_private_key` stores the PEM
+   under `${secrets_path_prefix}/platform-github-app-private-key` —
+   becomes source of truth for rotation + the handoff path for
+   ExternalSecrets once `platform-secrets` chart is reconciling.
+
+Both are gated on `github_app_private_key != ""`; a deployment that
+uses a different auth path (deploy keys, per-user PATs) can leave all
+four `github_app_*` variables empty and nothing is created.
+
+Cross-input validation via `null_resource` precondition: if any of the
+four `github_app_*` variables is set, all four must be set. Leaving
+all four empty disables the feature entirely.
+
+#### ConfigMap: new non-sensitive identifiers
+
+`providers/aws/platform-outputs.tf` exposes three new keys on the
+`platform-infrastructure` ConfigMap:
+
+- `global.githubAppID`
+- `global.githubAppInstallationID`
+- `global.githubOrgUrl`
+
+These are public identifiers (not secrets) needed by downstream charts
+(e.g. future `platform-secrets` ExternalSecret) to build the
+credential template shape. The PEM stays **only** in AWS Secrets
+Manager and the existing in-cluster Secret.
+
+### Migration
+
+- Operators who want to adopt GitHub App: create the App on the org
+  (see `modules/github-app-credentials/README.md` for step-by-step),
+  set the four `github_app_*` variables in `terraform.tfvars` (or
+  `secrets.auto.tfvars` for the private key), `terraform apply`.
+- Operators who stay on other auth paths: no change, no new resources.
+
+### Follow-up (tracked separately)
+
+- `providers/azure/` caller that mirrors to Key Vault — same shape.
+- `core/components/platform-secrets/` chart adds an ExternalSecret that
+  reconciles the K8s Secret from the SM/KV entry post-bootstrap,
+  enabling key rotation in the secret store to propagate without a
+  Terraform apply.
+
 ## [0.17.5] - 2026-04-24
 
 ### Fixed — MNG nodes lose DNS to Fargate pods (CoreDNS, ArgoCD)

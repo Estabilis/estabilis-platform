@@ -132,6 +132,39 @@ variable "client_gitops_repo_token" {
 }
 
 # ---------------------------------------------------------------------------
+# GitHub App — organization-scoped credential for ArgoCD git access.
+# Preferred over per-repo deploy keys or per-user PATs because the App
+# belongs to the GitHub organization (not a specific user), permissions
+# are fine-grained, and ArgoCD renews installation tokens automatically.
+# See modules/github-app-credentials/ for the full pattern.
+# ---------------------------------------------------------------------------
+
+variable "github_app_id" {
+  description = "GitHub App ID (numeric string). Leave empty to skip the ArgoCD GitHub App credential setup (fallback: config_repo_token / client_gitops_repo_token)."
+  type        = string
+  default     = ""
+}
+
+variable "github_app_installation_id" {
+  description = "GitHub App Installation ID (numeric string). Found in the URL after installing the App on the organization."
+  type        = string
+  default     = ""
+}
+
+variable "github_app_private_key" {
+  description = "PEM-encoded private key downloaded from the GitHub App settings. Pass via secrets.auto.tfvars or TF_VAR_github_app_private_key (do not commit). Sensitive."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "github_org_url" {
+  description = "Organization URL for GitHub App credential matching (ArgoCD matches repos by URL prefix). Example: 'https://github.com/Cortex-Innovation'. Required when github_app_id is set."
+  type        = string
+  default     = ""
+}
+
+# ---------------------------------------------------------------------------
 # EKS cluster
 # ---------------------------------------------------------------------------
 
