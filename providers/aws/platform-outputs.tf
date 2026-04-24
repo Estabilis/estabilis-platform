@@ -98,9 +98,9 @@ resource "kubernetes_config_map" "platform_infrastructure" {
 
     # Autoscaler + Karpenter wiring
     "global.autoscaler"               = var.autoscaler
-    "global.karpenterQueueName"       = var.autoscaler == "karpenter" ? module.karpenter[0].queue_name : ""
-    "global.karpenterNodeRoleName"    = var.autoscaler == "karpenter" ? module.karpenter[0].node_iam_role_name : ""
-    "global.karpenterControllerRole"  = var.autoscaler == "karpenter" ? module.karpenter[0].iam_role_arn : ""
+    "global.karpenterQueueName"       = contains(["karpenter", "hybrid"], var.autoscaler) ? module.karpenter[0].queue_name : ""
+    "global.karpenterNodeRoleName"    = contains(["karpenter", "hybrid"], var.autoscaler) ? module.karpenter[0].node_iam_role_name : ""
+    "global.karpenterControllerRole"  = contains(["karpenter", "hybrid"], var.autoscaler) ? module.karpenter[0].iam_role_arn : ""
     "global.karpenterDiscoveryTagKey" = var.karpenter_discovery_tag_key
 
     # ECR

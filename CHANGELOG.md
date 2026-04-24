@@ -1,5 +1,73 @@
 # Changelog
 
+## [0.17.0] - 2026-04-24
+
+### Added — `autoscaler = "hybrid"` mode (AWS provider)
+
+Resolves a chicken-and-egg that blocks the ArgoCD seed on an AWS hub:
+with `autoscaler = "karpenter"` (the previous default), the cluster
+has only Fargate Profiles for `kube-system` + `karpenter` namespaces,
+and Karpenter itself only provisions EC2 when its NodePool CR exists.
+The NodePool is installed BY ArgoCD as part of platform-root. But
+ArgoCD needs a node to run — so it can't start, which means Karpenter
+can't be deployed, which means there are no nodes. Deadlock.
+
+The new `hybrid` mode fixes this by provisioning a small always-on
+Managed Node Group (MNG) alongside the Karpenter infrastructure:
+
+- **MNG**: 2 permanent EC2 nodes (defaults: `t3a.medium`/`t3.medium`,
+  `min_size=2`, `max_size=4`) — hosts platform control-plane
+  (ArgoCD, cert-manager, external-secrets, kyverno, ...). Analogous
+  to the AKS `platformrg` user pool.
+- **Karpenter infra** (IRSA role + SQS queue + Fargate Profile for
+  the karpenter namespace): ready to be wired up by platform-root,
+  and provisions workload EC2 once NodePool lands.
+- **Fargate Profile `kube-system`**: unchanged — still hosts coredns,
+  ebs-csi-controller, pod-identity-agent, etc. Analogous to the AKS
+  system pool.
+
+The resulting topology mirrors AKS: system-level addons on one pool
+(Fargate), platform control-plane on another (MNG), workloads
+elastic via Karpenter.
+
+**Default changed** from `autoscaler = "karpenter"` to
+`autoscaler = "hybrid"`. Existing Azure clients are unaffected
+(variable is AWS-only). The only AWS deployment today (cortex test)
+is still in seed and was not moved to production; it will be
+re-applied with `hybrid` to unblock the seed.
+
+### Changed — file-level touches
+
+- `variables.tf`: `autoscaler` now accepts `"hybrid"` in addition to
+  `"karpenter"`, `"cluster_autoscaler"`, `"none"`. Description
+  expanded with the full contract of each mode. Default flipped to
+  `"hybrid"`.
+- `eks.tf`: the MNG block fires on both `"cluster_autoscaler"` and
+  `"hybrid"`; the Karpenter Fargate Profile + node SG Karpenter
+  discovery tags fire on both `"karpenter"` and `"hybrid"`. VPC
+  subnet Karpenter-discovery tags in existing-VPC mode follow the
+  same rule.
+- `karpenter.tf`: `module.karpenter` and the IAM `-instance-profile-gc`
+  policy fire on both `"karpenter"` and `"hybrid"`.
+- `platform-outputs.tf`: `global.karpenterQueueName` / `karpenterNodeRoleName`
+  / `karpenterControllerRole` populated on both `"karpenter"` and
+  `"hybrid"`.
+
+### Migration guide
+
+Operators on `autoscaler = "karpenter"` who want to adopt `hybrid`:
+
+1. Update `terraform.tfvars`: `autoscaler = "hybrid"`.
+2. `terraform plan` — expected: MNG `<cluster>-default` created with
+   `min_size=2` nodes; no destroy of existing Karpenter IAM/SQS
+   (both modes share those resources).
+3. `terraform apply`.
+4. No change required on the gitops or CLI side. ArgoCD + platform-root
+   seed runs as if it were a fresh install.
+
+Operators on `autoscaler = "karpenter"` who want to stay there: no
+change required. Behaviour identical to before.
+
 ## [0.16.0] - 2026-04-24
 
 ### Added — AWS provider branches in core `platform-root` templates
