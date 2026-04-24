@@ -1,5 +1,43 @@
 # Changelog
 
+## [0.19.4] - 2026-04-24
+
+### Fixed — AWS ExternalSecret remoteRef.key path prefix
+
+Cortex seed after v0.19.3 observed all 7 platform-secrets ExternalSecrets
+failing with `AccessDeniedException: secretsmanager:GetSecretValue`.
+Root cause: the platform-secrets chart's `kvSecrets.*` default values
+use flat Key-Vault-style names (`platform-argocd-redis-password`),
+but AWS SM secrets under Estabilis convention live at full paths
+(`estabilis/<deploymentId>/platform-argocd-redis-password`). The
+external-secrets IRSA role (`module.external_secrets_irsa`) explicitly
+scopes its Secrets Manager access to that ARN pattern, so the flat
+names get denied.
+
+### Fix
+
+`bootstrap/platform-root/templates/platform-secrets.yaml` gains an AWS
+branch that passes each `kvSecrets.*` override as a helm parameter
+with the prefix prepended. Azure retains the flat default values.
+
+Secrets handled (6): argocdRedisPassword, grafanaAdminPassword,
+grafanaDbPassword, configRepoToken, clientGitopsRepoToken, openaiApiKey.
+Opencost secrets are already gated via `opencostEnabled` (v0.19.3)
+and not re-keyed here.
+
+### Operator caveat
+
+Secrets that Terraform does not auto-provision on AWS (configRepoToken,
+clientGitopsRepoToken, openaiApiKey) must be populated in AWS Secrets
+Manager by the operator before the corresponding ExternalSecret can
+reach `SecretSynced=True`. Same discipline as Azure Key Vault.
+
+### Azure impact
+
+Zero — the `{{- if eq .Values.global.provider "aws" }}` branch does
+not execute on Azure. Existing kvSecrets flat defaults continue to
+address Azure Key Vault secrets by name.
+
 ## [0.19.3] - 2026-04-24
 
 ### Fixed — Mimir S3 endpoint missing + platform-secrets opencost gate
