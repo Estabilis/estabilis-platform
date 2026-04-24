@@ -44,6 +44,16 @@ spec:
       - CreateNamespace=true
       - ServerSideApply=true
 ---
+{{- /* cnpg-cluster — AZURE-ONLY on Phase 1. The chart wires backup
+      storage against Azure Blob via managed identity; the AWS backup
+      path (Barman Cloud against S3 with IRSA) is not implemented yet.
+      When the AWS backup story lands, replace this gate with a
+      provider-aware rendering (follow-up issue below).
+
+      Tracker: Estabilis/estabilis-platform-tools#186 — this is the
+      "cnpg backup on AWS" slice explicitly deferred. Open a dedicated
+      issue before shipping AWS CNPG backups. */ -}}
+{{- if eq .Values.global.provider "azure" }}
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -86,3 +96,4 @@ spec:
         maxDuration: 3m
     syncOptions:
       - CreateNamespace=true
+{{- end }}
