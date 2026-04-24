@@ -1,5 +1,68 @@
 # Changelog
 
+## [0.17.5] - 2026-04-24
+
+### Fixed — MNG nodes lose DNS to Fargate pods (CoreDNS, ArgoCD)
+
+The `terraform-aws-modules/eks/aws` module defaults
+`attach_cluster_primary_security_group = false` on managed node
+groups. Without that attachment, MNG ENIs receive only the module's
+`-node` shared security group — a DIFFERENT SG from the `eks-cluster-sg-*`
+that EKS auto-creates and attaches to Fargate pod ENIs.
+
+Consequence: traffic between MNG pods and Fargate pods (including
+CoreDNS which runs on Fargate by default) is not in the same intra-
+cluster trust boundary. DNS queries from MNG pods time out because
+the `kube-dns` service endpoints are Fargate ENIs on a different SG.
+**Every service lookup by name breaks** when originated from an MNG
+pod: Application Controller can't reach `argocd-redis` or
+`argocd-repo-server`, platform-root stalls with "ComparisonError: dns:
+A record lookup error".
+
+Observed 2026-04-24 on the cortex seed: `nslookup
+kubernetes.default.svc.cluster.local` from a debug pod on an MNG
+node → "connection timed out; no servers could be reached". CoreDNS
+itself was Ready and responsive — the path from MNG ENI to Fargate
+ENI was blocked at the SG layer.
+
+The legacy `cortex-eks-prod` cluster (provisioned outside this
+module) works because its MNG nodes were attached to the EKS
+cluster primary SG directly. Our module-provisioned MNGs were not.
+
+### Fix
+
+Set `attach_cluster_primary_security_group = true` on the `default`
+MNG block in `eks.tf`. The next `terraform apply` updates the MNG
+launch template; the MNG rolls nodes (brief ~2min drain/replace) so
+new ENIs receive both the node SG and the cluster primary SG.
+
+```hcl
+eks_managed_node_groups = {
+  default = {
+    ...
+    attach_cluster_primary_security_group = true
+  }
+}
+```
+
+### Migration
+
+Operators on v0.17.4 on AWS with MNG (`autoscaler = "hybrid"` or
+`"cluster_autoscaler"`): bump module `ref` to `v0.17.5`, run
+`terraform plan`. Expected plan diff: the MNG launch template adds
+the cluster primary SG to `vpc_security_group_ids`. Apply triggers a
+rolling update of MNG nodes; brief pod reschedule across nodes but
+no cluster-wide disruption because Fargate-hosted system workloads
+(CoreDNS, ebs-csi-controller, etc.) stay up. Post-apply, DNS
+resolution from MNG pods works.
+
+### Related
+
+- Estabilis/estabilis-platform#76 — v0.17.0, introduced `hybrid`
+  autoscaler (MNG + Karpenter); this patch is the missing piece that
+  lets MNG pods integrate with Fargate-hosted system services
+- Cortex seed 2026-04-24 — real-world reproducer
+
 ## [0.17.4] - 2026-04-24
 
 ### Fixed — `argocd-repo-server` CrashLoopBackOff — disable liveness probe during bootstrap

@@ -215,6 +215,25 @@ module "eks" {
       iam_role_use_name_prefix = false
       iam_role_name            = "${local.cluster_name}-default-node"
 
+      # Attach the EKS cluster primary security group to the MNG nodes.
+      # Without this, the MNG ENIs only receive the module's node
+      # shared SG, which is a DIFFERENT SG from the cluster primary
+      # (the SG EKS auto-creates and attaches to Fargate pod ENIs).
+      # Result: traffic between MNG pods and Fargate pods (including
+      # CoreDNS!) is not in the same intra-cluster trust boundary,
+      # and DNS queries from MNG pods time out because the kube-dns
+      # service endpoints are Fargate ENIs using a different SG.
+      #
+      # Observed on cortex seed 2026-04-24: DNS fully broken from
+      # MNG pods, ArgoCD Application Controller unable to reach
+      # argocd-redis or repo-server by service name, platform-root
+      # stuck in "ComparisonError: dns: A record lookup error".
+      #
+      # The legacy cortex-eks-prod cluster (provisioned outside this
+      # module) works because its MNG nodes end up with the cluster
+      # primary SG attached directly.
+      attach_cluster_primary_security_group = true
+
       labels = {
         "estabilis.io/workload-type" = "platform"
         "estabilis.io/pool-type"     = "regular"
