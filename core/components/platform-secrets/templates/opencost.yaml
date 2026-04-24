@@ -1,3 +1,11 @@
+{{- /* Opencost ExternalSecrets target the `opencost` namespace, which
+       is only created by the opencost Application when that component
+       is enabled. Downstream can disable opencost via
+       `components.opencost: false` in overrides/platform-root/values.yaml;
+       platform-root propagates this to the platform-secrets chart via
+       the `opencostEnabled` helm parameter. Guard against rendering
+       these ExternalSecrets in a namespace that doesn't exist. */}}
+{{- if .Values.opencostEnabled }}
 apiVersion: external-secrets.io/v1
 kind: ExternalSecret
 metadata:
@@ -43,3 +51,4 @@ spec:
     - secretKey: serviceKey
       remoteRef:
         key: {{ .Values.kvSecrets.opencostServiceKey | quote }}
+{{- end }}

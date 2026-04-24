@@ -1,5 +1,60 @@
 # Changelog
 
+## [0.19.3] - 2026-04-24
+
+### Fixed — Mimir S3 endpoint missing + platform-secrets opencost gate
+
+Two issues surfaced by the cortex seed after v0.19.2 unblocked the
+storage_prefix collision:
+
+#### 1. Mimir: `no s3 endpoint in config file`
+
+Mimir's thanos-io/objstore library requires an explicit `s3.endpoint`
+config entry even on AWS-native S3 (unlike Loki which auto-derives
+from region). The v0.19.0 mimir-values-aws.yaml + helm.parameters
+didn't set it, so mimir-ingester/querier/ruler/alertmanager
+CrashLoopBackOff with:
+
+```
+level=error msg="error running application"
+  err="no s3 endpoint in config file"
+```
+
+Fix: `bootstrap/platform-root/templates/grafana-stack.yaml` grafana-mimir
+AWS branch now injects
+`mimir.structuredConfig.common.storage.s3.endpoint = s3.<region>.amazonaws.com`.
+
+#### 2. platform-secrets: opencost ExternalSecrets fail on opencost-disabled clusters
+
+`core/components/platform-secrets/templates/opencost.yaml` emitted
+two ExternalSecrets targeting `namespace: opencost` unconditionally.
+When a downstream sets `components.opencost: false` (cortex does —
+AWS CUR integration is deferred), the opencost Application is never
+created, the namespace doesn't exist, and platform-secrets sync
+fails:
+
+```
+one or more objects failed to apply, reason: namespaces "opencost"
+not found
+```
+
+Fix:
+- Wrap opencost.yaml in `{{- if .Values.opencostEnabled }}`.
+- Add `opencostEnabled: true` default in platform-secrets values.yaml
+  (keeps existing Azure deployments unchanged).
+- platform-root's platform-secrets.yaml passes
+  `opencostEnabled = (ne components.opencost false)` as helm parameter.
+
+### Migration
+
+v0.19.2 → v0.19.3: pure Helm template update, no TF churn.
+
+### Azure impact
+
+Zero on mimir side (Azure uses container_name, different code path).
+Zero on opencost side (Azure clients ship with opencost enabled; the
+new gate defaults true).
+
 ## [0.19.2] - 2026-04-24
 
 ### Fixed — Mimir AWS S3 storage collision (blocks/ruler/alertmanager same bucket+prefix)
