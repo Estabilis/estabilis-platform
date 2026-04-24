@@ -1,5 +1,46 @@
 # Changelog
 
+## [0.17.1] - 2026-04-24
+
+### Fixed — MNG default IAM role name_prefix overflow
+
+The new `autoscaler = "hybrid"` / `autoscaler = "cluster_autoscaler"`
+path (introduced in v0.17.0) uses the terraform-aws-modules EKS
+managed-node-group submodule, which defaults to
+`iam_role_use_name_prefix = true`. The submodule then builds the IAM
+role as `"${cluster_name}-${node_group_name}-eks-node-group-"` before
+AWS appends its 26-char random suffix. The AWS `name_prefix`
+limit is 38 chars.
+
+Our CAF-style cluster names (`eks-{prefix}-platform-{env}-{region}`)
+routinely exceed that budget once combined with the submodule's
+suffix. First `terraform apply` on AWS with `hybrid` mode fails:
+
+```
+Error: expected length of name_prefix to be in the range (1 - 38),
+got eks-cortex-platform-prd-us-east-1-default-eks-node-group-
+```
+
+Same fix pattern as `module.eks` (v0.15.0) and `module.karpenter`
+(v0.15.2): set `iam_role_use_name_prefix = false` to switch to name
+mode (64-char budget), and pin `iam_role_name` explicitly so future
+additional MNGs get distinct role names without fighting the default.
+
+- `providers/aws/eks.tf`: the `default` MNG now sets
+  `iam_role_use_name_prefix = false` and `iam_role_name = "${local.cluster_name}-default-node"`.
+
+### Migration
+
+Operators on v0.17.0 who hit the error during `terraform apply`: bump
+the module `ref` from `v0.17.0` to `v0.17.1` and re-run
+`terraform plan`/`apply`. No other change required.
+
+Operators already on v0.17.0 who succeeded (unlikely — the MNG can't
+exist yet on v0.17.0 without hitting this error unless their cluster
+name is very short): the next apply will recreate the IAM role with
+a stable name instead of the generated prefix. Acceptable in a fresh
+deployment.
+
 ## [0.17.0] - 2026-04-24
 
 ### Added — `autoscaler = "hybrid"` mode (AWS provider)
