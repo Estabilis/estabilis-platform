@@ -41,6 +41,17 @@ spec:
           - name: serviceAccount.annotations.azure\.workload\.identity/client-id
             value: "{{ .Values.identity.certManager.clientId }}"
             forceString: true
+          {{- else if eq .Values.global.provider "aws" }}
+          {{- /* AWS IRSA role ARN for the cert-manager controller pod —
+                dynamic per-cluster, injected here. Paired with the
+                provider overlay file loaded above (cert-manager-aws.yaml)
+                and with `module.cert_manager_irsa` in
+                providers/aws/iam.tf (gated on dns_provider = "route53").
+                The controller assumes this role to solve Route53 DNS-01
+                challenges for the `letsencrypt-production` ClusterIssuer. */}}
+          - name: serviceAccount.annotations.eks\.amazonaws\.com/role-arn
+            value: "{{ .Values.identity.certManager.roleArn }}"
+            forceString: true
           {{- end }}
     - repoURL: {{ .Values.platformGitopsRepoUrl }}
       targetRevision: {{ .Values.platformGitopsVersion }}

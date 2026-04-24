@@ -1,5 +1,85 @@
 # Changelog
 
+## [0.16.0] - 2026-04-24
+
+### Added — AWS provider branches in core `platform-root` templates
+
+Five core hub templates previously had `{{- if eq .Values.global.provider "azure" }}`
+blocks without a matching AWS branch. When rendered on an AWS hub, the
+resulting Applications showed `Synced` in ArgoCD but the underlying
+controllers were missing the wiring that makes them functional (IRSA
+annotations, provider-agnostic platform-secrets rendering, etc.).
+
+This release closes the gaps so an AWS hub produces a functionally
+correct render. The AWS-equivalent of Azure Workload Identity is
+wired via IRSA — each ServiceAccount receives
+`eks.amazonaws.com/role-arn` instead of
+`azure.workload.identity/client-id`. IRSA role ARNs are already
+exported by `providers/aws/platform-outputs.tf` as `identity.<component>.roleArn`.
+
+#### `values.yaml` — per-cloud identity fields
+
+`identity.<component>` now carries both `clientId` (Azure WI) and
+`roleArn` (AWS IRSA). Templates select the right field via
+`.Values.global.provider`. Empty defaults are safe: fields not relevant
+to the active cloud are not rendered into parameters.
+
+#### Template changes
+
+- **`cert-manager.yaml`** — AWS branch adds
+  `serviceAccount.annotations.eks.amazonaws.com/role-arn` parameter
+  from `identity.certManager.roleArn`. Paired with
+  `values/platform/cert-manager-aws.yaml` overlay (new in
+  estabilis-platform-gitops v0.33.0).
+
+- **`external-secrets.yaml`** — AWS branch adds the same IRSA
+  annotation wiring using `identity.externalSecrets.roleArn`. Paired
+  with the `external-secrets-aws.yaml` overlay in gitops v0.33.0.
+
+- **`platform-secrets.yaml`** — outer `{{- if azure }}` wrapper
+  relaxed to `{{- if or (eq provider azure) (eq provider aws) }}` so
+  the chart renders on both clouds. Chart itself is provider-agnostic
+  (uses the `ClusterSecretStore` already AWS-aware in
+  `cluster-secret-store.yaml`). The Azure-only `acrLoginServer`
+  parameter is now gated to Azure explicitly until a provider-neutral
+  registry variable lands (Estabilis/estabilis-platform-tools#182).
+
+- **`cnpg.yaml`** — `cnpg-operator` Application already rendered on
+  both clouds. `cnpg-cluster` Application is now explicitly gated to
+  Azure only on this release because its backup wiring targets Azure
+  Blob via managed identity; the AWS equivalent (Barman Cloud against
+  S3 via IRSA) is not implemented. Deferred to a follow-up issue under
+  Estabilis/estabilis-platform-tools#186.
+
+- **`opencost.yaml`** — no template change this release. The existing
+  Azure-specific cost-export env vars are already gated to Azure; on
+  AWS the chart renders opencost without cost-export integration
+  (cluster-level cost tracking still works). AWS Athena/CUR integration
+  is deferred to a dedicated follow-up.
+
+### Changed — default `platformGitopsVersion`
+
+`bootstrap/platform-root/values.yaml` default bumped from `v0.1.0`
+(stale placeholder) to `v0.33.0` so standalone renders without
+terraform injection pick up the AWS overlays added in
+estabilis-platform-gitops v0.33.0.
+
+### Breaking / compatibility
+
+No breaking changes for Azure deployments — existing renders produce
+identical manifests. AWS hubs that previously saw `Synced` but
+dysfunctional Applications will, on the next ArgoCD refresh, receive
+the corrected IRSA wiring and start authenticating against AWS APIs.
+
+### Related
+
+- Tracker: Estabilis/estabilis-platform-tools#186 — AWS provider
+  branches in core templates (this release closes the main slice)
+- Pair: Estabilis/estabilis-platform-gitops v0.33.0 — overlay files
+- Follow-ups deferred: CNPG AWS backup (S3 + Barman Cloud), opencost
+  AWS cost-export (Athena/CUR), `acrLoginServer` rename
+  (Estabilis/estabilis-platform-tools#182)
+
 ## [0.15.2] - 2026-04-23
 
 ### Changed — region_code in resource names uses AWS-official format

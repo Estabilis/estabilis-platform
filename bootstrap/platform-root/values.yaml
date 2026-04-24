@@ -38,7 +38,7 @@ configRepoVersion: ""       # DEPRECATED: use configRepoRevision
 # See ADR 0001 (estabilis-platform-tools/docs/adr/0001-workload-bootstrap-strategy.md).
 # Default values below; downstream can override via overrides/platform-root/values.yaml.
 platformGitopsRepoUrl: "https://github.com/Estabilis/estabilis-platform-gitops.git"
-platformGitopsVersion: "v0.1.0"
+platformGitopsVersion: "v0.33.0"
 
 global:
   # Provenance — injected at runtime by the CLI (see block above).
@@ -82,22 +82,36 @@ global:
   acrLoginServer: ""
   sharedAcrLoginServer: "" # injected by terraform — shared ACR for workload images (Image Updater)
 
-# Workload Identity client IDs — injected by terraform
+# Per-cloud workload identity references — injected by terraform.
+#
+# Each entry exposes both:
+#   - clientId: Azure Workload Identity client ID (MSI object ID)
+#   - roleArn:  AWS IAM role ARN for IRSA
+#
+# Templates select the right field based on `.Values.global.provider`.
+# Fields not relevant to the active cloud stay empty and are not rendered.
 identity:
   externalDns:
     clientId: ""
+    roleArn: ""
   externalSecrets:
     clientId: ""
+    roleArn: ""
   loki:
     clientId: ""
+    roleArn: ""
   mimir:
     clientId: ""
+    roleArn: ""
   cnpg:
     clientId: ""
+    roleArn: ""
   certManager:
     clientId: ""
+    roleArn: ""
   velero:
     clientId: ""
+    roleArn: ""
 
 # ---------------------------------------------------------------------------
 # Component Toggles
