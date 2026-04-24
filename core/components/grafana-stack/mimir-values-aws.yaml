@@ -22,16 +22,24 @@ mimir:
           bucket_name: ""   # injected
           region: ""        # injected
           insecure: false
+    # Mimir requires each storage class (blocks/ruler/alertmanager) to
+    # have a DIFFERENT bucket+prefix combination — chart validator rejects
+    # matching bucket_name with matching (empty) storage_prefix. We share
+    # the observability bucket across all three by differentiating via
+    # storage_prefix within the bucket.
     blocks_storage:
       backend: s3
+      storage_prefix: "blocks"
       s3:
         bucket_name: ""     # injected
     ruler_storage:
       backend: s3
+      storage_prefix: "ruler"
       s3:
         bucket_name: ""     # injected
     alertmanager_storage:
       backend: s3
+      storage_prefix: "alertmanager"
       s3:
         bucket_name: ""     # injected
 
