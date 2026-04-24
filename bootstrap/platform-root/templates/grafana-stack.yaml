@@ -111,8 +111,19 @@ spec:
             value: "{{ .Values.global.storageAccountName }}"
           - name: serviceAccount.annotations.azure\.workload\.identity/client-id
             value: "{{ .Values.identity.loki.clientId }}"
+        {{- else if eq .Values.global.provider "aws" }}
+        parameters:
+          - name: loki.storage.bucketNames.chunks
+            value: "{{ .Values.global.observabilityBucketName }}"
+          - name: loki.storage.bucketNames.ruler
+            value: "{{ .Values.global.observabilityBucketName }}"
+          - name: loki.storage.bucketNames.admin
+            value: "{{ .Values.global.observabilityBucketName }}"
+          - name: loki.storage.s3.region
+            value: "{{ .Values.global.region }}"
+          - name: serviceAccount.annotations.eks\.amazonaws\.com/role-arn
+            value: "{{ .Values.identity.loki.roleArn }}"
         {{- end }}
-        {{- /* AWS: S3 bucket + IRSA wiring read from loki-values-aws.yaml — no helm parameters needed here. */}}
     - repoURL: {{ .Values.platformRepoUrl }}
       targetRevision: {{ .Values.platformVersion }}
       ref: values
@@ -171,8 +182,21 @@ spec:
             value: "{{ .Values.global.storageAccountName }}"
           - name: serviceAccount.annotations.azure\.workload\.identity/client-id
             value: "{{ .Values.identity.mimir.clientId }}"
+        {{- else if eq .Values.global.provider "aws" }}
+        parameters:
+          - name: mimir.structuredConfig.common.storage.s3.bucket_name
+            value: "{{ .Values.global.observabilityBucketName }}"
+          - name: mimir.structuredConfig.common.storage.s3.region
+            value: "{{ .Values.global.region }}"
+          - name: mimir.structuredConfig.blocks_storage.s3.bucket_name
+            value: "{{ .Values.global.observabilityBucketName }}"
+          - name: mimir.structuredConfig.ruler_storage.s3.bucket_name
+            value: "{{ .Values.global.observabilityBucketName }}"
+          - name: mimir.structuredConfig.alertmanager_storage.s3.bucket_name
+            value: "{{ .Values.global.observabilityBucketName }}"
+          - name: serviceAccount.annotations.eks\.amazonaws\.com/role-arn
+            value: "{{ .Values.identity.mimir.roleArn }}"
         {{- end }}
-        {{- /* AWS: S3 bucket + IRSA wiring read from mimir-values-aws.yaml — no helm parameters needed here. */}}
     - repoURL: {{ .Values.platformRepoUrl }}
       targetRevision: {{ .Values.platformVersion }}
       ref: values

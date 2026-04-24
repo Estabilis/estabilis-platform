@@ -1,0 +1,47 @@
+# AWS-specific Mimir values
+# Loaded in addition to mimir-values.yaml when provider=aws.
+#
+# Wiring (injected via helm.parameters from platform-root grafana-stack.yaml
+# template's AWS branch):
+#   - mimir.structuredConfig.common.storage.s3.bucket_name   → global.observabilityBucketName
+#   - mimir.structuredConfig.common.storage.s3.region        → global.region
+#   - mimir.structuredConfig.blocks_storage.s3.bucket_name   → global.observabilityBucketName
+#   - mimir.structuredConfig.ruler_storage.s3.bucket_name    → global.observabilityBucketName
+#   - serviceAccount.annotations.eks.amazonaws.com/role-arn  → identity.mimir.roleArn
+#
+# IAM: aws_iam_role.mimir has s3:{Get,Put,Delete,List}Object on the
+# observability bucket (v0.19.0 broadened to bucket-wide so the mimir S3
+# backend can write at bucket root).
+
+mimir:
+  structuredConfig:
+    common:
+      storage:
+        backend: s3
+        s3:
+          bucket_name: ""   # injected
+          region: ""        # injected
+          insecure: false
+    blocks_storage:
+      backend: s3
+      s3:
+        bucket_name: ""     # injected
+    ruler_storage:
+      backend: s3
+      s3:
+        bucket_name: ""     # injected
+    alertmanager_storage:
+      backend: s3
+      s3:
+        bucket_name: ""     # injected
+
+global:
+  # No Azure Workload Identity labels on AWS; IRSA works via the
+  # serviceAccount annotation below.
+  podLabels: {}
+
+serviceAccount:
+  create: true
+  name: grafana-mimir
+  annotations:
+    eks.amazonaws.com/role-arn: ""   # injected

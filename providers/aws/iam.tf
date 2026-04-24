@@ -130,9 +130,14 @@ data "aws_iam_policy_document" "loki_s3" {
       "s3:ListBucket",
       "s3:GetBucketLocation",
     ]
+    # Bucket-wide access: the loki chart (6.54) does not support a global
+    # object-key prefix, so objects land at bucket root. Loki + mimir share
+    # the observability bucket and each has full access. Narrowing to a
+    # per-component prefix would require provisioning separate buckets
+    # (tracked as a follow-up if isolation becomes a hard requirement).
     resources = [
       aws_s3_bucket.observability.arn,
-      "${aws_s3_bucket.observability.arn}/loki/*",
+      "${aws_s3_bucket.observability.arn}/*",
     ]
   }
 
@@ -195,9 +200,10 @@ data "aws_iam_policy_document" "mimir_s3" {
       "s3:ListBucket",
       "s3:GetBucketLocation",
     ]
+    # See comment on loki_s3 — bucket-wide access, shared with loki.
     resources = [
       aws_s3_bucket.observability.arn,
-      "${aws_s3_bucket.observability.arn}/mimir/*",
+      "${aws_s3_bucket.observability.arn}/*",
     ]
   }
 

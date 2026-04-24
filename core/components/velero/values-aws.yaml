@@ -1,0 +1,39 @@
+# AWS-specific Velero values
+# Loaded in addition to values.yaml when provider=aws.
+#
+# Wiring (injected via helm.parameters from platform-root velero.yaml
+# template's AWS branch):
+#   - configuration.backupStorageLocation[0].bucket          → global.veleroBackupBucketName
+#   - configuration.backupStorageLocation[0].config.region   → global.region
+#   - configuration.volumeSnapshotLocation[0].config.region  → global.region
+#   - serviceAccount.server.annotations.eks.amazonaws.com/role-arn → identity.velero.roleArn
+#   - schedules.platform-daily.schedule                      → global.veleroBackupSchedule
+#   - schedules.platform-daily.template.ttl                  → global.veleroBackupRetentionHours (h0m0s suffix)
+
+configuration:
+  backupStorageLocation:
+    - name: default
+      provider: aws
+      bucket: ""                   # injected
+      config:
+        region: ""                 # injected
+  volumeSnapshotLocation:
+    - name: default
+      provider: aws
+      config:
+        region: ""                 # injected
+
+initContainers:
+  - name: velero-plugin-for-aws
+    image: velero/velero-plugin-for-aws:v1.12.0
+    imagePullPolicy: IfNotPresent
+    volumeMounts:
+      - mountPath: /target
+        name: plugins
+
+# AWS EKS uses generic node pools; no provider-specific tolerations.
+
+serviceAccount:
+  server:
+    annotations:
+      eks.amazonaws.com/role-arn: ""   # injected

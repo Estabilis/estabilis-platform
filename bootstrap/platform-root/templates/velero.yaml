@@ -44,8 +44,21 @@ spec:
             value: "{{ .Values.global.veleroBackupSchedule }}"
           - name: schedules.platform-daily.template.ttl
             value: "{{ .Values.global.veleroBackupRetentionHours }}h0m0s"
+        {{- else if eq .Values.global.provider "aws" }}
+        parameters:
+          - name: configuration.backupStorageLocation[0].bucket
+            value: "{{ .Values.global.veleroBackupBucketName }}"
+          - name: configuration.backupStorageLocation[0].config.region
+            value: "{{ .Values.global.region }}"
+          - name: configuration.volumeSnapshotLocation[0].config.region
+            value: "{{ .Values.global.region }}"
+          - name: serviceAccount.server.annotations.eks\.amazonaws\.com/role-arn
+            value: "{{ .Values.identity.velero.roleArn }}"
+          - name: schedules.platform-daily.schedule
+            value: "{{ .Values.global.veleroBackupSchedule }}"
+          - name: schedules.platform-daily.template.ttl
+            value: "{{ .Values.global.veleroBackupRetentionHours }}h0m0s"
         {{- end }}
-        {{- /* AWS reads all provider wiring from core/components/velero/values-aws.yaml — no extra helm parameters needed. */}}
     - repoURL: {{ .Values.platformRepoUrl }}
       targetRevision: {{ .Values.platformVersion }}
       ref: values

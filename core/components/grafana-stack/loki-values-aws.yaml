@@ -1,0 +1,50 @@
+# AWS-specific Loki values
+# Loaded in addition to loki-values.yaml when provider=aws.
+#
+# Wiring requirements (all injected via helm.parameters from platform-root
+# grafana-stack.yaml template's AWS branch):
+#   - loki.storage.bucketNames.{chunks,ruler,admin}  → global.observabilityBucketName
+#   - loki.storage.s3.region                         → global.region
+#   - serviceAccount.annotations.<role-arn>          → identity.loki.roleArn
+#
+# IAM: aws_iam_role.loki has s3:{Get,Put,Delete,List}Object on the
+# observability bucket. v0.19.0 broadened the scope from /loki/* to the
+# whole bucket (loki chart 6.54 does not support a global object prefix;
+# objects land at bucket root).
+
+loki:
+  storage:
+    type: s3
+    bucketNames:
+      chunks: ""   # injected
+      ruler: ""    # injected
+      admin: ""    # injected
+    s3:
+      region: ""   # injected
+      s3ForcePathStyle: false
+      insecure: false
+  compactor:
+    delete_request_store: s3
+  schemaConfig:
+    configs:
+      - from: "2024-01-01"
+        store: tsdb
+        object_store: s3
+        schema: v13
+        index:
+          prefix: loki_index_
+          period: 24h
+
+serviceAccount:
+  create: true
+  name: grafana-loki
+  annotations:
+    eks.amazonaws.com/role-arn: ""   # injected
+
+singleBinary:
+  # AWS EKS uses generic node pools; no provider-specific tolerations here.
+  # The platform-level node selector + estabilis.io/workload-type toleration
+  # from loki-values.yaml already places loki on platform nodes.
+  serviceAccount:
+    create: false
+    name: grafana-loki
