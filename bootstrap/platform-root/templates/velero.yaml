@@ -24,8 +24,8 @@ spec:
           {{- include "platform-root.schedulingValuesTopLevel" (dict
                 "mode" (default "auto" (index .Values.scheduling "velero"))
              ) | nindent 10 }}
+        {{- if eq .Values.global.provider "azure" }}
         parameters:
-          {{- if eq .Values.global.provider "azure" }}
           - name: configuration.backupStorageLocation[0].bucket
             value: "{{ .Values.global.veleroBackupContainerName }}"
           - name: configuration.backupStorageLocation[0].config.storageAccount
@@ -44,9 +44,8 @@ spec:
             value: "{{ .Values.global.veleroBackupSchedule }}"
           - name: schedules.platform-daily.template.ttl
             value: "{{ .Values.global.veleroBackupRetentionHours }}h0m0s"
-          {{- else if eq .Values.global.provider "aws" }}
-          # AWS — to be implemented
-          {{- end }}
+        {{- end }}
+        {{- /* AWS reads all provider wiring from core/components/velero/values-aws.yaml — no extra helm parameters needed. */}}
     - repoURL: {{ .Values.platformRepoUrl }}
       targetRevision: {{ .Values.platformVersion }}
       ref: values
