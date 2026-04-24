@@ -1,5 +1,64 @@
 # Changelog
 
+## [0.20.1] - 2026-04-24
+
+### Fixed — Repo-creds collision when GitHub App is configured
+
+The `platform-secrets` chart emits two `ExternalSecret` resources
+(`repo-config-client`, `repo-client-gitops`) that produce argocd
+`type: repository` Secrets with per-repo URL + token. When a GitHub
+App is ALSO configured (via `modules/github-app-credentials/`, new
+in v0.18.0), the resulting `repo-creds` Secret covers the whole org
+by prefix match.
+
+ArgoCD's repo matching prefers `type: repository` (exact URL) over
+`type: repo-creds` (prefix). If the per-repo `password` field is
+empty/placeholder — which happens on AWS when the `configRepoToken`
+and `clientGitopsRepoToken` secrets have not been populated in AWS
+Secrets Manager (the default, since TF does not provision them) —
+ArgoCD authenticates with the empty/placeholder value and fails:
+
+```
+level=error msg="Failed to get git client for repo
+  https://github.com/<org>/<repo>.git: failed to list refs:
+  authentication required: Invalid username or token.
+  Password authentication is not supported for Git operations."
+```
+
+This blocks platform-root `$overrides` source resolution and every
+child Application goes `ComparisonError` until the placeholders are
+replaced with real tokens — defeating the purpose of having the
+GitHub App in the first place.
+
+### Fix
+
+- `core/components/platform-secrets/templates/argocd.yaml`: both
+  ExternalSecrets now gated on
+  `and .Values.<url> (not .Values.githubAppEnabled)` — so they only
+  render on deployments that lack a GitHub App (legacy PAT path).
+- `core/components/platform-secrets/values.yaml`:
+  `githubAppEnabled: false` default.
+- `bootstrap/platform-root/templates/platform-secrets.yaml` passes
+  `githubAppEnabled = (ne global.githubAppID "")` as helm parameter.
+
+### Azure impact
+
+Neutral. Existing Azure deployments that do not set
+`github_app_id` (most or all of them today) get
+`githubAppEnabled=false` → gate behaves identically to pre-0.20.1 →
+the per-repo ExternalSecrets still render exactly as before. Azure
+deployments that later adopt the GitHub App module
+(cloud-agnostic since v0.18.0) benefit from the same collision fix.
+
+### Migration
+
+v0.20.0 → v0.20.1 on AWS with GitHub App: pure chart update, no TF.
+After bump + sync, manually delete the stale
+`repo-config-client` and `repo-client-gitops` Secrets in the `argocd`
+namespace (they are no longer managed by the ExternalSecrets) so that
+ArgoCD falls back to the `github-app-<org>` repo-creds Secret for
+repo auth.
+
 ## [0.20.0] - 2026-04-24
 
 ### Added — CNPG Postgres Cluster on AWS (Barman Cloud → S3 via IRSA)
