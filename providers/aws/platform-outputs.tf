@@ -112,6 +112,15 @@ resource "kubernetes_config_map" "platform_infrastructure" {
 
     # Hub Secrets Manager prefix (for workload-operator to publish hub-registrar-token)
     "hubSecretsPathPrefix" = var.shared_hub_secrets_enabled ? local.shared_hub_secrets_prefix_effective : ""
+
+    # GitHub App — non-sensitive identifiers. The App ID and Installation
+    # ID are public identifiers that ArgoCD needs to build installation
+    # tokens (paired with the private key from the Secret). The private
+    # key stays in AWS Secrets Manager and is never exposed in the
+    # ConfigMap.
+    "global.githubAppID"             = var.github_app_id
+    "global.githubAppInstallationID" = var.github_app_installation_id
+    "global.githubOrgUrl"            = var.github_org_url
   }
 }
 
