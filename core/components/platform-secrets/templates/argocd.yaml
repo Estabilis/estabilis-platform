@@ -1,4 +1,12 @@
-{{- if .Values.configRepoUrl }}
+{{- /* Per-repo PAT ExternalSecrets are skipped when the cluster has
+       a GitHub App credentials Secret wired (githubAppEnabled=true).
+       ArgoCD's `type: repository` secrets match by exact URL and
+       outrank `type: repo-creds` prefix matches — so leaving both in
+       place makes ArgoCD prefer the per-repo PAT (empty/unpopulated
+       by default on AWS), breaking repo auth. With GitHub App
+       configured, the org-wide repo-creds Secret covers every repo
+       under the org without needing these per-repo entries. */}}
+{{- if and .Values.configRepoUrl (not .Values.githubAppEnabled) }}
 apiVersion: external-secrets.io/v1
 kind: ExternalSecret
 metadata:
@@ -29,7 +37,7 @@ spec:
         key: {{ .Values.kvSecrets.configRepoToken | quote }}
 {{- end }}
 ---
-{{- if .Values.clientGitopsRepoUrl }}
+{{- if and .Values.clientGitopsRepoUrl (not .Values.githubAppEnabled) }}
 apiVersion: external-secrets.io/v1
 kind: ExternalSecret
 metadata:

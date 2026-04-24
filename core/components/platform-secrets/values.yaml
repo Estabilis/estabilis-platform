@@ -15,6 +15,16 @@ acrLoginServer: ""
 # its own `components.opencost` value.
 opencostEnabled: true
 
+# GitHub App credentials Secret is wired by the estabilis-platform
+# `github-app-credentials` module (providers/aws/github-app.tf). When
+# present, it covers all repos under the configured org via ArgoCD's
+# `argocd.argoproj.io/secret-type: repo-creds` prefix match, so the
+# per-repo PAT ExternalSecrets (repo-config-client, repo-client-gitops)
+# below are redundant AND actively harmful: `type: repository` secrets
+# outrank `type: repo-creds` and break auth when their `password` field
+# holds a placeholder.
+githubAppEnabled: false
+
 # Key Vault secret names — must exist in Key Vault before platform deploy
 kvSecrets:
   configRepoToken: "platform-config-repo-token"
