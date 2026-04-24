@@ -32,6 +32,26 @@ configs:
     policy.default: "role:readonly"
     scopes: "[groups]"
   cm:
+    # Force a periodic hard reconcile (re-clone the repo even when
+    # refs look unchanged). Upstream default is `0s` which disables
+    # hard reconciliation entirely — the application-controller then
+    # relies on the repo-server cache, which can go stale after a
+    # fresh push (especially on multi-source apps with $values: the
+    # `main` ref gets a new SHA but cached manifests stick around).
+    # Observed 2026-04-24 on caas-backoffice-topazio-api: writeback
+    # PR merged → `git show origin/main` pointed at the new values
+    # → Application reported Synced+Healthy with the OLD Deployment
+    # spec until `argocd.argoproj.io/refresh=hard` was annotated
+    # manually. Setting a non-zero TTL makes that invalidation
+    # happen automatically on a cadence (every 1h here — cheap, one
+    # re-clone per app per hour, and bounds the worst-case stale
+    # window).
+    #
+    # Better fix is an ADO-to-ArgoCD webhook (invalidate instantly
+    # on push) — tracked as a follow-up issue, since it needs a
+    # public ArgoCD ingress or tunnel + shared secret setup. 1h is
+    # the backstop until that lands.
+    timeout.hard.reconciliation: "1h"
     resource.customizations.ignoreDifferences.all: |
       jqPathExpressions:
         - .metadata.labels."estabilis.io/managed-by"
