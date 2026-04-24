@@ -1,5 +1,60 @@
 # Changelog
 
+## [0.18.0] - 2026-04-24
+
+### Added — `_argocd_redis_password` in platform-infrastructure-sensitive Secret (AWS)
+
+The AWS provider already generated a random ArgoCD Redis password
+(`random_password.argocd_redis` in `secrets-manager.tf`, in place
+since the initial AWS provider) and published it to AWS Secrets
+Manager at `${secrets_path_prefix}/platform-argocd-redis-password`.
+What was missing: exposing the value to `estabilis upstart` so it can
+**pre-create** the `argocd-redis` Kubernetes Secret *before* the
+helm install, which lets the chart skip its `redis-secret-init`
+bootstrap Job.
+
+This release adds one field to the `platform-infrastructure-sensitive`
+Kubernetes Secret written by `platform-outputs.tf`:
+
+```yaml
+_argocd_redis_password: <random_password.argocd_redis.result>
+```
+
+### Why this matters
+
+Consistency with the Azure bootstrap flow, and a concrete deadlock
+fix on fresh EKS hubs. Observed on the cortex test deployment
+(2026-04-24): the helm install of ArgoCD left the
+`argocd-redis-secret-init` Job in `Pending` when the `argocd`
+namespace was not covered by a Fargate Profile. The CLI's
+`_helm_install_argocd` sets `redisSecretInit.enabled = false` when
+it has a redis password to pre-create the Secret, avoiding the Job
+entirely — but the Azure path relies on an `az keyvault secret show`
+lookup that has no AWS analogue. Exposing the value in the K8s Secret
+gives the CLI a cloud-agnostic read path.
+
+### Cloud-agnostic convention
+
+The name `_argocd_redis_password` follows the underscore-prefix
+convention already in use by `params.py` for bootstrap-only values
+that never render into chart Helm parameters. Azure's CLI path
+(`az keyvault secret show` lookup) continues to work as before — this
+release only adds the AWS path. A follow-up ADR will propose
+migrating Azure to write the same K8s Secret field, eliminating the
+az-CLI dependency entirely.
+
+### Migration
+
+Operators with an existing AWS deployment: next `terraform apply`
+updates the K8s Secret `platform-infrastructure-sensitive` with the
+new field. No destroy, no recreation. The value was already being
+generated — just not exposed.
+
+### Files
+
+- `providers/aws/platform-outputs.tf`: add `_argocd_redis_password` to the K8s Secret data map.
+- `CHANGELOG.md`: v0.18.0 entry.
+
 ## [0.17.2] - 2026-04-24
 
 ### Fixed — MNG `node_group_name_prefix` overflow + Karpenter outputs under `hybrid` mode

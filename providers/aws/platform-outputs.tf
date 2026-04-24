@@ -154,6 +154,21 @@ resource "kubernetes_secret" "platform_infrastructure" {
 
     # Cloudflare API token — only populated when dns_provider = "cloudflare".
     "global.cloudflareApiToken" = var.dns_provider == "cloudflare" ? var.cloudflare_api_token : ""
+
+    # ArgoCD Redis password — consumed by `estabilis upstart` to pre-create
+    # the argocd-redis Kubernetes Secret BEFORE helm install. Without it the
+    # chart's redis-secret-init Job runs, which on fresh clusters can hang
+    # (observed on EKS with Fargate Profile not covering the argocd namespace
+    # on first try). The password is generated once by the
+    # `random_password.argocd_redis` resource in secrets-manager.tf and also
+    # published to AWS Secrets Manager under
+    # `${secrets_path_prefix}/platform-argocd-redis-password` for
+    # ExternalSecrets reconcile later on.
+    #
+    # This mirrors the Azure equivalent, but replaces the `az keyvault secret
+    # show` lookup path the CLI does today with a direct K8s Secret read —
+    # cloud-agnostic, no CLI dependency.
+    "_argocd_redis_password" = random_password.argocd_redis.result
   }
 }
 
