@@ -1,5 +1,81 @@
 # Changelog
 
+## [0.18.2] - 2026-04-24
+
+### Fixed — AWS platform-root seed: `velero` Application rendering `helm.parameters: null` + AppProject gate still keyed on legacy `configRepoVersion`
+
+Two AWS-seed bugs surfaced by the cortex EKS first-seed on 2026-04-24
+after `v0.18.1` unblocked the `clientGitopsRepoRevision` key mismatch.
+
+#### 1. `bootstrap/platform-root/templates/velero.yaml` — empty `parameters:` key on AWS
+
+The `velero` Application template emitted `parameters:` unconditionally,
+with an `azure` branch supplying parameters and an `aws` branch holding
+only a `# AWS — to be implemented` comment. Rendered output on AWS:
+
+```yaml
+helm:
+  valueFiles: [...]
+  parameters:
+```
+
+which YAML parses as `parameters: null`. The ArgoCD Application CRD
+rejects `null` for `spec.sources[].helm.parameters` (expects an array),
+so `platform-root` sync aborted mid-flight:
+
+```
+Application.argoproj.io "velero" is invalid:
+  spec.sources[0].helm.parameters: Invalid value: "null":
+  spec.sources[0].helm.parameters in body must be of type array: "null"
+```
+
+Downstream Applications never reached Synced state because the apply
+batch aborted before reconciling them.
+
+**Fix:** move `parameters:` inside the Azure provider branch so AWS
+simply omits the key. AWS velero reads its provider wiring from
+`core/components/velero/values-aws.yaml` — no helm parameter overrides
+needed.
+
+#### 2. `bootstrap/platform-root/templates/argocd-project.yaml` — `sourceRepos` gate still requires legacy `configRepoVersion`
+
+Three `AppProject.sourceRepos` blocks (the `platform`, `workload-baseline`,
+and `applications` projects) gated inclusion of `configRepoUrl` on
+`and .Values.configRepoUrl .Values.configRepoVersion`. After ADR 0020
+(v0.13.0) migrated own-content repo refs to `*Revision` keys, clients
+using only the new `configRepoRevision` (e.g. cortex) never added their
+config repo to `sourceRepos`, producing:
+
+```
+InvalidSpecError:
+  application repo <config-repo> is not permitted in project 'platform'
+```
+
+Every child Application with an `$overrides` source failed spec
+validation. The sibling `clientGitopsRepoUrl` gate (lines 20 and 145)
+already requires only the URL — the asymmetry with `configRepoUrl` was
+pre-existing.
+
+**Fix:** drop the version requirement on all three gates. Align with
+the `clientGitopsRepoUrl` pattern — the URL alone is sufficient to
+authorize the repo as a source. Legacy clients using `configRepoVersion`
+are unaffected; new clients using `configRepoRevision` start working.
+
+### Migration
+
+Operators on `v0.18.1` on AWS: bump to `v0.18.2`, `terraform apply`
+(no Terraform-tracked resources change — this only updates Helm
+templates sourced by `platform-root` via `$values`). Trigger a sync /
+hard refresh of `platform-root`; the helm template re-renders without
+the `null` parameters error and the `platform` AppProject
+`sourceRepos` now includes `configRepoUrl`.
+
+Azure is unaffected by bug #1 (Azure branch of the template was already
+correct). Azure is unaffected by bug #2 in practice because existing
+Azure clients set the legacy `config_repo_version` tfvar — but the fix
+is safe for them and future-proofs the Azure migration to
+`configRepoRevision`.
+
 ## [0.18.1] - 2026-04-24
 
 ### Fixed — ConfigMap key mismatch: `clientGitopsRevision` → `clientGitopsRepoRevision`
