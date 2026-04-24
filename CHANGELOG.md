@@ -1,5 +1,66 @@
 # Changelog
 
+## [0.18.3] - 2026-04-24
+
+### Fixed — AWS null `helm.parameters` in `grafana-loki` and `grafana-mimir` (same anti-pattern as v0.18.2 velero fix)
+
+v0.18.2 patched the `velero` Application in `platform-root` so the
+`parameters:` block is gated behind `{{- if eq .Values.global.provider
+"azure" }}`. The cortex AWS seed on 2026-04-24 then advanced past
+velero, into sync-wave 8, and hit the SAME anti-pattern in two more
+Applications rendered from `bootstrap/platform-root/templates/grafana-stack.yaml`:
+
+```
+Application.argoproj.io "grafana-loki" is invalid:
+  spec.sources[0].helm.parameters: Invalid value: "null":
+  spec.sources[0].helm.parameters in body must be of type array: "null"
+Application.argoproj.io "grafana-mimir" is invalid:
+  spec.sources[0].helm.parameters: Invalid value: "null":
+  spec.sources[0].helm.parameters in body must be of type array: "null"
+```
+
+Same shape as the velero bug: `parameters:` emitted unconditionally,
+Azure branch populated, AWS branch holding only a `# AWS — to be
+implemented` comment. On AWS the block renders as empty → YAML parses
+as `null` → CRD rejection → platform-root sync aborts mid-wave,
+blocking all later Applications from reconciling.
+
+### Fix
+
+Move `parameters:` inside the `{{- if azure }}` branch for both
+`grafana-loki` and `grafana-mimir`. AWS reads provider wiring from
+`core/components/grafana-stack/loki-values-aws.yaml` /
+`mimir-values-aws.yaml` — no helm parameter overrides needed (matches
+what velero.yaml already does in v0.18.2).
+
+### Audit — is the anti-pattern anywhere else?
+
+Cataloged every template under `bootstrap/platform-root/templates/*.yaml`
+with a `parameters:` block inside a provider conditional. Besides
+velero (fixed in v0.18.2) and grafana-loki/grafana-mimir (fixed here):
+
+- `cert-manager.yaml` — AWS branch IS populated (sets IRSA role-arn); safe.
+- `external-secrets.yaml` — AWS branch IS populated + unconditional
+  `installCRDs=false` always keeps the array non-empty; safe.
+- `external-dns.yaml` — unconditional `domainFilters[0]` + `txtOwnerId`
+  always keep the array non-empty; the AWS dnsProvider branch has a
+  TODO comment but it's additive, not a leading `parameters: []`; safe.
+- `cluster-secret-store.yaml` — whole Application is gated on
+  `provider == azure`; on AWS, no Application is emitted (different
+  gap — AWS ClusterSecretStore needs a separate implementation, tracked
+  elsewhere). Not a null-params bug.
+
+### Migration
+
+Operators on `v0.18.2` on AWS: bump to `v0.18.3`, `terraform apply`
+(no Terraform-tracked resources change — Helm template update only).
+Trigger a fresh sync of `platform-root` (use the top-level `operation`
+field on the Application, not `spec.operation`). Children on wave 8
+should reconcile.
+
+Azure is unaffected — Azure branches render their parameters as
+before.
+
 ## [0.18.2] - 2026-04-24
 
 ### Fixed — AWS platform-root seed: `velero` Application rendering `helm.parameters: null` + AppProject gate still keyed on legacy `configRepoVersion`

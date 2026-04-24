@@ -105,19 +105,14 @@ spec:
                 "mode" $modeIngester
                 "paths" (list "ingester")
              ) | nindent 10 }}
+        {{- if eq .Values.global.provider "azure" }}
         parameters:
-          {{- if eq .Values.global.provider "azure" }}
           - name: loki.storage.azure.accountName
             value: "{{ .Values.global.storageAccountName }}"
           - name: serviceAccount.annotations.azure\.workload\.identity/client-id
             value: "{{ .Values.identity.loki.clientId }}"
-          {{- else if eq .Values.global.provider "aws" }}
-          # AWS — to be implemented
-          # - name: loki.storage.s3.bucketname
-          #   value: "{{ .Values.global.lokiBucket }}"
-          # - name: serviceAccount.annotations.eks\.amazonaws\.com/role-arn
-          #   value: "{{ .Values.identity.loki.roleArn }}"
-          {{- end }}
+        {{- end }}
+        {{- /* AWS: S3 bucket + IRSA wiring read from loki-values-aws.yaml — no helm parameters needed here. */}}
     - repoURL: {{ .Values.platformRepoUrl }}
       targetRevision: {{ .Values.platformVersion }}
       ref: values
@@ -170,19 +165,14 @@ spec:
                 "mode" $modeIngester
                 "paths" (list "ingester")
              ) | nindent 10 }}
+        {{- if eq .Values.global.provider "azure" }}
         parameters:
-          {{- if eq .Values.global.provider "azure" }}
           - name: mimir.structuredConfig.common.storage.azure.account_name
             value: "{{ .Values.global.storageAccountName }}"
           - name: serviceAccount.annotations.azure\.workload\.identity/client-id
             value: "{{ .Values.identity.mimir.clientId }}"
-          {{- else if eq .Values.global.provider "aws" }}
-          # AWS — to be implemented
-          # - name: mimir.structuredConfig.common.storage.s3.bucket_name
-          #   value: "{{ .Values.global.mimirBucket }}"
-          # - name: serviceAccount.annotations.eks\.amazonaws\.com/role-arn
-          #   value: "{{ .Values.identity.mimir.roleArn }}"
-          {{- end }}
+        {{- end }}
+        {{- /* AWS: S3 bucket + IRSA wiring read from mimir-values-aws.yaml — no helm parameters needed here. */}}
     - repoURL: {{ .Values.platformRepoUrl }}
       targetRevision: {{ .Values.platformVersion }}
       ref: values
