@@ -7,6 +7,14 @@ clientGitopsRepoUrl: ""
 # ACR OCI credentials — only created when acrLoginServer is set
 acrLoginServer: ""
 
+# Opencost ExternalSecrets — only created when opencostEnabled is true.
+# Set to false on deployments that disable opencost via
+# components.opencost: false in platform-root overrides, so the chart
+# does not attempt to render ExternalSecrets into a non-existent
+# opencost namespace. The platform-root template passes this flag from
+# its own `components.opencost` value.
+opencostEnabled: true
+
 # Key Vault secret names — must exist in Key Vault before platform deploy
 kvSecrets:
   configRepoToken: "platform-config-repo-token"
