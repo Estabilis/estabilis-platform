@@ -1,5 +1,49 @@
 # Changelog
 
+## [0.18.1] - 2026-04-24
+
+### Fixed — ConfigMap key mismatch: `clientGitopsRevision` → `clientGitopsRepoRevision`
+
+The AWS `platform-outputs.tf` wrote the client-gitops ref to the
+`platform-infrastructure` ConfigMap under the key `clientGitopsRevision`
+(no `Repo` in the middle). The `platform-root` chart expects
+`clientGitopsRepoRevision` (matching the pattern of
+`clientGitopsRepoUrl` + `clientGitopsRepoVersion`). See
+`bootstrap/platform-root/values.yaml:191` and
+`bootstrap/platform-root/templates/_helpers.tpl:120`.
+
+Result: when downstream operators pass the ConfigMap values through
+as Helm parameters (as the estabilis CLI and manual seed scripts
+both do), the key never lands on `.Values.clientGitopsRepoRevision`
+inside the chart. Combined with `clientGitopsRepoUrl` being set, the
+`platform-root.clientGitopsRefRequired` helper fires its `fail`:
+
+```
+execution error at (platform-root/templates/hub-client-apps.yaml:45:21):
+  clientGitopsRepoRevision (or legacy clientGitopsRepoVersion) is required
+  when clientGitopsRepoUrl is set
+```
+
+Observed 2026-04-24 on the cortex AWS seed: platform-root Application
+stuck in `ComparisonError` with exactly this helm template failure.
+
+### Fix
+
+Rename the key in `providers/aws/platform-outputs.tf` from
+`clientGitopsRevision` to `clientGitopsRepoRevision`. One-character-
+semantic change; no schema breakage for consumers because the old key
+was never consumed (nothing in the chart read it — that was the bug).
+
+### Migration
+
+Operators on `v0.18.0` on AWS: bump to `v0.18.1`, `terraform apply`
+(ConfigMap data updates in place, no infra changes). Re-trigger the
+platform-root Application (or the CLI re-runs the manifest generation)
+and the helm template completes.
+
+Azure is unaffected — `providers/azure/platform-outputs.tf` never
+wrote this key at all, so no drift existed.
+
 ## [0.18.0] - 2026-04-24
 
 ### Added — `modules/github-app-credentials/` (cloud-agnostic) + AWS caller

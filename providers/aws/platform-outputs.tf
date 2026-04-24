@@ -43,16 +43,16 @@ resource "kubernetes_config_map" "platform_infrastructure" {
 
   data = {
     # Platform versions + revisions (ADR 0020)
-    "platformRepoUrl"         = var.platform_repo_url
-    "platformVersion"         = var.platform_version
-    "platformRevision"        = local.platform_revision_effective
-    "configRepoUrl"           = var.config_repo_url
-    "configRepoVersion"       = var.config_repo_version
-    "configRepoRevision"      = local.config_repo_revision_effective
-    "clientGitopsRepoUrl"     = var.client_gitops_repo_url
-    "clientGitopsRepoVersion" = var.client_gitops_repo_version
-    "clientGitopsRevision"    = local.client_gitops_revision_effective
-    "deploymentId"            = var.deployment_id
+    "platformRepoUrl"          = var.platform_repo_url
+    "platformVersion"          = var.platform_version
+    "platformRevision"         = local.platform_revision_effective
+    "configRepoUrl"            = var.config_repo_url
+    "configRepoVersion"        = var.config_repo_version
+    "configRepoRevision"       = local.config_repo_revision_effective
+    "clientGitopsRepoUrl"      = var.client_gitops_repo_url
+    "clientGitopsRepoVersion"  = var.client_gitops_repo_version
+    "clientGitopsRepoRevision" = local.client_gitops_revision_effective
+    "deploymentId"             = var.deployment_id
 
     # Global
     "global.provider"         = "aws"
