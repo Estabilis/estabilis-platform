@@ -376,3 +376,34 @@ affinity:
 tolerations:
   {{- include "platform-root.schedulingTolerations" . | nindent 2 }}
 {{- end -}}
+
+{{- /*
+  componentsForwarding — emit `.Values.components` filtered by provider,
+  skipping AWS-only entries when global.provider != "aws". Used by the
+  network-policies and resource-quotas Application templates that hand
+  the components map to their gitops-side child charts.
+
+  Without this filter, AWS-only namespaces (which never come into
+  existence on Azure because their Application templates are gated on
+  global.provider == "aws") still get forwarded as components.{ns}=true,
+  causing the gitops charts to render NetworkPolicies / ResourceQuotas
+  for non-existent namespaces and producing permanent OutOfSync drift.
+
+  AWS-only set must match the gating clauses in:
+    - bootstrap/platform-root/templates/aws-load-balancer-controller.yaml
+    - bootstrap/platform-root/templates/karpenter.yaml (also gates karpenter-resources)
+    - bootstrap/platform-root/templates/metrics-server.yaml
+
+  Output: a `components:` block ready to nest under valuesObject.
+*/ -}}
+{{- define "platform-root.componentsForwarding" -}}
+{{- $awsOnly := list "aws-load-balancer-controller" "karpenter" "karpenter-resources" "metrics-server" -}}
+components:
+  {{- range $k, $v := .Values.components }}
+  {{- if and (has $k $awsOnly) (ne $.Values.global.provider "aws") }}
+  {{- /* skip AWS-only component on non-AWS provider — namespace doesn't exist */ -}}
+  {{- else }}
+  {{ $k | quote }}: {{ $v }}
+  {{- end }}
+  {{- end }}
+{{- end -}}
