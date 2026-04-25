@@ -689,6 +689,16 @@ variable "grafana_exposures" {
     allowed_cidrs = optional(string, "")
     issuer        = optional(string, "letsencrypt-production")
     basic_auth    = optional(bool, false)
+
+    # ALB-specific (only consumed when ingress_class = "alb").
+    # Provider-agnostic shape so Azure exposures keep the same type.
+    alb_group              = optional(string, "platform")
+    alb_scheme             = optional(string, "internet-facing")
+    alb_target_type        = optional(string, "ip")
+    alb_ssl_policy         = optional(string, "ELBSecurityPolicy-TLS13-1-2-2021-06")
+    alb_healthcheck_path   = optional(string, "")
+    alb_certificate_source = optional(string, "cert-manager")
+    alb_cloudflare_proxied = optional(bool, false)
   }))
   default = {}
 }
@@ -702,6 +712,15 @@ variable "loki_exposures" {
     allowed_cidrs = optional(string, "")
     issuer        = optional(string, "letsencrypt-production")
     basic_auth    = optional(bool, true)
+
+    # ALB-specific (only consumed when ingress_class = "alb").
+    alb_group              = optional(string, "platform")
+    alb_scheme             = optional(string, "internet-facing")
+    alb_target_type        = optional(string, "ip")
+    alb_ssl_policy         = optional(string, "ELBSecurityPolicy-TLS13-1-2-2021-06")
+    alb_healthcheck_path   = optional(string, "")
+    alb_certificate_source = optional(string, "cert-manager")
+    alb_cloudflare_proxied = optional(bool, false)
   }))
   default = {}
 }
@@ -715,6 +734,16 @@ variable "mimir_exposures" {
     allowed_cidrs = optional(string, "")
     issuer        = optional(string, "letsencrypt-production")
     basic_auth    = optional(bool, false)
+
+    # ALB-specific (only consumed when ingress_class = "alb").
+    # Provider-agnostic shape so Azure exposures keep the same type.
+    alb_group              = optional(string, "platform")
+    alb_scheme             = optional(string, "internet-facing")
+    alb_target_type        = optional(string, "ip")
+    alb_ssl_policy         = optional(string, "ELBSecurityPolicy-TLS13-1-2-2021-06")
+    alb_healthcheck_path   = optional(string, "")
+    alb_certificate_source = optional(string, "cert-manager")
+    alb_cloudflare_proxied = optional(bool, false)
   }))
   default = {}
 }
@@ -728,6 +757,16 @@ variable "argocd_exposures" {
     allowed_cidrs = optional(string, "")
     issuer        = optional(string, "letsencrypt-production")
     basic_auth    = optional(bool, false)
+
+    # ALB-specific (only consumed when ingress_class = "alb").
+    # Provider-agnostic shape so Azure exposures keep the same type.
+    alb_group              = optional(string, "platform")
+    alb_scheme             = optional(string, "internet-facing")
+    alb_target_type        = optional(string, "ip")
+    alb_ssl_policy         = optional(string, "ELBSecurityPolicy-TLS13-1-2-2021-06")
+    alb_healthcheck_path   = optional(string, "")
+    alb_certificate_source = optional(string, "cert-manager")
+    alb_cloudflare_proxied = optional(bool, false)
   }))
   default = {}
 }
@@ -741,6 +780,16 @@ variable "hubble_ui_exposures" {
     allowed_cidrs = optional(string, "")
     issuer        = optional(string, "letsencrypt-production")
     basic_auth    = optional(bool, false)
+
+    # ALB-specific (only consumed when ingress_class = "alb").
+    # Provider-agnostic shape so Azure exposures keep the same type.
+    alb_group              = optional(string, "platform")
+    alb_scheme             = optional(string, "internet-facing")
+    alb_target_type        = optional(string, "ip")
+    alb_ssl_policy         = optional(string, "ELBSecurityPolicy-TLS13-1-2-2021-06")
+    alb_healthcheck_path   = optional(string, "")
+    alb_certificate_source = optional(string, "cert-manager")
+    alb_cloudflare_proxied = optional(bool, false)
   }))
   default = {}
 }

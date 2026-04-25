@@ -1,5 +1,92 @@
 # Changelog
 
+## [0.24.0] - 2026-04-25
+
+### Added — ALB ingress support across all 5 `*-ingress` charts
+
+Closes the Traefik-only limitation flagged in ADR 0014. The five
+`*-ingress` charts (`argocd`, `grafana`, `loki`, `mimir`, `hubble-ui`)
+now branch on `ingress_class` per exposure profile:
+
+- `traefik` / `traefik-internal` → existing IngressRoute pattern with
+  Middlewares (ipAllowList, basicAuth via ESO).
+- `alb` → AWS Load Balancer Controller pattern. Renders an Ingress
+  with `alb.ingress.kubernetes.io/*` annotations + cert-manager
+  Certificate (DNS-01) OR ACM cert reference.
+
+#### Per-exposure new fields (provider-agnostic shape)
+
+Added to every `*_exposures` variable in BOTH `providers/aws/variables.tf`
+and `providers/azure/variables.tf` (Azure inert). All optional with
+sensible defaults derived from the legacy `cortex-eks-prod` config:
+
+| Field | Default | Purpose |
+|---|---|---|
+| `alb_group` | `"platform"` | `alb.ingress.kubernetes.io/group.name` — share ONE ALB across multiple Ingresses (cost optimization, ~$22/mo savings per shared group) |
+| `alb_scheme` | `"internet-facing"` | `internet-facing` or `internal` |
+| `alb_target_type` | `"ip"` | `ip` (Fargate-compatible) or `instance` |
+| `alb_ssl_policy` | `"ELBSecurityPolicy-TLS13-1-2-2021-06"` | TLS 1.3 with min 1.2 |
+| `alb_healthcheck_path` | `""` (chart default per-app) | argocd `/healthz`, grafana `/api/health`, loki/mimir `/ready`, hubble `/` |
+| `alb_certificate_source` | `"cert-manager"` | `"acm"` uses `global.acmCertificateArn`; `"cert-manager"` issues via DNS-01 |
+| `alb_cloudflare_proxied` | `false` | Sets `external-dns.alpha.kubernetes.io/cloudflare-proxied`. Always `false` recommended (orange cloud OFF) for source-IP allowlists to work |
+
+#### Source-IP allowlist on ALB
+
+Per-exposure `allowed_cidrs` now generates an
+`alb.ingress.kubernetes.io/conditions.<service-name>` annotation with
+the listener-rule condition (different mechanism from Traefik
+`Middleware.ipAllowList` but equivalent semantics).
+
+#### Basic auth limitation
+
+`basic_auth: true` + `ingress_class: "alb"` is **not supported** —
+ALB does not implement HTTP Basic Authentication natively (would
+require Cognito or Lambda integration). The chart `fail`s loud with a
+clear message explaining the limitation. Use Traefik for basic-auth
+exposures.
+
+#### Platform-root template gate
+
+The Traefik gate (`components.traefik != false`) is now relaxed: only
+required when at least one exposure targets a Traefik-style class.
+ALB-only exposures render even with Traefik disabled.
+
+#### `global.dnsProvider` + `global.acmCertificateArn` propagation
+
+Both values are now passed as helm parameters to the 5 `*-ingress`
+Applications, so the ALB chart branch can read them from
+`$.Values.global.*`. Previously inaccessible to the chart context.
+
+### Migration
+
+Operators on `v0.23.0` adopting ALB ingress for any platform app:
+
+1. Bump platform module ref to `v0.24.0`.
+2. In `terraform.tfvars`, add `ingress_class = "alb"` (and any of the
+   new `alb_*` fields) to the desired exposure profile, e.g.:
+   ```hcl
+   argocd_exposures = {
+     external = {
+       enabled                = true
+       host                   = "argocd.example.com"
+       ingress_class          = "alb"
+       allowed_cidrs          = "203.0.113.0/24"
+       alb_group              = "shared-apps"
+       alb_certificate_source = "cert-manager"
+     }
+   }
+   ```
+3. `terraform apply` — refresh ConfigMap data.
+4. Sync `argocd-ingress` (or whichever) Application. ALB provisions in
+   ~1-2min; external-dns publishes the record; cert-manager issues
+   the cert.
+
+### Azure impact
+
+Zero functional impact. Azure deployments never set
+`ingress_class = "alb"`; the new ALB fields on the exposure type are
+inert noise. The Traefik path is byte-identical to v0.23.0.
+
 ## [0.23.0] - 2026-04-25
 
 ### Added — AWS Load Balancer Controller Application + AppProject hardening

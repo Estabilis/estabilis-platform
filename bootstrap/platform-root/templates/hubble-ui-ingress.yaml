@@ -16,10 +16,12 @@
 {{- end }}
 {{- $exposures := fromJson $jsonStr -}}
 {{- $hasEnabled := false -}}
-{{- range $_, $exp := $exposures }}{{- if $exp.enabled }}{{- $hasEnabled = true }}{{- end }}{{- end }}
+{{- $hasTraefikExposure := false -}}
+{{- range $_, $exp := $exposures }}{{- if $exp.enabled }}{{- $hasEnabled = true }}{{- if ne $exp.ingress_class "alb" }}{{- $hasTraefikExposure = true }}{{- end }}{{- end }}{{- end }}
+{{- $traefikGate := or (eq $hasTraefikExposure false) (ne (index .Values.components "traefik") false) }}
 {{- $dataplane := index .Values.global "networkDataplane" | default "" -}}
 {{- if and
-      (ne (index .Values.components "traefik") false)
+      $traefikGate
       (eq (index .Values.components "hubble-ui" | default false) true)
       (eq $dataplane "cilium-acns")
       $hasEnabled }}
@@ -47,6 +49,12 @@ spec:
           - name: exposuresJson
             value: {{ $raw | quote }}
             forceString: true
+          {{- /* ALB ingress class consumes these via .Values.global.* in the chart.
+                 Ignored on Traefik path. */}}
+          - name: global.dnsProvider
+            value: "{{ .Values.global.dnsProvider }}"
+          - name: global.acmCertificateArn
+            value: "{{ .Values.global.acmCertificateArn }}"
     - repoURL: {{ .Values.platformRepoUrl }}
       targetRevision: {{ .Values.platformVersion }}
       ref: values
