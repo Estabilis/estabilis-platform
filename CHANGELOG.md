@@ -1,8 +1,64 @@
 # Changelog
 
+## [0.25.2] - 2026-04-25
+
+### Fixed — Properly delete node SG cluster-membership tag (v0.25.1 was a no-op)
+
+The v0.25.1 fix was based on a wrong assumption about ALB Controller's
+filter logic. We thought the controller filtered SGs by tag VALUE
+(matching `["owned", "shared"]` only); empirically it filters by tag
+KEY only. Setting `node_security_group_tags = { ... = "" }` produced a
+tag with empty value but the same key — controller still found two
+cluster-tagged SGs per ENI and continued to reject target rule
+injection. Validated end-to-end on cortex by enabling
+`grafana_exposures` after v0.25.1 apply: `Target.Timeout` returned
+immediately.
+
+Real fix: a `null_resource` with `provisioner "local-exec"` that calls
+`aws ec2 delete-tags` on the node SG, with `triggers = { always =
+timestamp() }` so it re-runs on every apply. The EKS module will
+re-assert the tag every plan/apply (its tags map is hardcoded — see
+node_groups.tf in terraform-aws-modules/eks), but this resource
+re-deletes it immediately afterward. The cluster steady state has the
+tag absent from the node SG, satisfying ALB Controller's "exactly one"
+constraint.
+
+Trade-off: terraform plan will show a small recurring drift in the
+node SG's `tags` attribute (the cluster-membership key being added
+back). This is expected; the apply restores the deleted state via the
+null_resource. We deliberately did NOT use a provider-level
+`ignore_tags` to suppress this drift, because it would also disable
+drift detection on the `aws_ec2_tag.existing_subnets_cluster_membership`
+resources from v0.25.0 (same key) — silently breaking subnet
+auto-discovery if the tag were ever removed externally. Tracking
+upstream: terraform-aws-modules/terraform-aws-eks#2997.
+
+### Migration
+
+For clusters that applied v0.25.1:
+
+1. `terraform apply` after pulling v0.25.2 — the null_resource runs
+   the delete-tags call. The empty-value `node_security_group_tags`
+   override is removed automatically.
+2. The `aws-load-balancer-controller` reconcile loop picks up within
+   ~30 s; no restart needed (the SG state changes invalidate its
+   filter result).
+
+For Azure clients: zero impact.
+
+### Removed (was never useful)
+
+- `node_security_group_tags = { "kubernetes.io/cluster/<name>" = "" }`
+  pseudo-fix from v0.25.1.
+
 ## [0.25.1] - 2026-04-25
 
-### Fixed — Empty `kubernetes.io/cluster/<name>` tag on node SG
+### Fixed — Empty `kubernetes.io/cluster/<name>` tag on node SG (NO-OP, see v0.25.2)
+
+> **Superseded by v0.25.2.** This release's approach (override the tag
+> value to `""`) does not actually fix the ALB Controller bug because
+> the controller filters by tag KEY, not value. Upgrade directly from
+> v0.25.0 → v0.25.2.
 
 Postmortem (immediate follow-on to v0.25.0): once the ACM cert + subnet
 tags landed and the ALB front-door provisioned, ALB Controller still
