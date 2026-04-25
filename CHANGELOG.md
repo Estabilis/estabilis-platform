@@ -1,5 +1,78 @@
 # Changelog
 
+## [0.22.0] - 2026-04-25
+
+### Added — `modules/cloudflare-credentials/` (cloud-agnostic) + AWS caller
+
+Mirrors the `modules/github-app-credentials/` shape introduced in v0.18.0.
+A cloud-agnostic Terraform module that creates a Kubernetes Secret with
+the Cloudflare API token + zone ID it scopes to, plus per-provider AWS
+Secrets Manager (or future Azure Key Vault) mirrors for audit / rotation.
+
+#### `modules/cloudflare-credentials/`
+
+- `main.tf` — `kubernetes_secret/cloudflare-credentials` in caller-provided
+  namespace (default `external-dns`; AWS caller overrides to `argocd` to
+  align with the Terraform-managed namespace).
+- `variables.tf` — `cloudflare_zone_id` (32-char hex), `cloudflare_api_token`
+  (sensitive, ≥20 chars), `domain` (lowercase DNS string), `namespace`,
+  `secret_name`. All fields validated.
+- `outputs.tf` — `secret_name`, `namespace`, `zone_id`, `domain`.
+- `versions.tf` — `kubernetes >= 2.30.0`.
+
+The module touches ONLY the Kubernetes cluster — zone management,
+firewall rules, etc. are out of scope. The Cloudflare zone must already
+exist; the token's permissions must include `Zone:DNS:Edit` and
+`Zone:Zone:Read`.
+
+#### AWS caller — `providers/aws/cloudflare.tf`
+
+- Calls `module.cloudflare_credentials` when
+  `var.dns_provider == "cloudflare"`.
+- Mirrors the API token in `aws_secretsmanager_secret.cloudflare_api_token`
+  under `<secrets_path_prefix>/platform-cloudflare-api-token`, encrypted
+  with `aws_kms_key.platform_secrets`. ExternalSecrets Operator can read
+  this entry post-bootstrap to reconcile the in-cluster Secret without a
+  Terraform apply on token rotation.
+- Resource policy applied when `secretsmanager_resource_policy_enabled`.
+
+The existing helm.parameter passthrough (`global.cloudflareApiToken`,
+`global.cloudflareZoneId` in the platform-infrastructure ConfigMap)
+**remains** — chart consumers (external-dns, cert-manager DNS-01
+ClusterIssuer) continue to consume that path. The new K8s Secret is the
+source-of-truth artifact for a future migration to ESO-based reconciliation.
+
+#### Azure caller — follow-up
+
+This release ships the AWS caller only. The Azure caller
+(`providers/azure/cloudflare.tf`) is a follow-up — the module's
+cloud-agnostic shape unblocks it without further changes. Existing
+Azure deployments using Cloudflare DNS (transfero HML) continue
+unaffected on the passthrough path.
+
+### Migration
+
+Operators on AWS at `v0.21.0` adopting Cloudflare DNS:
+
+1. Bump platform module ref to `v0.22.0`.
+2. Set in `terraform.tfvars`:
+   ```hcl
+   dns_provider       = "cloudflare"
+   cloudflare_zone_id = "<32-char zone id from Dashboard>"
+   ```
+3. In `secrets.auto.tfvars` (gitignored):
+   ```hcl
+   cloudflare_api_token = "<token with Zone:DNS:Edit + Zone:Zone:Read>"
+   ```
+4. `terraform apply` — provisions the K8s Secret + AWS SM mirror, sets
+   ConfigMap fields. external-dns + cert-manager continue working on the
+   passthrough; the new Secret is in place for a later migration PR.
+
+### Azure impact
+
+Zero. Module not yet called from Azure provider; existing Azure
+deployments unchanged.
+
 ## [0.21.0] - 2026-04-24
 
 ### Added — metrics-server (AWS) + Karpenter v1.12.0 (AWS) + ArgoCD AppProject whitelists
