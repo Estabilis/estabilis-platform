@@ -95,7 +95,7 @@ resource "cloudflare_record" "acm_validation" {
 
   zone_id = var.cloudflare_zone_id
   name    = trimsuffix(each.value.name, ".${var.domain}.")
-  value   = trimsuffix(each.value.record, ".")
+  content = trimsuffix(each.value.record, ".")
   type    = each.value.type
   ttl     = 60
   proxied = false

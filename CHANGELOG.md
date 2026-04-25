@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.26.1] - 2026-04-25
+
+### Fixed — `cloudflare_record.value` deprecation warning
+
+Cloudflare Terraform provider v4 deprecated the `value` argument in
+favor of `content`. Every `terraform plan/apply` against an
+`acm_enabled = true` cluster on the Cloudflare path emitted:
+
+```
+Warning: Argument is deprecated
+  with module.estabilis_platform.cloudflare_record.acm_validation[...]:
+  98:   value   = trimsuffix(each.value.record, ".")
+  `value` is deprecated in favour of `content` and will be removed in
+  the next major release.
+```
+
+The argument was added in v0.25.0 as part of the Cloudflare-validated
+ACM path. Fixed: `value` → `content` in
+`providers/aws/acm.tf:cloudflare_record.acm_validation`.
+
+Behaviour identical, no resource recreate.
+
 ## [0.26.0] - 2026-04-25
 
 ### Fixed — Persistent OutOfSync on `network-policies`, `resource-quotas`, `aws-load-balancer-controller`
