@@ -1,8 +1,19 @@
 {{- /*
-  ADR 0014 — one Ingress + Middlewares + Certificate per enabled exposure
-  profile. Backend: Service argocd-server (port 80) in the argocd namespace.
-  All resources live in argocd namespace to share Traefik's cross-namespace
-  Middleware reference capability.
+  ADR 0014 — one Ingress (+ Middlewares for Traefik / + ALB annotations
+  for AWS) per enabled exposure profile.
+
+  Backend: argocd-server (port 80) in the argocd namespace. All
+  resources live in argocd namespace to share Traefik's cross-namespace
+  Middleware reference capability (Traefik path) or to keep the
+  Ingress co-located with the backend Service (ALB path).
+
+  The chart branches on `$exp.ingress_class`:
+    - "traefik" / "traefik-internal" → Traefik IngressRoute pattern
+      with Middlewares for ipAllowList + basicAuth.
+    - "alb" → AWS Load Balancer Controller pattern with
+      `alb.ingress.kubernetes.io/*` annotations. ALB does NOT support
+      basic_auth natively (would require Cognito or Lambda); the
+      chart fails loud if the combination is configured.
 */ -}}
 {{- $raw := .Values.exposuresJson | default "{}" -}}
 {{- $jsonStr := $raw -}}
@@ -12,6 +23,90 @@
 {{- $exposures := fromJson $jsonStr -}}
 {{- range $profile, $exp := $exposures }}
 {{- if $exp.enabled }}
+{{- $isALB := eq $exp.ingress_class "alb" }}
+
+{{- if and $isALB $exp.basic_auth }}
+{{- fail (printf "argocd_exposures.%s: basic_auth=true is not supported when ingress_class=alb (use Cognito/OIDC integration via the alb_authorizer field — not yet implemented)" $profile) }}
+{{- end }}
+
+{{- if $isALB }}
+{{- /* ============================ ALB BRANCH ============================ */}}
+{{- $hcPath := default "/healthz" $exp.alb_healthcheck_path }}
+{{- $useACM := eq $exp.alb_certificate_source "acm" }}
+---
+{{- if not $useACM }}
+{{- /* cert-manager Certificate (DNS-01 issued); ALB references via Ingress TLS spec */}}
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: argocd-{{ $profile }}-tls
+  namespace: argocd
+  {{- include "estabilis.metadata" $ | nindent 2 }}
+spec:
+  secretName: argocd-{{ $profile }}-tls
+  issuerRef:
+    name: {{ $exp.issuer | default "letsencrypt-production" | quote }}
+    kind: ClusterIssuer
+  dnsNames:
+    - {{ $exp.host | quote }}
+---
+{{- end }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: argocd-{{ $profile }}
+  namespace: argocd
+  {{- include "estabilis.metadata" $ | nindent 2 }}
+  annotations:
+    {{- /* Core ALB annotations */}}
+    alb.ingress.kubernetes.io/scheme: {{ $exp.alb_scheme | quote }}
+    alb.ingress.kubernetes.io/target-type: {{ $exp.alb_target_type | quote }}
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS":443}]'
+    alb.ingress.kubernetes.io/ssl-policy: {{ $exp.alb_ssl_policy | quote }}
+    alb.ingress.kubernetes.io/healthcheck-path: {{ $hcPath | quote }}
+    {{- /* Group routes multiple Ingresses behind ONE shared ALB —
+          significant cost saver when several apps are exposed. */}}
+    alb.ingress.kubernetes.io/group.name: {{ $exp.alb_group | quote }}
+    {{- if $useACM }}
+    alb.ingress.kubernetes.io/certificate-arn: {{ $.Values.global.acmCertificateArn | quote }}
+    {{- end }}
+    {{- if $exp.allowed_cidrs }}
+    {{- /* ALB listener-rule condition (per-service). Restricts source IPs
+          at the listener level — different mechanism from Traefik
+          Middlewares but equivalent end result. */}}
+    alb.ingress.kubernetes.io/conditions.argocd-server: |-
+      [{"field":"source-ip","sourceIpConfig":{"values":[{{- $cidrs := list -}}{{- range splitList "," $exp.allowed_cidrs -}}{{- $cidrs = append $cidrs (printf "%q" (trim .)) -}}{{- end -}}{{ join "," $cidrs }}]}}]
+    {{- end }}
+    {{- if hasKey $.Values.global "dnsProvider" }}
+    {{- if eq $.Values.global.dnsProvider "cloudflare" }}
+    {{- /* Cloudflare DNS-only mode (orange cloud OFF) — preserves real
+          ALB IP for source-IP allowlist to work. With proxy ON, every
+          request appears to originate from Cloudflare CIDRs. */}}
+    external-dns.alpha.kubernetes.io/cloudflare-proxied: {{ $exp.alb_cloudflare_proxied | quote }}
+    {{- end }}
+    {{- end }}
+    external-dns.alpha.kubernetes.io/hostname: {{ $exp.host | quote }}
+spec:
+  ingressClassName: alb
+  rules:
+    - host: {{ $exp.host | quote }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: argocd-server
+                port:
+                  number: 80
+  {{- if not $useACM }}
+  tls:
+    - secretName: argocd-{{ $profile }}-tls
+      hosts:
+        - {{ $exp.host | quote }}
+  {{- end }}
+{{- else }}
+{{- /* ========================== TRAEFIK BRANCH ========================== */}}
 {{- $mwIPName := printf "argocd-%s-ipallowlist" $profile }}
 {{- $mwAuthName := printf "argocd-%s-auth" $profile }}
 ---
@@ -110,5 +205,6 @@ spec:
     - secretName: argocd-{{ $profile }}-tls
       hosts:
         - {{ $exp.host | quote }}
+{{- end }}
 {{- end }}
 {{- end }}
