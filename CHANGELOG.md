@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.27.1] - 2026-04-25
+
+### Bumped — `platformGitopsVersion: v0.37.0 → v0.37.1`
+
+Patch-only release. `estabilis-platform-gitops v0.37.1` ships a
+karpenter ResourceQuota fix (the v0.37.0 quota was undersized for
+the chart's actual defaults — 2 replicas × 500m/1Gi each exceeded
+the 500m/1Gi quota). This release updates the upstream default so
+new deployments and existing clusters consuming the chart default
+pick up the corrected quota automatically.
+
+No platform code changes.
+
 ## [0.27.0] - 2026-04-25
 
 ### Fixed — `network-policies` and `resource-quotas` forward AWS-only components on Azure
