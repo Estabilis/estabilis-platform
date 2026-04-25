@@ -292,3 +292,19 @@ resource "aws_ec2_tag" "existing_public_elb" {
   key         = "kubernetes.io/role/elb"
   value       = "1"
 }
+
+# Cluster-membership tag. ALB Controller filters subnets by
+# `kubernetes.io/cluster/<cluster-name>` to determine which subnets belong
+# to this cluster — without it, public ALB provisioning fails with
+# "couldn't auto-discover subnets: tagged for other clusters" when the VPC
+# is shared with another EKS cluster (e.g. legacy + new running side by
+# side during a migration). `shared` (vs `owned`) is appropriate because
+# the platform module does NOT own the subnet lifecycle in vpc_mode =
+# existing — it only annotates membership.
+resource "aws_ec2_tag" "existing_subnets_cluster_membership" {
+  for_each = var.vpc_mode == "existing" ? toset(concat(var.public_subnet_ids, var.private_subnet_ids)) : []
+
+  resource_id = each.value
+  key         = "kubernetes.io/cluster/${local.cluster_name}"
+  value       = "shared"
+}
