@@ -35,6 +35,7 @@ spec:
     - "https://kubernetes-sigs.github.io/metrics-server/"
     - "public.ecr.aws/karpenter"
     - "https://aws.github.io/eks-charts"
+    - "https://helm.releases.hashicorp.com"
     {{- /*
     Platform add-on repos: must match the repoURL emitted by
     platform-addons.yaml. ArgoCD 3.x requires OCI Helm repoURL WITHOUT
@@ -99,6 +100,8 @@ spec:
       namespace: karpenter
     - server: https://kubernetes.default.svc
       namespace: aws-load-balancer-controller
+    - server: https://kubernetes.default.svc
+      namespace: vault
     {{- range $name, $addon := .Values.platformAddons }}
     {{- if $addon.namespace }}
     - server: https://kubernetes.default.svc

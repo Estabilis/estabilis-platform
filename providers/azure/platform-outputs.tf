@@ -142,6 +142,14 @@ resource "kubernetes_secret" "platform_infrastructure" {
 
     # Workload-operator (publishes hub-registrar-token to hub Key Vault)
     "identity.workloadOperator.clientId" = var.shared_hub_kv_enabled ? azurerm_user_assigned_identity.workload_operator[0].client_id : ""
+
+    # Vault (v0.27.0+) — populated only when vault_enabled=true.
+    "identity.vault.clientId"     = var.vault_enabled ? azurerm_user_assigned_identity.vault[0].client_id : ""
+    "vault.keyVaultName"          = var.vault_enabled ? azurerm_key_vault.vault_unseal[0].name : ""
+    "vault.unsealKeyName"         = var.vault_enabled ? azurerm_key_vault_key.vault_unseal[0].name : ""
+    "vault.backupStorageAccount"  = var.vault_enabled ? azurerm_storage_account.vault_backup[0].name : ""
+    "vault.backupContainer"       = var.vault_enabled ? azurerm_storage_container.vault_backup[0].name : ""
+    "vault.exposuresJson"         = jsonencode({ for k, v in local.vault_exposures_resolved : k => v if v.enabled })
   }
 }
 

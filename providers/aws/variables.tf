@@ -1174,3 +1174,58 @@ variable "extra_tags" {
   type        = map(string)
   default     = {}
 }
+
+# ---------------------------------------------------------------------------
+# HashiCorp Vault (v0.27.0+ — multi-provider opt-in component)
+# ---------------------------------------------------------------------------
+# Toggle to provision the AWS-side Vault infrastructure (KMS unseal key,
+# S3 backup bucket, IRSA). When false, NO resources are created — clean
+# teardown on flip back to false.
+#
+# Companion: estabilis-platform-gitops v0.38.0+ ships the chart values
+# overlay (values/platform/vault.yaml, vault-aws.yaml) and the triple-belt
+# coverage (network-policies, resource-quotas, kyverno-policies).
+#
+# Foundation scope only: chart deployment + auto-unseal infrastructure.
+# Bootstrap (auth methods, policies, KV mount, ClusterSecretStore) is
+# deferred to client-specific overlays / operational follow-up.
+
+variable "vault_enabled" {
+  description = "Provision Vault infrastructure (KMS unseal key, S3 backup bucket, IRSA) and render the platform-root Application. Toggle false to remove all Vault resources cleanly."
+  type        = bool
+  default     = false
+}
+
+variable "vault_chart_version" {
+  description = "HashiCorp Vault Helm chart version (https://helm.releases.hashicorp.com)."
+  type        = string
+  default     = "0.29.1"
+}
+
+variable "vault_backup_retention_days" {
+  description = "Days to retain Raft snapshot backups in S3. The CronJob that uploads snapshots is deferred to a follow-up release; the bucket + lifecycle is provisioned here so future enablement needs no IAM change."
+  type        = number
+  default     = 30
+}
+
+variable "vault_exposures" {
+  description = "Vault UI ingress exposures (multi-network ingress per profile). Same shape as the other *_exposures vars. Typically internal — ops team accesses via VPN. When host is empty, it is auto-derived (app name: 'vault')."
+  type = map(object({
+    enabled       = bool
+    host          = optional(string, "")
+    ingress_class = optional(string, "traefik-internal")
+    allowed_cidrs = optional(string, "")
+    issuer        = optional(string, "letsencrypt-production")
+    basic_auth    = optional(bool, false) # Vault has its own UI auth
+
+    # ALB-specific fields kept for type parity with AWS (Azure inert).
+    alb_group              = optional(string, "platform")
+    alb_scheme             = optional(string, "internet-facing")
+    alb_target_type        = optional(string, "ip")
+    alb_ssl_policy         = optional(string, "ELBSecurityPolicy-TLS13-1-2-2021-06")
+    alb_healthcheck_path   = optional(string, "/v1/sys/health?standbyok=true")
+    alb_certificate_source = optional(string, "acm")
+    alb_cloudflare_proxied = optional(bool, false)
+  }))
+  default = {}
+}

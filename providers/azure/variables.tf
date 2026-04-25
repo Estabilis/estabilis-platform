@@ -1083,3 +1083,54 @@ variable "shared_hub_kv_enabled" {
   type        = bool
   default     = true
 }
+
+# ---------------------------------------------------------------------------
+# HashiCorp Vault (v0.27.0+ — multi-provider opt-in component)
+# ---------------------------------------------------------------------------
+# Toggle to provision the Azure-side Vault infrastructure (dedicated Key
+# Vault for unseal key, Storage Account for snapshot backups, Workload
+# Identity). When false, NO resources are created — clean teardown on
+# flip back to false (no purge_protection on the dedicated KV).
+#
+# Companion: estabilis-platform-gitops v0.38.0+ ships the chart values
+# overlay (values/platform/vault.yaml, vault-azure.yaml) and the triple-belt
+# coverage (network-policies, resource-quotas, kyverno-policies).
+
+variable "vault_enabled" {
+  description = "Provision Vault infrastructure (dedicated KV unseal key, Storage Account backup, Workload Identity) and render the platform-root Application. Toggle false to remove all Vault resources cleanly (no purge protection on the dedicated KV)."
+  type        = bool
+  default     = false
+}
+
+variable "vault_chart_version" {
+  description = "HashiCorp Vault Helm chart version (https://helm.releases.hashicorp.com)."
+  type        = string
+  default     = "0.29.1"
+}
+
+variable "vault_backup_retention_days" {
+  description = "Days to retain Raft snapshot backups in the Storage Account container. CronJob is deferred to a follow-up; the bucket + lifecycle is provisioned here so future enablement needs no role assignment."
+  type        = number
+  default     = 30
+}
+
+variable "vault_exposures" {
+  description = "Vault UI ingress exposures (multi-network ingress per profile). Same shape as other *_exposures vars. Typically internal — ops team via VPN. When host is empty, it is auto-derived (app name: 'vault')."
+  type = map(object({
+    enabled       = bool
+    host          = optional(string, "")
+    ingress_class = optional(string, "traefik-internal")
+    allowed_cidrs = optional(string, "")
+    issuer        = optional(string, "letsencrypt-production")
+    basic_auth    = optional(bool, false)
+
+    alb_group              = optional(string, "platform")
+    alb_scheme             = optional(string, "internet-facing")
+    alb_target_type        = optional(string, "ip")
+    alb_ssl_policy         = optional(string, "ELBSecurityPolicy-TLS13-1-2-2021-06")
+    alb_healthcheck_path   = optional(string, "/v1/sys/health?standbyok=true")
+    alb_certificate_source = optional(string, "cert-manager")
+    alb_cloudflare_proxied = optional(bool, false)
+  }))
+  default = {}
+}

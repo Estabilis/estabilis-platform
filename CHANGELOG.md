@@ -1,5 +1,107 @@
 # Changelog
 
+## [0.28.0] - 2026-04-25
+
+### Added — HashiCorp Vault as a multi-provider opt-in component (foundation)
+
+First pass of HashiCorp Vault as a platform component on both AWS and
+Azure. Foundation scope only: chart deployment + cloud auto-unseal
+infrastructure. Bootstrap (auth methods, policies, KV mount,
+ClusterSecretStore wiring) is intentionally deferred to client-specific
+overlays / operational follow-ups.
+
+#### Toggle semantics
+
+`vault_enabled` Terraform variable defaults to `false`. When toggled
+to `true`, the AWS / Azure side provisions infrastructure; when toggled
+back to `false`, **all** resources are removed cleanly — no orphans,
+no `prevent_destroy` blockers, no purge protection on the dedicated
+Azure KV (would block teardown). Verified via `terraform plan` with
+`vault_enabled=false` after a prior enable: `0 to add, 0 to change,
+N to destroy`.
+
+#### AWS — `providers/aws/vault.tf`
+
+- `aws_kms_key.vault[count]` + alias — dedicated unseal key (NOT the
+  cluster envelope encryption key; scope isolation). 7-day deletion
+  window keeps teardown clean.
+- `aws_s3_bucket.vault_backup[count]` — versioned, KMS-encrypted via
+  `s3_data`, lifecycle expires snapshots after `vault_backup_retention_days`,
+  `force_destroy = true` so `terraform destroy` works even with content.
+  Snapshot CronJob deferred to a follow-up; bucket provisioned now so
+  future enablement needs no IAM change.
+- `module.vault_irsa[count]` + `aws_iam_role_policy.vault[count]` —
+  least-privilege IRSA: `kms:Encrypt/Decrypt/DescribeKey` on the unseal
+  key, `s3:PutObject/GetObject` on the bucket, `s3:ListBucket` on the
+  bucket.
+
+#### Azure — `providers/azure/vault.tf`
+
+- `azurerm_key_vault.vault_unseal[count]` — dedicated KV (`kv-vault-{cluster}-{suffix}`),
+  separate from the platform KV. **`purge_protection_enabled = false`**
+  so toggle false truly removes the resource.
+- `azurerm_key_vault_key.vault_unseal[count]` — RSA-2048 unseal key.
+- `azurerm_storage_account.vault_backup[count]` + container
+  `raft-snapshots` — backup destination (versioned, soft-delete
+  retention configurable). CronJob deferred; container provisioned now.
+- `azurerm_user_assigned_identity.vault[count]` + federated credential
+  — Workload Identity for the `vault:vault` ServiceAccount.
+- Role assignments: `Key Vault Crypto User` on the dedicated KV +
+  `Storage Blob Data Contributor` on the storage account.
+
+#### Bootstrap template — `bootstrap/platform-root/templates/vault.yaml`
+
+ArgoCD Application gated on `provider in (aws | azure)` AND
+`components.vault != false`. Multi-source (chart + values + override
++ gitops). Helm parameters inject:
+
+- AWS: `server.serviceAccount.annotations.eks.amazonaws.com/role-arn`,
+  full Raft+seal HCL config (with KMS region + key id substituted).
+- Azure: `server.serviceAccount.annotations.azure.workload.identity/client-id`,
+  `server.extraLabels.azure.workload.identity/use=true`,
+  full Raft+seal HCL config (with tenant_id, vault_name, key_name).
+
+#### AppProject — `bootstrap/platform-root/templates/argocd-project.yaml`
+
+- Add `vault` namespace destination to the `platform` project.
+- Add `https://helm.releases.hashicorp.com` to `sourceRepos`.
+
+#### `vault` is multi-provider — NOT in `awsOnly` filter
+
+`platform-root.componentsForwarding` (helper introduced in v0.27.0)
+filters AWS-only entries when `provider != aws`. Vault is intentionally
+NOT in that list — it's gated separately on
+`provider in (aws | azure)` in the vault.yaml template. The component
+toggle propagates to both providers.
+
+### Bumped — `platformGitopsVersion: v0.37.2 → v0.38.0`
+
+`estabilis-platform-gitops v0.38.0` ships the chart values overlays
+(`values/platform/vault.yaml`, `vault-aws.yaml`, `vault-azure.yaml`)
+and the triple-belt coverage (network-policies, resource-quotas,
+kyverno-policies excluded list).
+
+### Migration
+
+For all v0.27.x clusters where Vault should NOT be enabled:
+- No-op. `vault_enabled` defaults to `false`; existing tfvars carry
+  forward unchanged.
+
+For clusters opting into Vault:
+- Set `vault_enabled = true` in `terraform.tfvars`.
+- Set `vault_exposures` (e.g. `{ internal = { enabled = true,
+  ingress_class = "alb" } }`).
+- `terraform init -upgrade && terraform apply` — provisions cloud
+  infrastructure (KMS or KV, S3 or Storage, IRSA or WI).
+- Add `components.vault: true` to `overrides/platform-root/values.yaml`.
+- `estabilis promote <client> -d <deployment> --force-refresh` — renders
+  the Vault Application; the chart deploys 3-replica Raft HA.
+- **Manual step**: `kubectl exec -n vault vault-0 -- vault operator init`
+  produces unseal keys + root token. Save them (out-of-band — these are
+  NOT in scope for the foundation; downstream / runbook covers
+  authoritative storage). Vault stays `Sealed: false` thereafter via
+  cloud auto-unseal across pod restarts.
+
 ## [0.27.2] - 2026-04-25
 
 ### Bumped — `platformGitopsVersion: v0.37.1 → v0.37.2`

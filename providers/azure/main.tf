@@ -50,7 +50,7 @@ locals {
   # The cluster name carries environment + region, so no separate env prefix.
   # Explicit host values in exposure tfvars always win over auto-derivation.
   _app_host = {
-    for app in ["grafana", "argocd", "loki", "mimir", "hubble"] : app =>
+    for app in ["grafana", "argocd", "loki", "mimir", "hubble", "vault"] : app =>
     "${app}.${azurerm_kubernetes_cluster.platform.name}.${var.domain}"
   }
 
@@ -80,6 +80,11 @@ locals {
   hubble_ui_exposures_resolved = {
     for k, v in var.hubble_ui_exposures : k => merge(v, {
       host = length(v.host) > 0 ? v.host : local._app_host.hubble
+    })
+  }
+  vault_exposures_resolved = {
+    for k, v in var.vault_exposures : k => merge(v, {
+      host = length(v.host) > 0 ? v.host : local._app_host.vault
     })
   }
 
