@@ -24,12 +24,16 @@ spec:
               actually deployed. Without this, disabled components
               (opencost=false, traefik=false, etc.) still produce quotas
               targeting their non-existent namespaces and the App stays
-              OutOfSync. */}}
+              OutOfSync.
+
+              AWS-only entries (aws-load-balancer-controller, karpenter,
+              karpenter-resources, metrics-server) are dropped from the
+              forwarded map when global.provider != "aws" — the Apps
+              themselves are gated on provider, so the namespaces never
+              come into existence on Azure. See
+              `platform-root.componentsForwarding` in _helpers.tpl. */}}
         valuesObject:
-          components:
-            {{- range $k, $v := .Values.components }}
-            {{ $k | quote }}: {{ $v }}
-            {{- end }}
+          {{- include "platform-root.componentsForwarding" . | nindent 10 }}
         parameters:
           {{- include "platform-root.provenanceParameters" $ | nindent 10 }}
     - repoURL: {{ .Values.platformGitopsRepoUrl }}

@@ -1,5 +1,75 @@
 # Changelog
 
+## [0.27.0] - 2026-04-25
+
+### Fixed — `network-policies` and `resource-quotas` forward AWS-only components on Azure
+
+`bootstrap/platform-root/templates/network-policies.yaml` and
+`resource-quotas.yaml` (introduced in v0.26.0 to fix phantom drift on
+disabled components) forwarded **all** entries of `.Values.components`
+to the gitops-side child charts via `valuesObject.components`,
+regardless of the active provider.
+
+This is correct for components that are always potentially active on
+either provider (`opencost`, `traefik`, etc.) but creates a latent
+drift on Azure for AWS-only components — `aws-load-balancer-controller`,
+`karpenter`, `karpenter-resources`, `metrics-server`. The Application
+templates that install these components are gated on
+`global.provider == "aws"`, so the namespaces never come into
+existence on Azure. But the `components.{ns}: true` defaults in
+`bootstrap/platform-root/values.yaml` still propagated to the
+`network-policies` and `resource-quotas` charts, which would render
+NetworkPolicies and ResourceQuotas for non-existent namespaces →
+permanent OutOfSync.
+
+Today no Azure cluster is using these charts to cover ALB / karpenter
+namespaces (the gitops `components/network-policies/values.yaml`
+historically didn't list them), so the bug was inert. Pairs with
+`estabilis-platform-gitops v0.37.0` which DOES add coverage —
+without this filter, that gitops bump would generate Azure regression.
+
+#### Fix
+
+New helper `platform-root.componentsForwarding` in
+`bootstrap/platform-root/templates/_helpers.tpl` filters the AWS-only
+set out of the forwarded map when `global.provider != "aws"`. Used
+identically by both `network-policies.yaml` and `resource-quotas.yaml`
+templates (replacing the previous inline `range $k, $v` loop).
+
+The AWS-only set:
+```
+- aws-load-balancer-controller
+- karpenter
+- karpenter-resources
+- metrics-server
+```
+must stay synchronized with the `global.provider == "aws"` gating
+clauses in the corresponding `bootstrap/platform-root/templates/*.yaml`
+Application templates.
+
+### Bumped — `platformGitopsVersion: v0.33.0 → v0.37.0`
+
+`estabilis-platform-gitops v0.37.0` lands the corresponding ALB +
+karpenter coverage in `components/network-policies` and
+`components/resource-quotas`. The two releases pair: v0.27.0
+introduces the provider filter, v0.37.0 introduces the new
+allow-* policies and quotas. Either alone is correct (no regression);
+both together close the gap fully.
+
+### Migration
+
+For all v0.26.x clusters:
+1. Bump `ref=` and `platform_revision` to `v0.27.0` in client
+   `providers/<cloud>/main.tf` + `terraform.tfvars`.
+2. `terraform init -upgrade && terraform apply`.
+3. `estabilis promote <client> -d <deployment> --force-refresh`
+   (re-renders the `network-policies` and `resource-quotas`
+   Applications with the filtered components map).
+
+Behaviour unchanged on existing AWS clusters; no-op on existing Azure
+clusters until the gitops chart starts declaring ALB / karpenter
+coverage (v0.37.0).
+
 ## [0.26.2] - 2026-04-25
 
 ### Fixed — Persistent OutOfSync exposed by `platform-root` recovery on AWS
