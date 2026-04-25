@@ -34,6 +34,7 @@ spec:
     - "https://prometheus-community.github.io/helm-charts"
     - "https://kubernetes-sigs.github.io/metrics-server/"
     - "public.ecr.aws/karpenter"
+    - "https://aws.github.io/eks-charts"
     {{- /*
     Platform add-on repos: must match the repoURL emitted by
     platform-addons.yaml. ArgoCD 3.x requires OCI Helm repoURL WITHOUT
@@ -96,6 +97,8 @@ spec:
       namespace: metrics-server
     - server: https://kubernetes.default.svc
       namespace: karpenter
+    - server: https://kubernetes.default.svc
+      namespace: aws-load-balancer-controller
     {{- range $name, $addon := .Values.platformAddons }}
     {{- if $addon.namespace }}
     - server: https://kubernetes.default.svc
@@ -131,6 +134,8 @@ spec:
       kind: "*"
     - group: karpenter.k8s.aws
       kind: "*"
+    - group: apiregistration.k8s.io
+      kind: APIService
 ---
 # Workload-baseline project — for platform baseline components deployed
 # to workload clusters via the workload-bootstrap ApplicationSets.
