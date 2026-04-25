@@ -1,5 +1,76 @@
 # Changelog
 
+## [0.23.0] - 2026-04-25
+
+### Added — AWS Load Balancer Controller Application + AppProject hardening
+
+Closes the last AWS-only Application gap that was missing from
+estabilis-platform vs the legacy cortex-eks-prod configuration. The
+controller chart was deferred from Phase 2 (TF was provisioning the
+IRSA role since v0.16.0 but no ArgoCD Application existed). This
+release ships it on the same chart version (1.17.1, controller v2.17.1)
+that legacy runs in production.
+
+#### `bootstrap/platform-root/templates/aws-load-balancer-controller.yaml`
+
+New Application gated on:
+- `provider == "aws"`
+- `components.aws-load-balancer-controller != false`
+- `ingress_controller == "alb"`
+
+Helm parameters:
+- `clusterName` ← `global.clusterName`
+- `vpcId` ← `global.vpcId`
+- `serviceAccount.annotations.eks.amazonaws.com/role-arn` ←
+  `identity.albController.roleArn`
+
+Values from `estabilis-platform-gitops v0.36.0`:
+`values/platform/aws-load-balancer-controller.yaml` (resources, SA,
+PDB — mirrors legacy).
+
+#### `bootstrap/platform-root/templates/argocd-project.yaml`
+
+- `sourceRepos`: added `https://aws.github.io/eks-charts`.
+- `destinations`: added `aws-load-balancer-controller` namespace.
+- `clusterResourceWhitelist`: added `apiregistration.k8s.io/APIService`
+  (bake of an in-place patch from v0.21.0 — required by metrics-server
+  and historically missing).
+
+#### `bootstrap/platform-root/values.yaml`
+
+`components.aws-load-balancer-controller: true` default.
+
+### Dependency
+
+Requires `estabilis-platform-gitops >= v0.36.0`.
+
+### Migration
+
+Operators on AWS at `v0.22.0` adopting `alb` ingress:
+
+1. Bump `platformGitopsVersion` to `v0.36.0` in
+   `overrides/platform-root/values.yaml`.
+2. Bump platform module ref to `v0.23.0`.
+3. Set in `terraform.tfvars`:
+   ```hcl
+   ingress_controller = "alb"
+   ```
+4. `terraform apply` — provisions:
+   - `module.alb_controller_irsa` (IAM role + AWS-managed policy)
+   - ConfigMap data update (`global.ingressController = alb`,
+     `identity.albController.roleArn`)
+5. Refresh + sync `platform-root`. Three new Applications appear
+   automatically when `ingress_controller = "alb"`:
+   - `aws-load-balancer-controller`
+6. Test by creating an Ingress with `ingressClassName: alb` and a
+   host under the configured domain — external-dns should publish the
+   record to Cloudflare (or Route53), cert-manager should issue a
+   certificate, ALB should provision.
+
+### Azure impact
+
+Zero. All gates require `provider == "aws"`.
+
 ## [0.22.0] - 2026-04-25
 
 ### Added — `modules/cloudflare-credentials/` (cloud-agnostic) + AWS caller

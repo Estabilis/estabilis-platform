@@ -1,0 +1,77 @@
+{{- /*
+  AWS Load Balancer Controller — manages ALB/NLB resources from
+  Kubernetes Ingress / Service objects on EKS clusters.
+
+  AWS-only. Gated on:
+    - provider == "aws"
+    - components.aws-load-balancer-controller != false
+    - ingress_controller == "alb" (passed as global.ingressController
+      from Terraform)
+
+  IAM role for the controller's ServiceAccount is provisioned by
+  `providers/aws/alb-controller.tf` (the IRSA module attaches the
+  AWS-managed `AWSLoadBalancerControllerIAMPolicy`). Role ARN flows
+  in via the `platform-infrastructure-sensitive` Secret as
+  `identity.albController.roleArn`.
+
+  Chart pinned to 1.17.1 (controller v2.17.1) — same version validated
+  in production on the legacy cortex-eks-prod cluster. The 3.x chart
+  family (controller v3) ships breaking changes vs v2 (new
+  IngressClassParams shape, annotation rename); not bumped here without
+  explicit release-notes review.
+*/ -}}
+{{- if and (eq .Values.global.provider "aws") (eq .Values.global.ingressController "alb") }}
+{{- if ne (index .Values.components "aws-load-balancer-controller") false }}
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: aws-load-balancer-controller
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  project: platform
+  sources:
+    - repoURL: https://aws.github.io/eks-charts
+      chart: aws-load-balancer-controller
+      targetRevision: "1.17.1"
+      helm:
+        valueFiles:
+          - $values/values/platform/aws-load-balancer-controller.yaml
+          {{- include "platform-root.overrideValueFile" (dict "component" "aws-load-balancer-controller" "root" $) | nindent 10 }}
+          {{- include "platform-root.gitopsValueFile" (dict "component" "aws-load-balancer-controller" "root" $) | nindent 10 }}
+        {{- include "platform-root.ignoreMissingValueFiles" $ | nindent 8 }}
+        parameters:
+          {{- include "platform-root.provenanceParameters" $ | nindent 10 }}
+          - name: clusterName
+            value: "{{ .Values.global.clusterName }}"
+          - name: vpcId
+            value: "{{ .Values.global.vpcId }}"
+          - name: serviceAccount.annotations.eks\.amazonaws\.com/role-arn
+            value: "{{ .Values.identity.albController.roleArn }}"
+        valuesObject:
+          {{- /* Scheduling (ADR 0012 — issue #97) */}}
+          {{- include "platform-root.schedulingValuesTopLevel" (dict
+                "mode" (default "auto" (index .Values.scheduling "aws-load-balancer-controller"))
+             ) | nindent 10 }}
+    - repoURL: {{ .Values.platformGitopsRepoUrl }}
+      targetRevision: {{ .Values.platformGitopsVersion }}
+      ref: values
+    {{- include "platform-root.overrideSource" . | nindent 4 }}
+    {{- include "platform-root.gitopsSource" . | nindent 4 }}
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: aws-load-balancer-controller
+  syncPolicy:
+    {{- include "platform-root.managedNamespaceMetadataExcluded" . | nindent 4 }}
+    retry:
+      limit: 10
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 3m
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+{{- end }}
+{{- end }}

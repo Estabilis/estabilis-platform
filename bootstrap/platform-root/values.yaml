@@ -151,6 +151,7 @@ components:
   metrics-server: true       # optional: AWS-only — Resource Metrics API server (kubectl top, HPA). Azure AKS provides natively
   karpenter: true            # optional: AWS-only — node autoscaler. Activates when global.autoscaler is `karpenter` or `hybrid`
   karpenter-resources: true  # optional: AWS-only — default NodePool + EC2NodeClass. Same activation as karpenter
+  aws-load-balancer-controller: true  # optional: AWS-only — provisions ALB/NLB from Ingress/Service. Activates when global.ingressController == "alb"
 
   # --- observability (disable individually or set all to false) ---
   grafana: true              # observability: dashboards and visualization
