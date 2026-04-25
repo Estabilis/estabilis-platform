@@ -32,6 +32,8 @@ spec:
     - "https://cloudnative-pg.github.io/charts"
     - "https://vmware-tanzu.github.io/helm-charts"
     - "https://prometheus-community.github.io/helm-charts"
+    - "https://kubernetes-sigs.github.io/metrics-server/"
+    - "public.ecr.aws/karpenter"
     {{- /*
     Platform add-on repos: must match the repoURL emitted by
     platform-addons.yaml. ArgoCD 3.x requires OCI Helm repoURL WITHOUT
@@ -90,6 +92,10 @@ spec:
       namespace: policy-reporter
     - server: https://kubernetes.default.svc
       namespace: estabilis-system
+    - server: https://kubernetes.default.svc
+      namespace: metrics-server
+    - server: https://kubernetes.default.svc
+      namespace: karpenter
     {{- range $name, $addon := .Values.platformAddons }}
     {{- if $addon.namespace }}
     - server: https://kubernetes.default.svc
@@ -121,6 +127,10 @@ spec:
       kind: VolumeSnapshotClass
     - group: policy
       kind: PodDisruptionBudget
+    - group: karpenter.sh
+      kind: "*"
+    - group: karpenter.k8s.aws
+      kind: "*"
 ---
 # Workload-baseline project — for platform baseline components deployed
 # to workload clusters via the workload-bootstrap ApplicationSets.

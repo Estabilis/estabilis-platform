@@ -1,0 +1,159 @@
+{{- /*
+  Karpenter — cluster autoscaler for EKS.
+
+  AWS-only. Azure clusters use the AKS native autoscaler. Renders
+  three Applications:
+
+    1. karpenter-crds — installs Karpenter CRDs (NodePool,
+       EC2NodeClass, NodeClaim). Sync wave -1 so CRDs exist before
+       the controller chart references them and before the resources
+       chart attempts to render the CRs.
+
+    2. karpenter — controller + webhook. Sync wave 0. IRSA role,
+       interruption queue, cluster name come from the
+       `platform-infrastructure` ConfigMap (Terraform-written) and
+       are passed through as helm parameters.
+
+    3. karpenter-resources — default NodePool + EC2NodeClass. Sync
+       wave 1, after the CRDs are established. Subnet/SG discovery
+       uses `var.karpenter_discovery_tag_key` (default
+       `estabilis.io/discovery`) to coexist with other Estabilis
+       deployments in the same VPC.
+
+  Active when `autoscaler` is `karpenter` or `hybrid` (the latter
+  combines a small Managed Node Group for system workloads with
+  Karpenter on top for elastic capacity). When `autoscaler` is
+  `none` or `cluster-autoscaler`, all three Applications are
+  skipped — Terraform leaves the IAM/SQS resources unprovisioned
+  in those modes.
+*/ -}}
+{{- if and (eq .Values.global.provider "aws") (ne (index .Values.components "karpenter") false) (or (eq .Values.global.autoscaler "karpenter") (eq .Values.global.autoscaler "hybrid")) }}
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: karpenter-crds
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  project: platform
+  source:
+    repoURL: public.ecr.aws/karpenter
+    chart: karpenter-crd
+    targetRevision: "1.12.0"
+    {{- /* karpenter-crd chart version stays in lockstep with the
+          karpenter controller chart — both published at the same
+          SemVer per release. Latest as of 2026-04-24: v1.12.0
+          (additive changes only vs v1.9.x baseline). */}}
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: karpenter
+  syncPolicy:
+    retry:
+      limit: 10
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 3m
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+      {{- /* CRDs need Established=True before karpenter-resources (wave 1)
+            attempts to render NodePool/EC2NodeClass. ArgoCD waves only
+            order Application sync starts, not resource readiness — this
+            option lets the next wave proceed past the dry-run check
+            even if a CRD is still being established at apply time. */}}
+      - SkipDryRunOnMissingResource=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: karpenter
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  project: platform
+  sources:
+    - repoURL: public.ecr.aws/karpenter
+      chart: karpenter
+      targetRevision: "1.12.0"
+      helm:
+        valueFiles:
+          - $values/values/platform/karpenter.yaml
+          {{- include "platform-root.overrideValueFile" (dict "component" "karpenter" "root" $) | nindent 10 }}
+          {{- include "platform-root.gitopsValueFile" (dict "component" "karpenter" "root" $) | nindent 10 }}
+        {{- include "platform-root.ignoreMissingValueFiles" $ | nindent 8 }}
+        parameters:
+          {{- include "platform-root.provenanceParameters" $ | nindent 10 }}
+          - name: settings.clusterName
+            value: "{{ .Values.global.clusterName }}"
+          - name: settings.interruptionQueue
+            value: "{{ .Values.global.karpenterQueueName }}"
+          - name: serviceAccount.annotations.eks\.amazonaws\.com/role-arn
+            value: "{{ .Values.global.karpenterControllerRole }}"
+    - repoURL: {{ .Values.platformGitopsRepoUrl }}
+      targetRevision: {{ .Values.platformGitopsVersion }}
+      ref: values
+    {{- include "platform-root.overrideSource" . | nindent 4 }}
+    {{- include "platform-root.gitopsSource" . | nindent 4 }}
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: karpenter
+  syncPolicy:
+    {{- include "platform-root.managedNamespaceMetadataExcluded" . | nindent 4 }}
+    retry:
+      limit: 10
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 3m
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: karpenter-resources
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  project: platform
+  sources:
+    - repoURL: {{ .Values.platformGitopsRepoUrl }}
+      targetRevision: {{ .Values.platformGitopsVersion }}
+      path: components/karpenter-resources
+      helm:
+        valueFiles:
+          - $values/components/karpenter-resources/values.yaml
+          {{- include "platform-root.overrideValueFile" (dict "component" "karpenter-resources" "root" $) | nindent 10 }}
+          {{- include "platform-root.gitopsValueFile" (dict "component" "karpenter-resources" "root" $) | nindent 10 }}
+        ignoreMissingValueFiles: true
+        parameters:
+          {{- include "platform-root.provenanceParameters" $ | nindent 10 }}
+          - name: clusterName
+            value: "{{ .Values.global.clusterName }}"
+          - name: nodeRole
+            value: "{{ .Values.global.karpenterNodeRoleName }}"
+          - name: discoveryTagKey
+            value: "{{ .Values.global.karpenterDiscoveryTagKey }}"
+    - repoURL: {{ .Values.platformGitopsRepoUrl }}
+      targetRevision: {{ .Values.platformGitopsVersion }}
+      ref: values
+    {{- include "platform-root.overrideSource" . | nindent 4 }}
+    {{- include "platform-root.gitopsSource" . | nindent 4 }}
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: karpenter
+  syncPolicy:
+    retry:
+      limit: 10
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 3m
+    syncOptions:
+      - ServerSideApply=true
+{{- end }}
