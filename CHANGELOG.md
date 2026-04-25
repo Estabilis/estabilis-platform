@@ -1,5 +1,129 @@
 # Changelog
 
+## [0.21.0] - 2026-04-24
+
+### Added — metrics-server (AWS) + Karpenter v1.12.0 (AWS) + ArgoCD AppProject whitelists
+
+Two cluster-autoscaling and observability primitives that EKS does NOT
+ship by default but the legacy `cortex-eks-prod` cluster has run in
+production for months. AKS provides metrics-server natively and uses
+its own cluster-autoscaler — both Applications are gated on
+`provider == "aws"`.
+
+#### 1. metrics-server
+
+EKS doesn't include metrics-server in its managed addon set; without
+it, `kubectl top`, HPA, and any controller that reads the Resource
+Metrics API stay broken. New Application:
+
+- `bootstrap/platform-root/templates/metrics-server.yaml` — chart
+  pinned to 3.12.2 (image v0.7.x), gated on
+  `provider == "aws"` AND `components.metrics-server != false`.
+- Values live in
+  `estabilis-platform-gitops/values/platform/metrics-server.yaml`
+  (ADR 0002 Phase 3 layout — values in gitops, Application in platform).
+- Defaults mirror the legacy cortex configuration: 2 replicas,
+  podAntiAffinity by hostname, `--kubelet-insecure-tls`, tight
+  resource ask + limit.
+
+#### 2. Karpenter v1.12.0
+
+Despite Terraform provisioning the IAM controller role, IAM node role,
+SQS interruption queue, and instance-profile-gc policy since Phase 1,
+the Karpenter Helm chart was never installed on AWS clusters. Result:
+`autoscaler = "karpenter"` and `autoscaler = "hybrid"` resolved to
+"only the static MNG scales" — no spot capacity, no consolidation, no
+elastic ceiling.
+
+Three Applications added (`bootstrap/platform-root/templates/karpenter.yaml`):
+
+1. **`karpenter-crds`** (sync-wave -1) — chart
+   `oci://public.ecr.aws/karpenter/karpenter-crd` v1.12.0. Installs
+   `NodePool`, `EC2NodeClass`, `NodeClaim`. `SkipDryRunOnMissingResource=true`
+   prevents the next wave from blocking on Establishment timing.
+
+2. **`karpenter`** (sync-wave 0) — chart
+   `oci://public.ecr.aws/karpenter/karpenter` v1.12.0. Controller +
+   webhook. Helm parameters wired from `platform-infrastructure`
+   ConfigMap: `settings.clusterName`, `settings.interruptionQueue`,
+   IRSA `serviceAccount.annotations.eks.amazonaws.com/role-arn`. Values
+   in `gitops/values/platform/karpenter.yaml` mirror the legacy cortex
+   release (controller resources, fargate toleration, `featureGates.spotToSpotConsolidation: true`).
+
+3. **`karpenter-resources`** (sync-wave 1) — Estabilis-authored chart at
+   `gitops/components/karpenter-resources/` with `NodePool` +
+   `EC2NodeClass` templates. Defaults match legacy production:
+   - NodePool: limits cpu=32 mem=64Gi, disruption
+     `WhenEmptyOrUnderutilized` after 1m, requirements amd64 + spot/on-demand,
+     instance categories c/m/r/t, generation > 4, sizes medium/large/xlarge,
+     `expireAfter: 720h`.
+   - EC2NodeClass: AMI alias `al2023@latest`, BDM `/dev/xvda` 30Gi gp3
+     encrypted, **IMDSv2 enforcement** (`httpTokens: required`,
+     `httpPutResponseHopLimit: 1`, `httpProtocolIPv6: disabled`) — same
+     security baseline as the legacy cluster.
+   - Subnet/SG selection via Terraform-applied
+     `<global.karpenterDiscoveryTagKey>=<clusterName>` tags (default
+     `estabilis.io/discovery=<cluster>`, allows multiple Estabilis
+     deployments to coexist in one VPC).
+
+Activation gate: `provider == "aws"` AND
+`components.karpenter != false` AND `autoscaler in [karpenter, hybrid]`.
+Provider asymmetry (Azure NAP / `karpenter-provider-azure`) tracked
+in `Estabilis/estabilis-platform-tools#197`.
+
+#### 3. AppProject `platform` — sourceRepos, destinations, clusterResourceWhitelist
+
+`bootstrap/platform-root/templates/argocd-project.yaml` updated so
+new Applications validate cleanly:
+
+- `sourceRepos`: added `https://kubernetes-sigs.github.io/metrics-server/`
+  and `public.ecr.aws/karpenter`.
+- `destinations`: added `metrics-server` and `karpenter` namespaces.
+- `clusterResourceWhitelist`: added `karpenter.sh/*` (NodePool, NodeClaim
+  are cluster-scoped) and `karpenter.k8s.aws/*` (EC2NodeClass).
+
+Without these, ArgoCD rejects the Applications at sync time with
+`InvalidSpecError: application repo X is not permitted in project 'platform'`
+or `Resource X is not allowed in project`.
+
+### Components map
+
+`bootstrap/platform-root/values.yaml` `components:` map gains
+`metrics-server: true`, `karpenter: true`, `karpenter-resources: true`
+defaults so downstream can disable individually via overrides.
+
+### Provenance
+
+Both new Applications include the standard
+`platform-root.provenanceParameters` /
+`platform-root.provenanceParametersBlock` helpers so ADR 0005 L1
+supply-chain annotations flow onto every rendered resource.
+
+### Dependency
+
+**Requires `estabilis-platform-gitops >= v0.35.0`** — the new
+`karpenter-resources` chart and the `values/platform/{metrics-server,karpenter}.yaml`
+overlays are published from that release.
+
+### Migration
+
+Operators on AWS at `v0.20.1` → `v0.21.0`:
+
+1. Bump `estabilis-platform-gitops` to v0.35.0+ first
+   (`platformGitopsVersion` in `overrides/platform-root/values.yaml`).
+2. Bump `estabilis-platform` to v0.21.0
+   (`main.tf ref=v0.21.0`, `terraform.tfvars platform_revision`).
+3. `terraform apply` — no infra-side changes, only the platform-root
+   ConfigMap data refresh.
+4. Refresh + sync `platform-root`. Three new Applications appear:
+   `metrics-server`, `karpenter-crds`, `karpenter`, `karpenter-resources`.
+5. After Karpenter controller is Healthy, scale the static MNG down
+   (Karpenter handles burst capacity from there).
+
+### Azure impact
+
+Zero. All new Applications are `provider == "aws"` gated.
+
 ## [0.20.1] - 2026-04-24
 
 ### Fixed — Repo-creds collision when GitHub App is configured

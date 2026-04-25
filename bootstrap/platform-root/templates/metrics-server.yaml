@@ -1,0 +1,64 @@
+{{- /*
+  metrics-server — Resource Metrics API server (`v1beta1.metrics.k8s.io`).
+
+  AKS provides metrics-server natively as part of the managed control
+  plane, so this Application is only emitted on AWS. EKS does not
+  include metrics-server in its default addon set; without it,
+  `kubectl top`, HPA, and any controller that reads the Resource
+  Metrics API stay broken.
+
+  Pinned to chart 3.12.x (image v0.7.x) — same configuration validated
+  on the legacy cortex-eks-prod cluster.
+
+  Born following the ADR 0002 Phase 3 layout: values live in
+  `estabilis-platform-gitops/values/platform/metrics-server.yaml`,
+  `$values` ref is the gitops repo. No detour through
+  `estabilis-platform/core/components/`.
+*/ -}}
+{{- if eq .Values.global.provider "aws" }}
+{{- if ne (index .Values.components "metrics-server") false }}
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: metrics-server
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  project: platform
+  sources:
+    - repoURL: https://kubernetes-sigs.github.io/metrics-server/
+      chart: metrics-server
+      targetRevision: "3.12.2"
+      helm:
+        valueFiles:
+          - $values/values/platform/metrics-server.yaml
+          {{- include "platform-root.overrideValueFile" (dict "component" "metrics-server" "root" $) | nindent 10 }}
+          {{- include "platform-root.gitopsValueFile" (dict "component" "metrics-server" "root" $) | nindent 10 }}
+        {{- include "platform-root.ignoreMissingValueFiles" $ | nindent 8 }}
+        valuesObject:
+          {{- /* Scheduling (ADR 0012 — issue #97) */}}
+          {{- include "platform-root.schedulingValuesTopLevel" (dict
+                "mode" (default "auto" (index .Values.scheduling "metrics-server"))
+             ) | nindent 10 }}
+        {{- include "platform-root.provenanceParametersBlock" $ | nindent 8 }}
+    - repoURL: {{ .Values.platformGitopsRepoUrl }}
+      targetRevision: {{ .Values.platformGitopsVersion }}
+      ref: values
+    {{- include "platform-root.overrideSource" . | nindent 4 }}
+    {{- include "platform-root.gitopsSource" . | nindent 4 }}
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: metrics-server
+  syncPolicy:
+    {{- include "platform-root.managedNamespaceMetadataExcluded" . | nindent 4 }}
+    retry:
+      limit: 10
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 3m
+    syncOptions:
+      - CreateNamespace=true
+{{- end }}
+{{- end }}
