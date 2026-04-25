@@ -1,5 +1,63 @@
 # Changelog
 
+## [0.26.2] - 2026-04-25
+
+### Fixed — Persistent OutOfSync exposed by `platform-root` recovery on AWS
+
+Two upstream gaps surfaced after the `application-controller` was
+restored on a v0.26.1 AWS cluster (cortex-eks postmortem). Both were
+present since v0.26.0 but were masked by a stuck controller cache that
+prevented fresh diffs against the v0.26.1 manifest set.
+
+#### `aws-load-balancer-controller` — `IngressClassParams alb` rejected by AppProject
+
+`bootstrap/platform-root/templates/aws-load-balancer-controller.yaml`
+ships an `ignoreDifferences` entry for the `IngressClassParams alb`
+spec (added in v0.26.0), but the platform AppProject's
+`clusterResourceWhitelist` never permitted the `elbv2.k8s.aws` API
+group. Sync failed with:
+
+```
+resource elbv2.k8s.aws:IngressClassParams is not permitted in project platform
+```
+
+The fix: add `elbv2.k8s.aws/*` to the platform project's
+`clusterResourceWhitelist` in
+`bootstrap/platform-root/templates/argocd-project.yaml`. Pattern
+matches the existing `karpenter.sh/*` and `karpenter.k8s.aws/*`
+entries — wildcard because the AWS Load Balancer Controller may
+introduce additional kinds (e.g. `TargetGroupBinding`) in future
+chart versions.
+
+#### `external-secrets` — caBundle drift on `ValidatingWebhookConfiguration`
+
+`externalsecret-validate` and `secretstore-validate` are populated
+with a `caBundle` after install (chart-rendered manifest leaves it
+empty). Same pattern that `argocd`, `aws-load-balancer-controller`,
+and `cert-manager` already address with `ignoreDifferences`.
+
+The fix: add scoped `ignoreDifferences` entries on the
+`external-secrets` Application
+(`bootstrap/platform-root/templates/external-secrets.yaml`):
+- `ValidatingWebhookConfiguration .webhooks[]?.clientConfig.caBundle`
+- `MutatingWebhookConfiguration .webhooks[]?.clientConfig.caBundle`
+
+The `MutatingWebhookConfiguration` entry is defensive — current
+chart only registers a `ValidatingWebhookConfiguration`, but the
+upstream pattern across the platform always covers both kinds.
+
+### Migration
+
+For all clusters running v0.26.x:
+
+1. Bump platform `ref=` to `v0.26.2` in client `providers/<cloud>/main.tf`
+2. Bump `platform_version = "v0.26.2"` in client `terraform.tfvars`
+3. `terraform init -upgrade && terraform plan && terraform apply`
+4. `estabilis promote <client> -d <deployment> --force-refresh`
+5. Force-sync `aws-load-balancer-controller` and `external-secrets` (manual sync apps)
+
+Behaviour identical, no resource recreate, no data path impact.
+
 ## [0.26.1] - 2026-04-25
 
 ### Fixed — `cloudflare_record.value` deprecation warning
