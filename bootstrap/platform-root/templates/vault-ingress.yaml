@@ -1,0 +1,75 @@
+{{- /*
+  Vault external ingress Application — multi-provider (AWS + Azure).
+  Renders iff vault is enabled AND at least one exposure is enabled in
+  global.vaultExposures (which terraform's vault.exposuresJson flows into).
+  Mirror of grafana-ingress.yaml — see core/components/vault-ingress for
+  the per-profile Ingress + Middleware rendering.
+*/ -}}
+{{- if and (or (eq .Values.global.provider "aws") (eq .Values.global.provider "azure")) (ne (index .Values.components "vault") false) }}
+{{- /* Source of truth: terraform's `vault.exposuresJson` field on
+      platform-infrastructure-sensitive Secret, surfaced into helm values
+      as global.vaultExposures by the upstart parameter wiring. */ -}}
+{{- $raw := index .Values.global "vaultExposures" | default "" -}}
+{{- $jsonStr := "{}" -}}
+{{- if $raw }}
+  {{- if or (hasPrefix "{" $raw) (hasPrefix "[" $raw) }}
+    {{- $jsonStr = $raw }}
+  {{- else }}
+    {{- $jsonStr = b64dec $raw }}
+  {{- end }}
+{{- end }}
+{{- $exposures := fromJson $jsonStr -}}
+{{- $hasEnabled := false -}}
+{{- $hasTraefikExposure := false -}}
+{{- range $_, $exp := $exposures }}{{- if $exp.enabled }}{{- $hasEnabled = true }}{{- if ne $exp.ingress_class "alb" }}{{- $hasTraefikExposure = true }}{{- end }}{{- end }}{{- end }}
+{{- $traefikGate := or (eq $hasTraefikExposure false) (ne (index .Values.components "traefik") false) }}
+{{- if and $traefikGate $hasEnabled }}
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: vault-ingress
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "9"
+spec:
+  project: platform
+  sources:
+    - repoURL: {{ .Values.platformRepoUrl }}
+      targetRevision: {{ .Values.platformVersion }}
+      path: core/components/vault-ingress
+      helm:
+        valueFiles:
+          - $values/core/components/vault-ingress/values.yaml
+          {{- include "platform-root.overrideValueFile" (dict "component" "vault-ingress" "root" $) | nindent 10 }}
+          {{- include "platform-root.gitopsValueFile" (dict "component" "vault-ingress" "root" $) | nindent 10 }}
+        ignoreMissingValueFiles: true
+        parameters:
+          {{- include "platform-root.provenanceParameters" $ | nindent 10 }}
+          {{- /* Pass through whatever encoding the source provided
+                (base64 or JSON). The child chart's middleware.yaml
+                inspects first char to decide whether to b64dec. */}}
+          - name: exposuresJson
+            value: {{ $raw | quote }}
+            forceString: true
+          {{- /* ALB branch consumes these via .Values.global.*. Ignored on Traefik. */}}
+          - name: global.dnsProvider
+            value: "{{ .Values.global.dnsProvider }}"
+          - name: global.acmCertificateArn
+            value: "{{ .Values.global.acmCertificateArn }}"
+    - repoURL: {{ .Values.platformRepoUrl }}
+      targetRevision: {{ .Values.platformVersion }}
+      ref: values
+    {{- include "platform-root.overrideSource" . | nindent 4 }}
+    {{- include "platform-root.gitopsSource" . | nindent 4 }}
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: vault
+  syncPolicy:
+    retry:
+      limit: 10
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 3m
+{{- end }}
+{{- end }}

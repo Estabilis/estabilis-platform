@@ -1114,6 +1114,28 @@ variable "vault_backup_retention_days" {
   default     = 30
 }
 
+variable "vault_kv_soft_delete_days" {
+  description = "Soft-delete retention on the dedicated Vault Key Vault. Range 7-90 days. Set low for cleaner toggle-off; set higher when teams want a wider undelete window. NO purge_protection here — `vault_enabled = false` must remove the resource."
+  type        = number
+  default     = 7
+
+  validation {
+    condition     = var.vault_kv_soft_delete_days >= 7 && var.vault_kv_soft_delete_days <= 90
+    error_message = "vault_kv_soft_delete_days must be between 7 and 90."
+  }
+}
+
+variable "vault_storage_replication_type" {
+  description = "Replication type for the Vault Raft snapshot Storage Account. LRS=cheapest single-region; ZRS=zone-redundant; GRS/RAGRS=geo-redundant. Defaults to LRS for foundation cost; clients with HA backup needs override to ZRS or GRS."
+  type        = string
+  default     = "LRS"
+
+  validation {
+    condition     = contains(["LRS", "ZRS", "GRS", "RAGRS", "GZRS", "RAGZRS"], var.vault_storage_replication_type)
+    error_message = "vault_storage_replication_type must be one of LRS, ZRS, GRS, RAGRS, GZRS, RAGZRS."
+  }
+}
+
 variable "vault_exposures" {
   description = "Vault UI ingress exposures (multi-network ingress per profile). Same shape as other *_exposures vars. Typically internal — ops team via VPN. When host is empty, it is auto-derived (app name: 'vault')."
   type = map(object({

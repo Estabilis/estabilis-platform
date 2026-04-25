@@ -1208,6 +1208,17 @@ variable "vault_backup_retention_days" {
   default     = 30
 }
 
+variable "vault_kms_deletion_window_days" {
+  description = "AWS KMS deletion window for the dedicated Vault unseal key. Range 7-30 days. Lower = faster destroy on toggle off; higher = bigger window to recover an accidentally-disabled deployment."
+  type        = number
+  default     = 7
+
+  validation {
+    condition     = var.vault_kms_deletion_window_days >= 7 && var.vault_kms_deletion_window_days <= 30
+    error_message = "vault_kms_deletion_window_days must be between 7 and 30."
+  }
+}
+
 variable "vault_exposures" {
   description = "Vault UI ingress exposures (multi-network ingress per profile). Same shape as the other *_exposures vars. Typically internal — ops team accesses via VPN. When host is empty, it is auto-derived (app name: 'vault')."
   type = map(object({

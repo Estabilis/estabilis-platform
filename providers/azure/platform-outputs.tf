@@ -84,6 +84,7 @@ resource "kubernetes_config_map" "platform_infrastructure" {
     "global.grafanaExposures"  = jsonencode({ for k, v in local.grafana_exposures_resolved : k => v if v.enabled })
     "global.argocdExposures"   = jsonencode({ for k, v in local.argocd_exposures_resolved : k => v if v.enabled })
     "global.hubbleUiExposures" = jsonencode({ for k, v in local.hubble_ui_exposures_resolved : k => v if v.enabled })
+    "global.vaultExposures"    = jsonencode({ for k, v in local.vault_exposures_resolved : k => v if v.enabled })
 
     # Gate for hubble-ui-ingress rendering (Hubble UI only exists in ACNS)
     "global.networkDataplane" = var.network_dataplane
@@ -144,12 +145,15 @@ resource "kubernetes_secret" "platform_infrastructure" {
     "identity.workloadOperator.clientId" = var.shared_hub_kv_enabled ? azurerm_user_assigned_identity.workload_operator[0].client_id : ""
 
     # Vault (v0.27.0+) — populated only when vault_enabled=true.
+    # vault.exposuresJson moved to ConfigMap as global.vaultExposures (ADR 0014
+    # convention; non-sensitive). The Secret keeps the identity + KV name + key
+    # name which ARE sensitive (or pseudo-sensitive — KV name is part of the
+    # unseal recovery story).
     "identity.vault.clientId"    = var.vault_enabled ? azurerm_user_assigned_identity.vault[0].client_id : ""
     "vault.keyVaultName"         = var.vault_enabled ? azurerm_key_vault.vault_unseal[0].name : ""
     "vault.unsealKeyName"        = var.vault_enabled ? azurerm_key_vault_key.vault_unseal[0].name : ""
     "vault.backupStorageAccount" = var.vault_enabled ? azurerm_storage_account.vault_backup[0].name : ""
     "vault.backupContainer"      = var.vault_enabled ? azurerm_storage_container.vault_backup[0].name : ""
-    "vault.exposuresJson"        = jsonencode({ for k, v in local.vault_exposures_resolved : k => v if v.enabled })
   }
 }
 

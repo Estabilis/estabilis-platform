@@ -1,5 +1,84 @@
 # Changelog
 
+## [0.28.2] - 2026-04-25
+
+### Added — `vault-ingress` chart (consumes `vault_exposures` dynamically)
+
+Closes the gap from v0.28.0/v0.28.1 where `vault_exposures` flowed into
+the Secret but had no chart consuming it. Clients had to hardcode an
+Ingress in their `overrides/vault/values.yaml` referencing literal
+ACM ARNs, hostnames, and ALB groups. v0.28.2 ships a proper
+`vault-ingress` chart following the existing `grafana-ingress` /
+`argocd-ingress` pattern.
+
+#### `core/components/vault-ingress/` (NEW)
+
+Mirror of `grafana-ingress`, vault-specific:
+- Backend: `vault-ui` Service, port 8200 (NOT the chart's own ingress)
+- Default healthcheck path: `/v1/sys/health?standbyok=true&sealedcode=200&uninitcode=200`
+  — keeps the LB routing traffic to standby pods (default is 429), to
+  sealed pods (so the operator can reach the API to unseal), and to
+  uninitialized pods (so `vault operator init` works via the LB).
+- Branches on `$exp.ingress_class`:
+  - `alb` → AWS Load Balancer Controller annotations (cert ARN, group,
+    scheme, ssl-policy, healthcheck path) — all consumed from the
+    profile + `global.acmCertificateArn` from the platform Secret.
+  - `traefik` / `traefik-internal` → Traefik IngressRoute with
+    Middlewares for `ipAllowList`.
+- Vault has its own UI auth — `basic_auth = true` is unsupported and
+  the chart fails loud regardless of ingress class (would double-auth).
+
+#### `bootstrap/platform-root/templates/vault-ingress.yaml` (NEW)
+
+ArgoCD Application gated on (`provider in (aws | azure)`) AND
+`components.vault != false` AND at least one enabled exposure profile
+in `global.vaultExposures`. Forwards `exposuresJson` +
+`global.acmCertificateArn` + `global.dnsProvider` to the chart via
+`helm.parameters`. Sync-wave 9 (after the Vault chart at wave 5).
+
+#### `providers/{aws,azure}/platform-outputs.tf` — exposures move
+
+`vault.exposuresJson` (in `platform-infrastructure-sensitive` Secret)
+→ `global.vaultExposures` (in `platform-infrastructure` ConfigMap),
+matching the ADR 0014 convention used by every other `*Exposures`
+field. Exposures are non-sensitive (just hostnames + CIDR allowlists);
+the Secret keeps only the identity and KMS/KV key ID.
+
+### Added — Three tunable variables
+
+`providers/aws/variables.tf`:
+- `vault_kms_deletion_window_days` (default `7`, range 7-30) — AWS
+  KMS deletion window for the dedicated unseal key. Lower = faster
+  destroy on toggle off; higher = bigger window to recover an
+  accidentally-disabled deployment.
+
+`providers/azure/variables.tf`:
+- `vault_kv_soft_delete_days` (default `7`, range 7-90) — Soft-delete
+  retention on the dedicated Vault Key Vault. NO purge_protection
+  (toggle false must remove cleanly).
+- `vault_storage_replication_type` (default `"LRS"`, validated against
+  LRS/ZRS/GRS/RAGRS/GZRS/RAGZRS) — Replication type for the Vault
+  snapshot Storage Account. LRS=cheapest single-region; clients with
+  HA backup needs override to ZRS or GRS.
+
+### Migration
+
+For `vault_enabled = true` deployments running v0.28.0 or v0.28.1:
+
+1. Bump `ref` and `platform_revision` to `v0.28.2`.
+2. `terraform init -upgrade && terraform apply` — `platform-infrastructure`
+   ConfigMap gains `global.vaultExposures`; `platform-infrastructure-sensitive`
+   loses `vault.exposuresJson` (was non-sensitive, ADR 0014 alignment).
+3. `estabilis promote <client> -d <deployment> --force-refresh` — the
+   parameter forwarding picks up the new ConfigMap key; vault-ingress
+   Application renders.
+4. **Drop hardcoded ingress override** in client repo's
+   `overrides/vault/values.yaml` (only the genuine cluster-specific
+   bits like `dataStorage.storageClass` should remain).
+
+For deployments NOT yet using Vault: no-op (`vault_enabled = false`
+default).
+
 ## [0.28.1] - 2026-04-25
 
 ### Fixed — `vault.yaml` template nil-pointer on first render
