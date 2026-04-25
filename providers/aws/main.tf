@@ -127,7 +127,7 @@ locals {
 
 locals {
   _app_host = {
-    for app in ["grafana", "argocd", "loki", "mimir", "hubble"] : app =>
+    for app in ["grafana", "argocd", "loki", "mimir", "hubble", "vault"] : app =>
     "${app}.${local.cluster_name}.${var.domain}"
   }
 
@@ -154,6 +154,11 @@ locals {
   hubble_ui_exposures_resolved = {
     for k, v in var.hubble_ui_exposures : k => merge(v, {
       host = length(v.host) > 0 ? v.host : local._app_host.hubble
+    })
+  }
+  vault_exposures_resolved = {
+    for k, v in var.vault_exposures : k => merge(v, {
+      host = length(v.host) > 0 ? v.host : local._app_host.vault
     })
   }
 }

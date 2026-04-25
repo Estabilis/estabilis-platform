@@ -38,7 +38,7 @@ configRepoVersion: ""       # DEPRECATED: use configRepoRevision
 # See ADR 0001 (estabilis-platform-tools/docs/adr/0001-workload-bootstrap-strategy.md).
 # Default values below; downstream can override via overrides/platform-root/values.yaml.
 platformGitopsRepoUrl: "https://github.com/Estabilis/estabilis-platform-gitops.git"
-platformGitopsVersion: "v0.37.2"
+platformGitopsVersion: "v0.38.0"
 
 global:
   # Provenance — injected at runtime by the CLI (see block above).
@@ -153,6 +153,7 @@ components:
   karpenter: true            # optional: AWS-only — node autoscaler. Activates when global.autoscaler is `karpenter` or `hybrid`
   karpenter-resources: true  # optional: AWS-only — default NodePool + EC2NodeClass. Same activation as karpenter
   aws-load-balancer-controller: true  # optional: AWS-only — provisions ALB/NLB from Ingress/Service. Activates when global.ingressController == "alb"
+  vault: false              # optional: HashiCorp Vault — multi-provider opt-in. Activated by vault_enabled=true in terraform.tfvars (provisions cloud unseal infra). Auto-unseal: KMS (AWS) / Key Vault (Azure). Foundation only — bootstrap (auth, policies, KV mount) is downstream.
 
   # --- observability (disable individually or set all to false) ---
   grafana: true              # observability: dashboards and visualization

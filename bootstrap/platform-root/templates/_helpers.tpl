@@ -397,6 +397,7 @@ tolerations:
   Output: a `components:` block ready to nest under valuesObject.
 */ -}}
 {{- define "platform-root.componentsForwarding" -}}
+{{- /* Vault is intentionally NOT in this list — it's multi-provider (AWS + Azure) and gated separately on (provider in (aws|azure)) in vault.yaml. */ -}}
 {{- $awsOnly := list "aws-load-balancer-controller" "karpenter" "karpenter-resources" "metrics-server" -}}
 components:
   {{- range $k, $v := .Values.components }}

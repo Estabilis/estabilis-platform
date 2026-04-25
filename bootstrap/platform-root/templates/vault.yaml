@@ -1,0 +1,164 @@
+{{- /*
+  HashiCorp Vault — multi-provider opt-in component.
+
+  Gating:
+    - global.provider must be aws or azure
+    - components.vault must not be false
+
+  AWS path:
+    - Auto-unseal: AWS KMS (dedicated key, NOT the cluster envelope key)
+    - Identity: IRSA (eks.amazonaws.com/role-arn → vault SA)
+    - Backup destination: S3 bucket (CronJob is a follow-up — bucket
+      provisioned now via providers/aws/vault.tf)
+
+  Azure path:
+    - Auto-unseal: Azure Key Vault (dedicated KV per cluster)
+    - Identity: Workload Identity (azure.workload.identity/client-id → vault SA)
+    - Backup destination: Storage Account container (deferred CronJob)
+
+  Foundation scope: chart deployment + cloud auto-unseal only. Bootstrap
+  (auth methods, policies, KV mount, ClusterSecretStore wiring) is
+  intentionally NOT done here — operator runs `vault operator init`
+  manually after this Application syncs, then proceeds with downstream
+  / runbook procedures.
+*/ -}}
+{{- if and (or (eq .Values.global.provider "aws") (eq .Values.global.provider "azure")) (ne (index .Values.components "vault") false) }}
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: vault
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "5"
+spec:
+  project: platform
+  sources:
+    - repoURL: https://helm.releases.hashicorp.com
+      chart: vault
+      targetRevision: "{{ default "0.29.1" .Values.vaultChartVersion }}"
+      helm:
+        valueFiles:
+          - $values/values/platform/vault.yaml
+          - $values/values/platform/vault-{{ .Values.global.provider }}.yaml
+          {{- include "platform-root.overrideValueFile" (dict "component" "vault" "root" $) | nindent 10 }}
+          {{- include "platform-root.gitopsValueFile" (dict "component" "vault" "root" $) | nindent 10 }}
+        ignoreMissingValueFiles: true
+        valuesObject:
+          {{- /* Scheduling (ADR 0012) */}}
+          {{- $mode := default "auto" (index .Values.scheduling "vault") }}
+          {{- include "platform-root.schedulingValuesTopLevel" (dict "mode" $mode) | nindent 10 }}
+        parameters:
+          {{- if eq .Values.global.provider "aws" }}
+          {{- /* IRSA annotation — vault SA assumes the role provisioned
+                by providers/aws/vault.tf → module.vault_irsa. The role
+                grants kms:Encrypt/Decrypt for auto-unseal and
+                s3:PutObject/GetObject for snapshot backups. */}}
+          - name: server.serviceAccount.annotations.eks\.amazonaws\.com/role-arn
+            value: "{{ .Values.identity.vault.roleArn }}"
+          {{- /* Inject the KMS key id + region into the Raft seal stanza.
+                The vault-aws.yaml overlay carries placeholder strings
+                that get replaced via Helm's --set string-replace. */}}
+          - name: server.ha.raft.config
+            value: |
+              ui = true
+
+              listener "tcp" {
+                tls_disable     = 1
+                address         = "[::]:8200"
+                cluster_address = "[::]:8201"
+              }
+
+              storage "raft" {
+                path = "/vault/data"
+
+                retry_join {
+                  leader_api_addr = "http://vault-0.vault-internal:8200"
+                }
+                retry_join {
+                  leader_api_addr = "http://vault-1.vault-internal:8200"
+                }
+                retry_join {
+                  leader_api_addr = "http://vault-2.vault-internal:8200"
+                }
+              }
+
+              seal "awskms" {
+                region     = "{{ .Values.vault.kmsRegion }}"
+                kms_key_id = "{{ .Values.vault.kmsKeyId }}"
+              }
+
+              telemetry {
+                prometheus_retention_time = "24h"
+                disable_hostname          = true
+              }
+
+              service_registration "kubernetes" {}
+          {{- else if eq .Values.global.provider "azure" }}
+          {{- /* Workload Identity annotation — vault SA carries the
+                client-id of the Managed Identity provisioned by
+                providers/azure/vault.tf. The MI has Key Vault Crypto
+                User on the dedicated KV (auto-unseal) and Storage Blob
+                Data Contributor on the snapshot Storage Account. */}}
+          - name: server.serviceAccount.annotations.azure\.workload\.identity/client-id
+            value: "{{ .Values.identity.vault.clientId }}"
+          - name: server.extraLabels.azure\.workload\.identity/use
+            value: "true"
+          {{- /* Inject the Azure Key Vault config into the Raft seal stanza. */}}
+          - name: server.ha.raft.config
+            value: |
+              ui = true
+
+              listener "tcp" {
+                tls_disable     = 1
+                address         = "[::]:8200"
+                cluster_address = "[::]:8201"
+              }
+
+              storage "raft" {
+                path = "/vault/data"
+
+                retry_join {
+                  leader_api_addr = "http://vault-0.vault-internal:8200"
+                }
+                retry_join {
+                  leader_api_addr = "http://vault-1.vault-internal:8200"
+                }
+                retry_join {
+                  leader_api_addr = "http://vault-2.vault-internal:8200"
+                }
+              }
+
+              seal "azurekeyvault" {
+                tenant_id  = "{{ .Values.global.tenantId }}"
+                vault_name = "{{ .Values.vault.keyVaultName }}"
+                key_name   = "{{ .Values.vault.unsealKeyName }}"
+              }
+
+              telemetry {
+                prometheus_retention_time = "24h"
+                disable_hostname          = true
+              }
+
+              service_registration "kubernetes" {}
+          {{- end }}
+          {{- include "platform-root.provenanceParameters" $ | nindent 10 }}
+    - repoURL: {{ .Values.platformGitopsRepoUrl }}
+      targetRevision: {{ .Values.platformGitopsVersion }}
+      ref: values
+    {{- include "platform-root.overrideSource" . | nindent 4 }}
+    {{- include "platform-root.gitopsSource" . | nindent 4 }}
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: vault
+  syncPolicy:
+    {{- include "platform-root.managedNamespaceMetadataExcluded" . | nindent 4 }}
+    retry:
+      limit: 10
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 3m
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+{{- end }}

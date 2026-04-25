@@ -301,3 +301,35 @@ output "hubble_ui_exposures_json" {
   description = "JSON-encoded Hubble UI exposures (resolved hosts)."
   value       = jsonencode({ for k, v in local.hubble_ui_exposures_resolved : k => v if v.enabled })
 }
+
+# --- Vault (v0.27.0+) ---
+
+output "vault_kms_key_id" {
+  description = "AWS KMS key ID for Vault auto-unseal. Empty when vault_enabled=false."
+  value       = var.vault_enabled ? aws_kms_key.vault[0].key_id : ""
+}
+
+output "vault_kms_key_arn" {
+  description = "AWS KMS key ARN for Vault auto-unseal. Empty when vault_enabled=false."
+  value       = var.vault_enabled ? aws_kms_key.vault[0].arn : ""
+}
+
+output "vault_kms_region" {
+  description = "AWS region where the Vault unseal KMS key lives."
+  value       = var.region
+}
+
+output "vault_irsa_role_arn" {
+  description = "IRSA role ARN for the vault ServiceAccount. Empty when vault_enabled=false."
+  value       = var.vault_enabled ? module.vault_irsa[0].iam_role_arn : ""
+}
+
+output "vault_backup_bucket_name" {
+  description = "S3 bucket name for Vault Raft snapshot backups. Empty when vault_enabled=false."
+  value       = var.vault_enabled ? aws_s3_bucket.vault_backup[0].id : ""
+}
+
+output "vault_exposures_json" {
+  description = "JSON-encoded Vault exposures (resolved hosts)."
+  value       = jsonencode({ for k, v in local.vault_exposures_resolved : k => v if v.enabled })
+}
