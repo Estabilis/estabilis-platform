@@ -134,6 +134,8 @@ spec:
       kind: "*"
     - group: karpenter.k8s.aws
       kind: "*"
+    - group: elbv2.k8s.aws
+      kind: "*"
     - group: apiregistration.k8s.io
       kind: APIService
 ---
