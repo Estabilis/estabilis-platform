@@ -175,11 +175,11 @@ resource "kubernetes_secret" "platform_infrastructure" {
     "global.cloudflareApiToken" = var.dns_provider == "cloudflare" ? var.cloudflare_api_token : ""
 
     # Vault (v0.27.0+) — populated only when vault_enabled=true.
-    "identity.vault.roleArn"        = var.vault_enabled ? module.vault_irsa[0].iam_role_arn : ""
-    "vault.kmsKeyId"                = var.vault_enabled ? aws_kms_key.vault[0].key_id : ""
-    "vault.kmsRegion"               = var.vault_enabled ? var.region : ""
-    "vault.backupBucketName"        = var.vault_enabled ? aws_s3_bucket.vault_backup[0].id : ""
-    "vault.exposuresJson"           = jsonencode({ for k, v in local.vault_exposures_resolved : k => v if v.enabled })
+    "identity.vault.roleArn" = var.vault_enabled ? module.vault_irsa[0].iam_role_arn : ""
+    "vault.kmsKeyId"         = var.vault_enabled ? aws_kms_key.vault[0].key_id : ""
+    "vault.kmsRegion"        = var.vault_enabled ? var.region : ""
+    "vault.backupBucketName" = var.vault_enabled ? aws_s3_bucket.vault_backup[0].id : ""
+    "vault.exposuresJson"    = jsonencode({ for k, v in local.vault_exposures_resolved : k => v if v.enabled })
   }
 }
 
