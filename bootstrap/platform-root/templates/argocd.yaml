@@ -39,6 +39,22 @@ spec:
       kind: ValidatingWebhookConfiguration
       jqPathExpressions:
         - .webhooks[]?.clientConfig.caBundle
+    {{- /* argocd-secret: the chart renders this Secret with `data: {}`
+           because `redisSecretInit.enabled = false` (see
+           core/components/argocd/values.yaml — disabling that hook avoids
+           foregroundDeletion deadlocks on ArgoCD self-manage sync).
+           Without ignoreDifferences here, every reconcile of the argocd
+           Application would overwrite `/data` via ServerSideApply,
+           wiping `server.secretkey`. Terraform pre-populates
+           `server.secretkey` via `kubernetes_secret_v1_data` in
+           providers/{aws,azure}/argocd-secret.tf — this ignoreDifferences
+           keeps it intact across syncs. */}}
+    - group: ""
+      kind: Secret
+      name: argocd-secret
+      namespace: argocd
+      jsonPointers:
+        - /data
   syncPolicy:
     {{- include "platform-root.managedNamespaceMetadataExcluded" . | nindent 4 }}
     retry:

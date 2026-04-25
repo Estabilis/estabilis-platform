@@ -11,6 +11,21 @@ commonLabels:
 redisSecretInit:
   enabled: false
 
+# Disable chart-managed argocd-secret. With redisSecretInit off, the
+# chart would otherwise render `argocd-secret` with `data: {}` — and
+# every reconcile of the self-managed `argocd` Application would
+# ServerSideApply that empty manifest, wiping `server.secretkey` and
+# breaking session signing (`server.secretkey is missing` warnings,
+# Unauthorized watches, UI/CLI 401s).
+#
+# Foundation v0.28.3+: terraform owns argocd-secret end-to-end via
+# `providers/{aws,azure}/argocd-secret.tf`. The chart skips creation
+# entirely when `configs.secret.createSecret = false`. This eliminates
+# the SSA wipe vector at its source.
+configs:
+  secret:
+    createSecret: false
+
 global:
   securityContext:
     runAsNonRoot: true

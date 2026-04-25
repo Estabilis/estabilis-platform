@@ -1,5 +1,89 @@
 # Changelog
 
+## [0.28.3] - 2026-04-25
+
+### Fixed — `argocd-secret server.secretkey` wipe on self-manage sync (root-cause)
+
+ArgoCD self-managed via the `argocd` Application would periodically
+end up with an empty `argocd-secret`, surfacing as:
+
+```
+argocd-server: "Unable to parse updated settings: server.secretkey is missing"
+argocd-server: "failed to list *v1.Secret: Unauthorized" (watch loops)
+UI/CLI: 401 on every request
+```
+
+Live observation on cortex-eks: the Secret would be populated for a
+few minutes after a fresh `helm install`, then drop back to empty
+data on the first ArgoCD self-sync — repeating every reconcile cycle.
+
+#### Root cause
+
+The argo-cd chart populates `argocd-secret.data` (server.secretkey,
+admin.password, etc.) via the `redisSecretInit` Job pre-install hook.
+That hook is intentionally disabled in
+`core/components/argocd/values.yaml`:
+
+```yaml
+# Disable redis-secret-init hook — the Redis password is managed by
+# Terraform (Key Vault) + ExternalSecret, not Helm hooks.
+# Hooks cause foregroundDeletion deadlocks on ArgoCD self-manage sync.
+redisSecretInit:
+  enabled: false
+```
+
+But disabling the hook left the chart rendering `argocd-secret` with
+`data: {}`. The self-managed `argocd` Application would
+ServerSideApply that empty manifest on every reconcile, taking
+ownership of the `/data` field manager and wiping whatever was
+populated there (manual patches, prior helm hook output, anything).
+
+#### Fix (defense in depth)
+
+1. **`core/components/argocd/values.yaml`** — set
+   `configs.secret.createSecret: false`. The chart no longer renders
+   `argocd-secret` at all. Eliminates the SSA wipe vector at its
+   source.
+2. **`providers/{aws,azure}/argocd-secret.tf` (NEW)** — terraform
+   generates a 32-byte `server.secretkey` via `random_password` and
+   creates the `argocd-secret` directly. Lifecycle `ignore_changes`
+   on the field set ArgoCD/operators may write later
+   (`admin.password`, `webhook.*`, `dex.*` OIDC secrets) so terraform
+   doesn't fight whoever populates those.
+3. **`bootstrap/platform-root/templates/argocd.yaml`** — adds
+   `ignoreDifferences` for `Secret/argocd-secret/data` on the argocd
+   Application. Belt-and-suspenders: even if some future change
+   re-enables chart-side rendering, the data field is protected from
+   SSA overwrite on self-sync.
+
+Rotation: change `random_password.argocd_secretkey.keepers` (or
+destroy+recreate the resource) to rotate. `argocd-server` picks up
+the new key on the next pod restart.
+
+### Migration
+
+For all v0.28.x clusters where Vault is being deployed (or any
+deployment hitting the secretkey wipe loop):
+
+1. Bump `ref` and `platform_revision` to `v0.28.3`.
+2. `terraform init -upgrade && terraform apply` — creates
+   `argocd-secret` with a freshly generated `server.secretkey`.
+   If the Secret already exists with operator-provided data,
+   terraform takes ownership of the `data` map; lifecycle ignores
+   the listed fields so admin.password / webhooks / dex secrets
+   are preserved.
+3. `estabilis promote <client> -d <deployment> --force-refresh` —
+   re-renders the `argocd` Application, picking up the new
+   `configs.secret.createSecret = false` value file change AND the
+   ignoreDifferences from the bootstrap template.
+4. Verify: `kubectl -n argocd logs deploy/argocd-server | grep -i
+   secretkey` should be silent. `kubectl -n argocd get secret
+   argocd-secret -o jsonpath='{.data}' | jq 'keys'` should include
+   `server.secretkey`.
+
+For deployments not affected (no symptoms): no-op, but recommended
+for hygiene — eliminates a latent failure mode.
+
 ## [0.28.2] - 2026-04-25
 
 ### Added — `vault-ingress` chart (consumes `vault_exposures` dynamically)
