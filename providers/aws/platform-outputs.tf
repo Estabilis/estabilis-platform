@@ -105,6 +105,7 @@ resource "kubernetes_config_map" "platform_infrastructure" {
     "global.grafanaExposures"  = jsonencode({ for k, v in local.grafana_exposures_resolved : k => v if v.enabled })
     "global.argocdExposures"   = jsonencode({ for k, v in local.argocd_exposures_resolved : k => v if v.enabled })
     "global.hubbleUiExposures" = jsonencode({ for k, v in local.hubble_ui_exposures_resolved : k => v if v.enabled })
+    "global.vaultExposures"    = jsonencode({ for k, v in local.vault_exposures_resolved : k => v if v.enabled })
 
     # Autoscaler + Karpenter wiring
     "global.autoscaler"               = var.autoscaler
@@ -175,11 +176,13 @@ resource "kubernetes_secret" "platform_infrastructure" {
     "global.cloudflareApiToken" = var.dns_provider == "cloudflare" ? var.cloudflare_api_token : ""
 
     # Vault (v0.27.0+) — populated only when vault_enabled=true.
+    # vault.exposuresJson moved to ConfigMap as global.vaultExposures (ADR 0014
+    # convention; non-sensitive). The Secret keeps the identity + KMS key id
+    # which ARE sensitive.
     "identity.vault.roleArn" = var.vault_enabled ? module.vault_irsa[0].iam_role_arn : ""
     "vault.kmsKeyId"         = var.vault_enabled ? aws_kms_key.vault[0].key_id : ""
     "vault.kmsRegion"        = var.vault_enabled ? var.region : ""
     "vault.backupBucketName" = var.vault_enabled ? aws_s3_bucket.vault_backup[0].id : ""
-    "vault.exposuresJson"    = jsonencode({ for k, v in local.vault_exposures_resolved : k => v if v.enabled })
   }
 }
 

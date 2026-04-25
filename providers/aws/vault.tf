@@ -34,7 +34,7 @@ resource "aws_kms_key" "vault" {
 
   description             = "Vault auto-unseal key for ${local.cluster_name}"
   enable_key_rotation     = true
-  deletion_window_in_days = 7
+  deletion_window_in_days = var.vault_kms_deletion_window_days
 
 }
 

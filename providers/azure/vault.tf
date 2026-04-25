@@ -39,7 +39,7 @@ resource "azurerm_key_vault" "vault_unseal" {
   tenant_id                  = var.tenant_id
   sku_name                   = "standard"
   rbac_authorization_enabled = true
-  soft_delete_retention_days = 7
+  soft_delete_retention_days = var.vault_kv_soft_delete_days
 
   # NO purge_protection — toggle false must remove all resources cleanly.
   purge_protection_enabled = false
@@ -89,7 +89,7 @@ resource "azurerm_storage_account" "vault_backup" {
   resource_group_name      = azurerm_resource_group.platform.name
   location                 = azurerm_resource_group.platform.location
   account_tier             = "Standard"
-  account_replication_type = "LRS"
+  account_replication_type = var.vault_storage_replication_type
   min_tls_version          = "TLS1_2"
 
   blob_properties {
