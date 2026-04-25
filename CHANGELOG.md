@@ -1,5 +1,34 @@
 # Changelog
 
+## [0.28.1] - 2026-04-25
+
+### Fixed — `vault.yaml` template nil-pointer on first render
+
+The Vault Application template (introduced in v0.28.0) referenced
+`.Values.identity.vault.roleArn`, `.Values.vault.kmsKeyId`, etc.
+without these keys having defaults in the chart's `values.yaml`. On
+the first render after a v0.28.0 bump (before terraform helm.parameters
+have flowed through to the Application's spec.parameters), the chart
+crashed with:
+
+```
+template: platform-root/templates/vault.yaml:57:30: executing
+"platform-root/templates/vault.yaml" at <.Values.identity.vault.roleArn>:
+nil pointer evaluating interface {}.roleArn
+```
+
+#### Fix
+
+Added empty-string defaults in `bootstrap/platform-root/values.yaml`:
+- `identity.vault.{clientId,roleArn}`
+- `vault.{kmsKeyId,kmsRegion,backupBucketName,keyVaultName,unsealKeyName,backupStorageAccount,backupContainer}`
+
+Pattern matches the existing `identity.externalSecrets.*` and similar
+defaults — the chart can render with empty values, and terraform's
+helm.parameters override them at sync time.
+
+No platform code changes; values-only patch.
+
 ## [0.28.0] - 2026-04-25
 
 ### Added — HashiCorp Vault as a multi-provider opt-in component (foundation)
