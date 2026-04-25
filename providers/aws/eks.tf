@@ -248,11 +248,31 @@ module "eks" {
   # touching the module call. ---------------------------------------------
   node_security_group_additional_rules = {}
 
-  # --- Node SG tags for Karpenter discovery -------------------------------
-  # Applied whenever Karpenter is present (both 'karpenter' and 'hybrid').
-  node_security_group_tags = contains(["karpenter", "hybrid"], var.autoscaler) ? {
-    (var.karpenter_discovery_tag_key) = local.cluster_name
-  } : {}
+  # --- Node SG tags ------------------------------------------------------
+  #
+  # `kubernetes.io/cluster/<name>` is force-emptied to escape AWS Load
+  # Balancer Controller's filter, which only recognises values "owned" /
+  # "shared". The module hardcodes value="owned" on the node SG (see
+  # node_groups.tf in terraform-aws-modules/eks) — without this override
+  # both the EKS-managed cluster primary SG AND this node SG carry the
+  # tag, and ALB Controller fails with "expected exactly one
+  # securityGroup tagged with kubernetes.io/cluster/<name> for ENI ...
+  # got: [<node-sg> <cluster-sg>]" the moment a Service or Ingress
+  # produces a TargetGroupBinding. Empty value keeps the key (we cannot
+  # delete via merge) but breaks the filter — the cluster primary SG
+  # remains the single recognised SG, which is the standard EKS+ALB
+  # contract. See: terraform-aws-modules/terraform-aws-eks#2997.
+  #
+  # `var.karpenter_discovery_tag_key` is also applied whenever Karpenter
+  # is present (both 'karpenter' and 'hybrid').
+  node_security_group_tags = merge(
+    {
+      "kubernetes.io/cluster/${local.cluster_name}" = ""
+    },
+    contains(["karpenter", "hybrid"], var.autoscaler) ? {
+      (var.karpenter_discovery_tag_key) = local.cluster_name
+    } : {},
+  )
 
   tags = {
     # Karpenter uses this to find the cluster when provisioning new nodes.
