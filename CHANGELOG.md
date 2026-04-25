@@ -1,5 +1,73 @@
 # Changelog
 
+## [0.26.0] - 2026-04-25
+
+### Fixed — Persistent OutOfSync on `network-policies`, `resource-quotas`, `aws-load-balancer-controller`
+
+Cortex post-mortem (validated with `argocd-ingress`, `external-secrets`,
+`platform-root`):
+
+#### `network-policies` and `resource-quotas` — phantom drift on disabled components
+
+Both charts have a `components.<ns>` map that defaults every entry to
+`true`, so they unconditionally rendered `NetworkPolicy` /
+`ResourceQuota` / `LimitRange` resources for namespaces of components
+that an operator had disabled (e.g. `components.opencost = false`,
+`components.traefik = false` on AWS clusters). The target namespaces
+never exist, so the resources stay in `OutOfSync` forever.
+
+The fix: `bootstrap/platform-root/templates/network-policies.yaml` and
+`resource-quotas.yaml` now forward `.Values.components` into the child
+Application via `valuesObject.components`. The chart-level gating
+(`if hasKey $.Values.components $ns`) immediately starts honoring the
+operator's intent.
+
+Also added `policy-reporter: false` to platform-root `values.yaml`
+defaults — every cluster carried this in `components` only via the
+chart's default-true behaviour, even though policy-reporter is opt-in.
+
+Mismatches between platform-root key naming and chart key naming
+(e.g. platform's `cnpg` vs `resource-quotas` chart's `cnpg-system`,
+platform's `trivy` vs `trivy-system`) are tolerated: the chart's
+`hasKey` check falls through to default-true, which is correct for the
+clusters that DO deploy those components. A follow-up PR will rename
+the chart keys for full consistency.
+
+#### `aws-load-balancer-controller` — phantom drift on webhook caBundle and TLS
+
+The chart's webhook-self-signing init container patches the
+`MutatingWebhookConfiguration` / `ValidatingWebhookConfiguration`
+caBundle and the `aws-load-balancer-tls` Secret data at install time.
+ArgoCD then sees the resulting in-cluster fields as drift against the
+unpopulated chart manifest and reports `OutOfSync` permanently. Same
+issue on the `IngressClassParams alb` body which the chart leaves empty
+for the operator to fill in.
+
+The fix: scoped `ignoreDifferences` entries on the `aws-load-balancer-
+controller` Application:
+- caBundle in both webhook configurations (jqPathExpression
+  `.webhooks[]?.clientConfig.caBundle`)
+- entire `data` of the TLS Secret
+- entire `spec` of the `IngressClassParams alb` (body is not chart-managed)
+
+The pattern follows the AKS `admissionsenforcer` precedent (Estabilis
+memory `reference_aks_admissionsenforcer_webhook_drift`).
+
+### Migration
+
+For all clusters running v0.25.x:
+
+1. `terraform apply` after pulling v0.26.0 — only the platform-root
+   Application's `targetRevision` bumps; no infrastructure change.
+2. `estabilis promote <client>` (or sync `platform-root` then
+   downstream Apps directly) — the new `valuesObject` and
+   `ignoreDifferences` propagate; existing OutOfSync states clear
+   within the next reconcile loop.
+3. NetworkPolicies / Quotas for disabled components are pruned
+   automatically (their parent App auto-syncs with `prune: true`).
+
+Zero impact on Azure-only clusters that have all components enabled.
+
 ## [0.25.2] - 2026-04-25
 
 ### Fixed — Properly delete node SG cluster-membership tag (v0.25.1 was a no-op)

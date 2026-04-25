@@ -148,6 +148,7 @@ components:
   velero: true               # optional: backup/restore (disable if handled externally)
   external-dns: true         # optional: DNS record management (disable if manual DNS)
   argocd-image-updater: false # optional: auto-update container images via registry polling (opt-in)
+  policy-reporter: false     # optional: kubernetes policy report dashboards (disabled by default — opt-in)
   metrics-server: true       # optional: AWS-only — Resource Metrics API server (kubectl top, HPA). Azure AKS provides natively
   karpenter: true            # optional: AWS-only — node autoscaler. Activates when global.autoscaler is `karpenter` or `hybrid`
   karpenter-resources: true  # optional: AWS-only — default NodePool + EC2NodeClass. Same activation as karpenter

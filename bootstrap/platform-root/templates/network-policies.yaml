@@ -20,7 +20,18 @@ spec:
           {{- include "platform-root.overrideValueFile" (dict "component" "network-policies" "root" $) | nindent 10 }}
           {{- include "platform-root.gitopsValueFile" (dict "component" "network-policies" "root" $) | nindent 10 }}
         ignoreMissingValueFiles: true
-        {{- include "platform-root.provenanceParametersBlock" $ | nindent 8 }}
+        {{- /* Forward platform-root components map so the chart only renders
+              NetworkPolicies for namespaces whose component is actually
+              deployed. Without this, disabled components (opencost=false,
+              traefik=false, etc.) still produce NPs targeting their
+              non-existent namespaces and the App stays OutOfSync. */}}
+        valuesObject:
+          components:
+            {{- range $k, $v := .Values.components }}
+            {{ $k | quote }}: {{ $v }}
+            {{- end }}
+        parameters:
+          {{- include "platform-root.provenanceParameters" $ | nindent 10 }}
     - repoURL: {{ .Values.platformGitopsRepoUrl }}
       targetRevision: {{ .Values.platformGitopsVersion }}
       ref: values
