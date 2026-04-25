@@ -1,5 +1,45 @@
 # Changelog
 
+## [0.25.1] - 2026-04-25
+
+### Fixed — Empty `kubernetes.io/cluster/<name>` tag on node SG
+
+Postmortem (immediate follow-on to v0.25.0): once the ACM cert + subnet
+tags landed and the ALB front-door provisioned, ALB Controller still
+refused to register pod targets — every reconcile loop emitted
+`expected exactly one securityGroup tagged with
+kubernetes.io/cluster/<cluster-name> for eni <eni-id>, got:
+[<node-sg> <cluster-sg>]`.
+
+Root cause: `terraform-aws-modules/eks` v20.37 hardcodes
+`kubernetes.io/cluster/<cluster-name> = "owned"` in the node SG's tags
+map (see node_groups.tf). The EKS service ALSO auto-tags the cluster
+primary SG with the same key. The result is two SGs claiming cluster
+membership — ALB Controller's algorithm requires exactly one to know
+where to inject the rule that lets the load balancer reach pod IPs.
+See terraform-aws-modules/terraform-aws-eks#2997.
+
+Fix: pass `node_security_group_tags = { "kubernetes.io/cluster/<name>"
+= "" }` to the EKS module. The module's merge order means our value
+wins; the tag still exists (we can't delete via merge) but its empty
+value falls outside ALB Controller's `["owned", "shared"]` filter, so
+the controller correctly identifies the cluster primary SG as the
+sole cluster-tagged SG and injects the rule there. Standard EKS+ALB
+contract is preserved.
+
+### Migration
+
+For existing AWS clusters bootstrapped at < v0.25.1:
+
+1. `terraform apply` after pulling v0.25.1 — the module re-tags the
+   node SG with empty value.
+2. Restart `aws-load-balancer-controller` deployment to clear its SG
+   cache (the controller polls but a restart skips the wait).
+3. Existing Ingresses with stuck `Target.Timeout` health checks
+   reconcile automatically (~30s) once the SG rule is injected.
+
+Zero impact on Azure clients.
+
 ## [0.25.0] - 2026-04-25
 
 ### Fixed — Close the AWS ALB cert + subnet-discovery gap
