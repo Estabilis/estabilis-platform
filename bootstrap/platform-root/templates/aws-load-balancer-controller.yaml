@@ -62,6 +62,32 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: aws-load-balancer-controller
+  {{- /* Ignore drift on fields the chart's webhook self-signing logic
+        populates at install time (caBundle / TLS Secret data) and on
+        the IngressClassParams body which the chart leaves empty for the
+        operator to fill in. Without this, the App reports OutOfSync on
+        every reconcile despite the controller working correctly. */}}
+  ignoreDifferences:
+    - group: admissionregistration.k8s.io
+      kind: MutatingWebhookConfiguration
+      name: aws-load-balancer-webhook
+      jqPathExpressions:
+        - .webhooks[]?.clientConfig.caBundle
+    - group: admissionregistration.k8s.io
+      kind: ValidatingWebhookConfiguration
+      name: aws-load-balancer-webhook
+      jqPathExpressions:
+        - .webhooks[]?.clientConfig.caBundle
+    - group: ""
+      kind: Secret
+      name: aws-load-balancer-tls
+      jsonPointers:
+        - /data
+    - group: elbv2.k8s.aws
+      kind: IngressClassParams
+      name: alb
+      jsonPointers:
+        - /spec
   syncPolicy:
     {{- include "platform-root.managedNamespaceMetadataExcluded" . | nindent 4 }}
     retry:
