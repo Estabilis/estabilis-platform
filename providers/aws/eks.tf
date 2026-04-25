@@ -248,31 +248,15 @@ module "eks" {
   # touching the module call. ---------------------------------------------
   node_security_group_additional_rules = {}
 
-  # --- Node SG tags ------------------------------------------------------
-  #
-  # `kubernetes.io/cluster/<name>` is force-emptied to escape AWS Load
-  # Balancer Controller's filter, which only recognises values "owned" /
-  # "shared". The module hardcodes value="owned" on the node SG (see
-  # node_groups.tf in terraform-aws-modules/eks) — without this override
-  # both the EKS-managed cluster primary SG AND this node SG carry the
-  # tag, and ALB Controller fails with "expected exactly one
-  # securityGroup tagged with kubernetes.io/cluster/<name> for ENI ...
-  # got: [<node-sg> <cluster-sg>]" the moment a Service or Ingress
-  # produces a TargetGroupBinding. Empty value keeps the key (we cannot
-  # delete via merge) but breaks the filter — the cluster primary SG
-  # remains the single recognised SG, which is the standard EKS+ALB
-  # contract. See: terraform-aws-modules/terraform-aws-eks#2997.
-  #
-  # `var.karpenter_discovery_tag_key` is also applied whenever Karpenter
-  # is present (both 'karpenter' and 'hybrid').
-  node_security_group_tags = merge(
-    {
-      "kubernetes.io/cluster/${local.cluster_name}" = ""
-    },
-    contains(["karpenter", "hybrid"], var.autoscaler) ? {
-      (var.karpenter_discovery_tag_key) = local.cluster_name
-    } : {},
-  )
+  # --- Node SG tags for Karpenter discovery -------------------------------
+  # Applied whenever Karpenter is present (both 'karpenter' and 'hybrid').
+  # The cluster-membership tag (kubernetes.io/cluster/<name>) is deliberately
+  # NOT set here — see null_resource.untag_node_sg_cluster_membership below
+  # for the deletion logic and main.tf provider's ignore_tags for the
+  # drift-suppression pair.
+  node_security_group_tags = contains(["karpenter", "hybrid"], var.autoscaler) ? {
+    (var.karpenter_discovery_tag_key) = local.cluster_name
+  } : {}
 
   tags = {
     # Karpenter uses this to find the cluster when provisioning new nodes.
@@ -327,4 +311,53 @@ resource "aws_ec2_tag" "existing_subnets_cluster_membership" {
   resource_id = each.value
   key         = "kubernetes.io/cluster/${local.cluster_name}"
   value       = "shared"
+}
+
+# ---------------------------------------------------------------------------
+# Node SG cluster-tag deletion.
+#
+# `terraform-aws-modules/eks` v20 hardcodes
+# `kubernetes.io/cluster/<name>=owned` in the node SG's tags map; combined
+# with the EKS-managed cluster primary SG (auto-tagged by AWS), this gives
+# every node ENI TWO cluster-tagged SGs. ALB Controller's algorithm rejects
+# this state with:
+#
+#     "expected exactly one securityGroup tagged with
+#      kubernetes.io/cluster/<name> for eni <id>, got: [<node-sg> <cluster-sg>]"
+#
+# blocking target rule injection on every Ingress/Service. Module exposes no
+# knob to suppress; setting the value via `node_security_group_tags = { ...
+# = "" }` keeps the tag KEY (which is what the controller filters on),
+# making that workaround a no-op. The only effective fix is an actual
+# delete-tags API call after every apply.
+#
+# `triggers = { always = timestamp() }` re-runs the local-exec on every
+# apply, so even when the EKS module re-asserts the tag (which it will,
+# every plan/apply, since terraform's drift detection sees the tag missing
+# from AWS but present in the module's tags map), this resource immediately
+# re-deletes it. Operators will see a small drift in plan output for the
+# node SG `tags` attribute — that is the expected steady state and tracks
+# the upstream module bug:
+#   https://github.com/terraform-aws-modules/terraform-aws-eks/issues/2997
+#
+# Provider-level `ignore_tags` would suppress the plan-output drift but
+# would also disable drift detection on `aws_ec2_tag.existing_subnets_*`
+# (which uses the same key), creating a silent failure mode for the subnet
+# tagging fix in v0.25.0. Trading clean plan output for safer subnet drift
+# detection — the local-exec idempotency keeps the cluster healthy in
+# between any actual applies.
+# ---------------------------------------------------------------------------
+resource "null_resource" "untag_node_sg_cluster_membership" {
+  triggers = {
+    sg_id        = module.eks.node_security_group_id
+    cluster_name = local.cluster_name
+    region       = var.region
+    always_run   = timestamp()
+  }
+
+  provisioner "local-exec" {
+    command = "aws ec2 delete-tags --resources ${self.triggers.sg_id} --tags Key=kubernetes.io/cluster/${self.triggers.cluster_name} --region ${self.triggers.region}"
+  }
+
+  depends_on = [module.eks]
 }
