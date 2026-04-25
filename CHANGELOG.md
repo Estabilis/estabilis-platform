@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.27.2] - 2026-04-25
+
+### Bumped — `platformGitopsVersion: v0.37.1 → v0.37.2`
+
+Patch-only release. `estabilis-platform-gitops v0.37.2` adds
+`metrics-server` namespace to the three policy/quota coverage layers
+(same pattern as ALB/karpenter in v0.37.0). The `awsOnly` list in
+`platform-root.componentsForwarding` (introduced v0.27.0) already
+covers `metrics-server`, so no platform code change is needed beyond
+the upstream default bump.
+
+No platform code changes.
+
 ## [0.27.1] - 2026-04-25
 
 ### Bumped — `platformGitopsVersion: v0.37.0 → v0.37.1`
