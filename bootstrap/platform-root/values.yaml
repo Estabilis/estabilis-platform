@@ -112,6 +112,27 @@ identity:
   velero:
     clientId: ""
     roleArn: ""
+  # Vault (v0.28.0+ — multi-provider opt-in). Empty defaults so the
+  # vault.yaml Application template can render even when vault_enabled
+  # is false (or when terraform hasn't injected helm.parameters yet).
+  vault:
+    clientId: ""
+    roleArn: ""
+
+# Vault infrastructure values — populated by terraform helm.parameters from
+# the platform-infrastructure-sensitive Secret when vault_enabled=true.
+# Defaults below are empty strings so the vault.yaml template doesn't trip
+# on nil pointers during initial render.
+vault:
+  # AWS path
+  kmsKeyId: ""
+  kmsRegion: ""
+  backupBucketName: ""
+  # Azure path
+  keyVaultName: ""
+  unsealKeyName: ""
+  backupStorageAccount: ""
+  backupContainer: ""
 
 # ---------------------------------------------------------------------------
 # Component Toggles
