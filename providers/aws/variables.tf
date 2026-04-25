@@ -663,7 +663,7 @@ variable "letsencrypt_email" {
 # ---------------------------------------------------------------------------
 
 variable "acm_enabled" {
-  description = "Provision a wildcard ACM certificate for *.{cluster_name}.{domain}. Useful with ALB + ACM integration (avoids cert-manager for public endpoints). Terraform runs the DNS-01 validation automatically when dns_provider = 'route53'."
+  description = "Provision a wildcard ACM certificate for *.{cluster_name}.{domain}. Required when ingress_controller = 'alb' (ALB Controller only consumes ACM certificates — k8s Secrets are not supported). DNS validation is automatic for both 'route53' and 'cloudflare' DNS providers."
   type        = bool
   default     = false
 }
@@ -697,7 +697,7 @@ variable "grafana_exposures" {
     alb_target_type        = optional(string, "ip")
     alb_ssl_policy         = optional(string, "ELBSecurityPolicy-TLS13-1-2-2021-06")
     alb_healthcheck_path   = optional(string, "")
-    alb_certificate_source = optional(string, "cert-manager")
+    alb_certificate_source = optional(string, "acm")
     alb_cloudflare_proxied = optional(bool, false)
   }))
   default = {}
@@ -719,7 +719,7 @@ variable "loki_exposures" {
     alb_target_type        = optional(string, "ip")
     alb_ssl_policy         = optional(string, "ELBSecurityPolicy-TLS13-1-2-2021-06")
     alb_healthcheck_path   = optional(string, "")
-    alb_certificate_source = optional(string, "cert-manager")
+    alb_certificate_source = optional(string, "acm")
     alb_cloudflare_proxied = optional(bool, false)
   }))
   default = {}
@@ -742,7 +742,7 @@ variable "mimir_exposures" {
     alb_target_type        = optional(string, "ip")
     alb_ssl_policy         = optional(string, "ELBSecurityPolicy-TLS13-1-2-2021-06")
     alb_healthcheck_path   = optional(string, "")
-    alb_certificate_source = optional(string, "cert-manager")
+    alb_certificate_source = optional(string, "acm")
     alb_cloudflare_proxied = optional(bool, false)
   }))
   default = {}
@@ -765,7 +765,7 @@ variable "argocd_exposures" {
     alb_target_type        = optional(string, "ip")
     alb_ssl_policy         = optional(string, "ELBSecurityPolicy-TLS13-1-2-2021-06")
     alb_healthcheck_path   = optional(string, "")
-    alb_certificate_source = optional(string, "cert-manager")
+    alb_certificate_source = optional(string, "acm")
     alb_cloudflare_proxied = optional(bool, false)
   }))
   default = {}
@@ -788,7 +788,7 @@ variable "hubble_ui_exposures" {
     alb_target_type        = optional(string, "ip")
     alb_ssl_policy         = optional(string, "ELBSecurityPolicy-TLS13-1-2-2021-06")
     alb_healthcheck_path   = optional(string, "")
-    alb_certificate_source = optional(string, "cert-manager")
+    alb_certificate_source = optional(string, "acm")
     alb_cloudflare_proxied = optional(bool, false)
   }))
   default = {}

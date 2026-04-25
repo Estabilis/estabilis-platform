@@ -1,5 +1,90 @@
 # Changelog
 
+## [0.25.0] - 2026-04-25
+
+### Fixed — Close the AWS ALB cert + subnet-discovery gap
+
+Postmortem from cortex E2E validation: v0.24.0's chart support for
+`ingress_class = "alb"` rendered the right Ingress, but two missing
+pieces of glue prevented ALB Controller from actually provisioning the
+load balancer. Both pieces were operator-side workarounds in legacy
+deployments — v0.25.0 closes both inside the platform module.
+
+#### Cloudflare-validated ACM cert (was Route53-only)
+
+`providers/aws/acm.tf` now creates the validation CNAME records via
+the `cloudflare/cloudflare` provider when `dns_provider =
+"cloudflare"`, using the same Cloudflare API token already required
+for external-dns + cert-manager DNS-01 issuance. Previously the
+module only auto-validated for Route53; Cloudflare clients had to
+place CNAMEs by hand and the apply hung indefinitely on
+`aws_acm_certificate_validation`.
+
+- New: `cloudflare_record.acm_validation` (one per validation entry)
+- Updated: `aws_acm_certificate_validation.wildcard` count gate +
+  validation_record_fqdns now branches on dns_provider
+- New required provider: `cloudflare/cloudflare ~> 4.0` in `versions.tf`
+
+#### Subnet cluster-membership tag (vpc_mode = existing)
+
+`providers/aws/eks.tf` now tags each subnet (public + private) with
+`kubernetes.io/cluster/<cluster-name> = shared` when the platform
+runs against a pre-existing VPC. Without this, ALB Controller fails
+with "couldn't auto-discover subnets: tagged for other clusters" any
+time the same VPC hosts more than one EKS cluster (typical during
+legacy → new migration). `shared` (vs `owned`) is correct because the
+platform module does NOT own the subnet lifecycle in this mode.
+
+- New: `aws_ec2_tag.existing_subnets_cluster_membership` (one tag per
+  subnet — `for_each = concat(public, private)`)
+
+#### `alb_certificate_source` default flipped to `"acm"`
+
+The v0.24.0 default of `"cert-manager"` was unworkable: AWS Load
+Balancer Controller only consumes ACM certificates — it cannot read
+k8s Secrets directly (no built-in `Secret → ALB cert` path). All five
+AWS `*_exposures` variables now default to `"acm"`. Azure provider
+defaults are unchanged (Azure path doesn't use ALB).
+
+The `"cert-manager"` value is still accepted for forward compatibility
+with future cert-manager → ACM syncer integrations, but rendering an
+ALB Ingress with `alb_certificate_source = "cert-manager"` and no
+syncer in place will produce a non-functional Ingress.
+
+#### Cross-variable validation guards (fail fast at plan time)
+
+Three new guards prevent silent footguns:
+
+- `null_resource.alb_requires_acm_validation`: `ingress_controller =
+  "alb"` requires `acm_enabled = true` (the chart cannot render an
+  ALB without an ACM ARN).
+- `null_resource.acm_requires_managed_dns`: `acm_enabled = true`
+  requires `dns_provider = "route53"` or `"cloudflare"` (with
+  `"none"` the validation CNAME never appears and apply hangs).
+- Chart-level `fail` blocks: each `*-ingress` template now hard-fails
+  if `alb_certificate_source = "acm"` but `global.acmCertificateArn`
+  is empty, OR if `alb_certificate_source` is an unrecognized value.
+  The error message points the operator at exactly which knob to
+  flip.
+
+### Migration
+
+For existing AWS-on-ALB clusters provisioned with v0.24.0:
+
+1. `terraform init -upgrade` (picks up the new `cloudflare/cloudflare`
+   provider).
+2. Set `acm_enabled = true` in the platform downstream `tfvars` (and
+   verify `dns_provider = "cloudflare"` or `"route53"`).
+3. `terraform apply` — provisions the ACM cert + validation CNAMEs +
+   subnet cluster-membership tags. The cert ARN flows automatically to
+   ingress charts via `global.acmCertificateArn`.
+4. `estabilis promote` to refresh platform-root with the new ARN.
+5. Existing ALB Ingresses that were stuck on "no certificate found"
+   will reconcile automatically once the ACM cert is ISSUED. No
+   manual `kubectl annotate` needed.
+
+For Azure clients: zero impact (all changes are AWS-only).
+
 ## [0.24.0] - 2026-04-25
 
 ### Added — ALB ingress support across all 5 `*-ingress` charts

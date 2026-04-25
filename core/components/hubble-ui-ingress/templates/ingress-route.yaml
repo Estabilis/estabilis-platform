@@ -29,6 +29,14 @@
 {{- fail (printf "hubble_ui_exposures.%s: basic_auth=true is not supported when ingress_class=alb (use Cognito/OIDC integration via the alb_authorizer field — not yet implemented)" $profile) }}
 {{- end }}
 
+{{- if and $isALB (eq $exp.alb_certificate_source "acm") (eq (default "" $.Values.global.acmCertificateArn) "") }}
+{{- fail (printf "hubble_ui_exposures.%s: alb_certificate_source=acm but global.acmCertificateArn is empty. Set acm_enabled=true on the platform Terraform module so an ACM cert is provisioned and its ARN auto-flows to this chart, or pick a different alb_certificate_source." $profile) }}
+{{- end }}
+
+{{- if and $isALB (not (has $exp.alb_certificate_source (list "acm" "cert-manager"))) }}
+{{- fail (printf "hubble_ui_exposures.%s: alb_certificate_source=%q is not recognized. Valid values: 'acm' (recommended — ALB Controller consumes ACM cert directly), 'cert-manager' (NOT supported by stock ALB Controller — kept for forward compatibility with future syncer integrations)." $profile $exp.alb_certificate_source) }}
+{{- end }}
+
 {{- if $isALB }}
 {{- /* ============================ ALB BRANCH ============================ */}}
 {{- $hcPath := default "/" $exp.alb_healthcheck_path }}

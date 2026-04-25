@@ -1,4 +1,16 @@
 # ---------------------------------------------------------------------------
+# Cloudflare provider — only effective when dns_provider = "cloudflare".
+# When dns_provider != "cloudflare", api_token is empty and any
+# cloudflare_* resource that gets created (none should — they are
+# count-gated) will fail with an obvious "Authentication error" rather
+# than silently succeeding.
+# ---------------------------------------------------------------------------
+
+provider "cloudflare" {
+  api_token = var.cloudflare_api_token
+}
+
+# ---------------------------------------------------------------------------
 # Cloudflare credentials — AWS-side wiring.
 #
 # Mirrors the github-app-credentials shape (Estabilis/estabilis-platform v0.18.0):
