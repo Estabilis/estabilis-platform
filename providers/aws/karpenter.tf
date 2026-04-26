@@ -58,6 +58,25 @@ module "karpenter" {
   }
 }
 
+# Validation rail: cluster_name length must be enough to keep Karpenter IAM
+# role names (`Karpenter-<cluster>` / `KarpenterNode-<cluster>`) unique
+# across deployments in the same AWS account. Without this rail, two
+# deployments with very short or identical cluster_name prefixes would
+# silently collide on the IAM role names — a foot-gun discovered when
+# auditing replacement collisions.
+resource "terraform_data" "karpenter_naming_guard" {
+  count = contains(["karpenter", "hybrid"], var.autoscaler) ? 1 : 0
+
+  input = local.cluster_name
+
+  lifecycle {
+    precondition {
+      condition     = length(local.cluster_name) >= 8
+      error_message = "cluster_name must be >= 8 chars when Karpenter is enabled, to keep IAM role names (`Karpenter-<cluster>` / `KarpenterNode-<cluster>`) unique across deployments in the same AWS account. Current length: ${length(local.cluster_name)}."
+    }
+  }
+}
+
 # Allow Karpenter controller to garbage-collect orphaned instance profiles.
 resource "aws_iam_role_policy" "karpenter_instance_profile_gc" {
   count = contains(["karpenter", "hybrid"], var.autoscaler) ? 1 : 0

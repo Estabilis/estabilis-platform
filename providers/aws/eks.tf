@@ -83,6 +83,22 @@ locals {
     },
   )
 
+  # MNG name + IAM role name selection per replacement strategy.
+  # See var.mng_replacement_strategy + var.mng_generation for full rationale.
+  # 'static' preserves historical names (`<cluster>-default`) for
+  # backward-compat with existing deployments. 'rolling' suffixes the
+  # generation so force_new changes can roll over via create_before_destroy.
+  mng_default_name = var.mng_replacement_strategy == "rolling" ? (
+    "${local.cluster_name}-default-gen${var.mng_generation}"
+    ) : (
+    "${local.cluster_name}-default"
+  )
+  mng_default_iam_role_name = var.mng_replacement_strategy == "rolling" ? (
+    "${local.cluster_name}-default-node-gen${var.mng_generation}"
+    ) : (
+    "${local.cluster_name}-default-node"
+  )
+
   # Access entries converted from our flat variable shape to the module shape.
   eks_access_entries_map = {
     for idx, entry in var.eks_access_entries : "entry_${idx}" => {
@@ -97,6 +113,26 @@ locals {
           }
         }
       } : {}
+    }
+  }
+}
+
+# ---------------------------------------------------------------------------
+# Validation rail: MNG size ordering (min <= desired <= max).
+# Variable-level validation can't express cross-variable relations, so this
+# precondition runs at plan time and fails loud if the operator inverts
+# the relationship.
+# ---------------------------------------------------------------------------
+
+resource "terraform_data" "mng_size_guard" {
+  count = contains(["cluster_autoscaler", "hybrid"], var.autoscaler) ? 1 : 0
+
+  input = "${var.mng_min_size}-${var.mng_desired_size}-${var.mng_max_size}"
+
+  lifecycle {
+    precondition {
+      condition     = var.mng_min_size <= var.mng_desired_size && var.mng_desired_size <= var.mng_max_size
+      error_message = "MNG size ordering invalid: requires mng_min_size <= mng_desired_size <= mng_max_size. Got min=${var.mng_min_size}, desired=${var.mng_desired_size}, max=${var.mng_max_size}."
     }
   }
 }
@@ -184,9 +220,14 @@ module "eks" {
   #   - 'hybrid': MNG hosts platform control-plane; Karpenter layers on
   #     top for workloads
   # Skipped for 'karpenter' (Karpenter-only) and 'none' (BYO).
+  #
+  # Naming strategy: see var.mng_replacement_strategy. 'static' keeps
+  # the historical name `<cluster>-default` (force_new changes require
+  # manual destroy before apply). 'rolling' suffixes `-gen<N>` so that
+  # force_new changes can roll over with zero downtime via create_before_destroy.
   eks_managed_node_groups = contains(["cluster_autoscaler", "hybrid"], var.autoscaler) ? {
     default = {
-      name           = "${local.cluster_name}-default"
+      name           = local.mng_default_name
       instance_types = var.mng_instance_types
       capacity_type  = var.mng_capacity_type
       min_size       = var.mng_min_size
@@ -213,7 +254,7 @@ module "eks" {
       # additional MNGs colliding-free.
       use_name_prefix          = false
       iam_role_use_name_prefix = false
-      iam_role_name            = "${local.cluster_name}-default-node"
+      iam_role_name            = local.mng_default_iam_role_name
 
       # Attach the EKS cluster primary security group to the MNG nodes.
       # Without this, the MNG ENIs only receive the module's node

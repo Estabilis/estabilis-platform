@@ -47,10 +47,22 @@ resource "aws_kms_alias" "vault" {
 
 # --- S3 bucket for Raft snapshot backups ---
 
+locals {
+  # Bucket name selection per var.vault_backup_bucket_naming. 'static'
+  # preserves historical name; 'random_suffix' aligns with the other
+  # platform buckets and avoids S3 global-namespace retention conflicts
+  # on teardown+recreate cycles.
+  vault_backup_bucket_name = var.vault_backup_bucket_naming == "random_suffix" ? (
+    "${local.cluster_name}-vault-${random_string.bucket_suffix.result}"
+    ) : (
+    "${local.cluster_name}-vault-backup"
+  )
+}
+
 resource "aws_s3_bucket" "vault_backup" {
   count = var.vault_enabled ? 1 : 0
 
-  bucket        = "${local.cluster_name}-vault-backup"
+  bucket        = local.vault_backup_bucket_name
   force_destroy = true
 }
 
