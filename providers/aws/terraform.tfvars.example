@@ -182,20 +182,22 @@ client_gitops_repo_revision = "main"
 #      Workload app repos are NOT declared here — CI creates them on push.
 #   2. ecr_pull_through_cache_enabled: caches public upstream registries
 #      locally with KMS + lifecycle. Empty upstreams map activates the
-#      default anonymous set { ghcr, quay, k8s, public-ecr }.
+#      anonymous default { k8s, public-ecr }. AWS requires Secrets Manager
+#      credentials for ghcr/quay/gitlab/docker-hub — set the upstreams map
+#      explicitly AND wire credentials when caching from those.
 #
 # ecr_enabled                          = false
 # ecr_repositories                     = []
 # ecr_image_tag_mutability             = "IMMUTABLE"
 # ecr_scan_on_push                     = true
 # ecr_lifecycle_untagged_days          = 14
-# ecr_pull_through_cache_enabled       = false   # true → default 4 upstreams
+# ecr_pull_through_cache_enabled       = false   # true → default { k8s, public-ecr }
 # ecr_pull_through_cache_upstreams     = {}      # override to customize:
-#   # ghcr        = "ghcr.io"
-#   # quay        = "quay.io"
-#   # k8s         = "registry.k8s.io"
-#   # public-ecr  = "public.ecr.aws"
-#   # docker-hub  = "registry-1.docker.io"   # Needs ecr_dockerhub_credentials_secret_arn
+#   # k8s         = "registry.k8s.io"          # anonymous
+#   # public-ecr  = "public.ecr.aws"           # anonymous
+#   # docker-hub  = "registry-1.docker.io"     # needs ecr_dockerhub_credentials_secret_arn
+#   # ghcr        = "ghcr.io"                  # auth required (v0.32.0+)
+#   # quay        = "quay.io"                  # auth required (v0.32.0+)
 
 # --- Observability / Backup ---
 # diagnostics_enabled           = true
