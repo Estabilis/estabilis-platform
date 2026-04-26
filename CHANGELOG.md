@@ -1,5 +1,38 @@
 # Changelog
 
+## [0.31.8] - 2026-04-26
+
+### Fixed — ACM cert SAN keeps `*.{local.cluster_name}.{domain}` covered
+
+v0.31.7 changed ACM `domain_name` from `*.{local.cluster_name}.{domain}`
+(`eks-{base}`) to `*.{name_prefix}-{deployment_id}.{domain}` to align
+with the bridge annotation. Platform-managed Ingresses (argocd,
+grafana, vault) still use the old `local.cluster_name` pattern in
+their host field, so they lost cert coverage and the old cert
+couldn't be deleted (in-use by the platform ALB).
+
+Fix: include `*.{local.cluster_name}.{domain}` automatically as a SAN
+when it differs from the primary domain. Cert now covers BOTH
+patterns; new apps and legacy platform Ingresses keep working.
+
+#### Files changed
+
+- `providers/aws/acm.tf` — `locals.acm_legacy_san` derives the legacy
+  wildcard automatically; concatenated into
+  `subject_alternative_names` along with the existing
+  `var.acm_extra_domain_names` user overrides.
+
+#### Operator notes
+
+- `aws_acm_certificate.wildcard` recreated again (immutable
+  domain_name + SANs trigger replace). create_before_destroy lifecycle
+  applies; brief revalidation window via Cloudflare DNS-01 (~30-90s).
+- After apply: `aws acm describe-certificate ... --query 'Certificate.SubjectAlternativeNames'`
+  should list `*.{name_prefix}-{deployment_id}.{domain}`,
+  `*.{local.cluster_name}.{domain}`, plus any extras.
+- The orphaned v0.31.7 cert (no longer in use after this re-issue)
+  gets cleaned up on apply.
+
 ## [0.31.7] - 2026-04-26
 
 ### Fixed — ACM wildcard cert FQDN aligned with bridge.cluster-name annotation
