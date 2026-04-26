@@ -95,14 +95,10 @@ resource "kubernetes_manifest" "ecr_auth_token" {
     }
     spec = {
       region = var.region
-      auth = {
-        jwt = {
-          serviceAccountRef = {
-            name      = "external-secrets"
-            namespace = "external-secrets"
-          }
-        }
-      }
+      # No `auth` block: ESO uses the controller pod's AWS credentials
+      # (the IRSA bound to the `external-secrets` SA in the `external-secrets`
+      # namespace, extended with ECR permissions above). Avoids the
+      # cross-namespace SA reference complications with `auth.jwt`.
     }
   }
 
