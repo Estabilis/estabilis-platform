@@ -1060,7 +1060,7 @@ variable "ecr_enabled" {
 }
 
 variable "ecr_repositories" {
-  description = "List of ECR repository names to create (without the account/region prefix). Each repo gets scan-on-push and the lifecycle policy defined below."
+  description = "List of platform-managed ECR repository names (no account/region prefix). Use ONLY for repositories the platform/CLI publishes declaratively (e.g. workload-operator image and chart). Workload application repos must NOT be declared here — CI creates them on push via the OIDC IAM role. Each platform repo gets scan-on-push, KMS encryption, IMMUTABLE tags, and the lifecycle policy below."
   type        = list(string)
   default     = []
 }
@@ -1089,13 +1089,13 @@ variable "ecr_lifecycle_untagged_days" {
 }
 
 variable "ecr_pull_through_cache_enabled" {
-  description = "Enable pull-through cache rules for public upstream registries. Equivalent to Azure ACR cache rules."
+  description = "Enable ECR pull-through cache rules. When true with an empty `ecr_pull_through_cache_upstreams`, a default anonymous set is provisioned: { ghcr, quay, k8s, public-ecr }. Cached repos auto-created by ECR inherit KMS + lifecycle from `aws_ecr_repository_creation_template.pull_through_cache`."
   type        = bool
   default     = false
 }
 
 variable "ecr_pull_through_cache_upstreams" {
-  description = "Map of pull-through cache rules: prefix -> upstream_registry_url. Examples: { docker-hub = 'registry-1.docker.io', quay = 'quay.io', ghcr = 'ghcr.io', k8s = 'registry.k8s.io', public-ecr = 'public.ecr.aws' }."
+  description = "Pull-through cache upstreams: prefix -> upstream_registry_url. Empty + `ecr_pull_through_cache_enabled = true` activates the default anonymous set { ghcr = ghcr.io, quay = quay.io, k8s = registry.k8s.io, public-ecr = public.ecr.aws }. Override to add docker-hub (also set `ecr_dockerhub_credentials_secret_arn`) or restrict the set."
   type        = map(string)
   default     = {}
 }

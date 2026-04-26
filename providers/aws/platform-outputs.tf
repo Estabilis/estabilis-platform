@@ -114,8 +114,9 @@ resource "kubernetes_config_map" "platform_infrastructure" {
     "global.karpenterControllerRole"  = contains(["karpenter", "hybrid"], var.autoscaler) ? module.karpenter[0].iam_role_arn : ""
     "global.karpenterDiscoveryTagKey" = var.karpenter_discovery_tag_key
 
-    # ECR
-    "global.ecrRegistry" = length(var.ecr_repositories) > 0 && var.ecr_enabled ? "${data.aws_caller_identity.current.account_id}.dkr.ecr.${var.region}.amazonaws.com" : ""
+    # ECR — registry URL is account+region scoped and exists whenever ECR is
+    # enabled (for pull-through cache, platform repos, or workload repos).
+    "global.ecrRegistry" = var.ecr_enabled ? "${data.aws_caller_identity.current.account_id}.dkr.ecr.${var.region}.amazonaws.com" : ""
 
     # Cost
     "global.curReportName" = var.cost_export_enabled ? local.cur_report_name : ""
