@@ -1,5 +1,79 @@
 # Changelog
 
+## [0.30.0] - 2026-04-26
+
+### Added — Single source of truth for module version (`VERSION` file)
+
+Eliminates the duplication where operators had to bump both
+`providers/<cloud>/main.tf` `ref=...` AND `terraform.tfvars`
+`platform_revision = "..."` (or `platform_version`) on every release.
+The module now self-derives its version from a `VERSION` file at the
+upstream repo root, read via `file("${path.module}/../../VERSION")` at
+apply time. Bump only `main.tf ref=...` going forward; the tfvar is
+optional override.
+
+#### Components
+
+1. **`VERSION`** (new) — root file; one line, prefix `v`, e.g. `v0.30.0`.
+   Updated automatically by the release workflow on every
+   `chore(release): vX.Y.Z` commit (see workflow change below).
+
+2. **`providers/aws/main.tf`** — `local.module_version` reads the file;
+   `platform_revision_effective` resolution chain becomes:
+   ```
+   var.platform_revision (override) →
+     var.platform_version (legacy alias / override) →
+       local.module_version (default — derived from VERSION)
+   ```
+
+3. **`providers/azure/main.tf`** — same pattern with
+   `local.platform_version_effective` (Azure uses a single `*_version`
+   var, no `*_revision` legacy variant).
+
+4. **`providers/aws/variables.tf` + `providers/azure/variables.tf`** —
+   `platform_version` default flipped from `"0.1.0-alpha"` (a sentinel
+   value clients always overrode) to `""`. Empty default routes to
+   VERSION fallback. Description rewritten to flag override semantics.
+
+5. **`.github/workflows/release.yaml`** — new step `Sync VERSION file
+   to release commit` runs immediately after the duplicate-tag guard.
+   It writes the detected version to `VERSION`, `git commit --amend`s
+   the release commit if a diff exists, and force-pushes (safe under
+   the existing `concurrency: group: release`). The subsequent tag +
+   GitHub Release steps then point at the amended commit.
+
+#### Operator workflow (unchanged from external POV)
+
+```bash
+git commit --allow-empty -m "chore(release): v0.30.0"
+git push origin main
+# → workflow: amends VERSION → tags → creates Release page
+```
+
+Operator still does **only** the empty-commit push. The workflow
+handles VERSION sync + tag + Release atomically.
+
+#### Backward compatibility
+
+100% preserved. Existing clients that set `platform_version` or
+`platform_revision` in tfvars continue working — the override path
+wins over VERSION. Removing the tfvar (recommended) routes to VERSION
+fallback automatically with no other change required.
+
+#### Migration (per client, gradual)
+
+When upgrading client to `?ref=v0.30.0`:
+
+1. `terraform apply` — VERSION-based derivation is now active for any
+   field left blank.
+2. **Optional**: Remove `platform_revision = "..."` (and/or
+   `platform_version = "..."`) from `providers/<cloud>/terraform.tfvars`.
+   Subsequent ref bumps then need only the `main.tf` edit.
+
+The `platform-outputs` ConfigMap continues to receive the same
+`platformVersion` + `platformRevision` keys; the value source is now
+the VERSION file when not explicitly overridden.
+
 ## [0.29.1] - 2026-04-26
 
 ### Fixed — VPC CNI cold-start race during node bootstrap

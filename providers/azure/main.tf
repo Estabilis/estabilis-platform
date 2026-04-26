@@ -164,6 +164,26 @@ locals {
   firewall_tfstate_ips  = distinct(concat(local.firewall_base_ips_bare, [for ip in var.storage_tfstate_extra_allowed_ips : replace(ip, "/32", "")]))
   firewall_cnpg_ips     = distinct(concat(local.firewall_base_ips_bare, [for ip in var.storage_cnpg_extra_allowed_ips : replace(ip, "/32", "")]))
   firewall_velero_ips   = distinct(concat(local.firewall_base_ips_bare, [for ip in var.storage_velero_extra_allowed_ips : replace(ip, "/32", "")]))
+
+  # ---------------------------------------------------------------------------
+  # Platform version derivation (v0.30.0+).
+  #
+  # Module reads VERSION file at the cloned source root via
+  # `file("${path.module}/../../VERSION")` so operators don't have to bump
+  # both `main.tf` `ref=...` AND a tfvar. When the operator leaves
+  # `platform_version` empty in tfvars, the module derives it from VERSION.
+  #
+  # Resolution order (first non-empty wins):
+  #   1. var.platform_version (explicit override)
+  #   2. local.module_version (read from VERSION file at the cloned ref)
+  #
+  # Why path.module/../../VERSION: providers/azure is 2 directories deep
+  # from the repo root; the VERSION file lives at the root.
+  # ---------------------------------------------------------------------------
+  module_version = trimspace(file("${path.module}/../../VERSION"))
+  platform_version_effective = (
+    length(var.platform_version) > 0 ? var.platform_version : local.module_version
+  )
 }
 
 # ---------------------------------------------------------------------------

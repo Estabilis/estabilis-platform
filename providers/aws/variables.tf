@@ -62,13 +62,31 @@ variable "platform_repo_url" {
 }
 
 variable "platform_version" {
-  description = "Version of the platform chart / manifests to deploy (deprecated — prefer platform_revision). Kept for backward compatibility."
+  description = <<-EOT
+    [LEGACY/OVERRIDE] Version of the platform chart / manifests to deploy.
+
+    Leave empty (default) for the recommended path: the module
+    auto-derives the version from the VERSION file at the cloned source
+    ref. Set explicitly only when overriding (local-path module sources,
+    branch refs without VERSION, etc).
+
+    Backward-compat: explicit value still wins over VERSION file.
+  EOT
   type        = string
-  default     = "0.1.0-alpha"
+  default     = ""
 }
 
 variable "platform_revision" {
-  description = "Git revision for the platform repo (tag OR branch, e.g. 'v0.13.1' or 'main'). Empty falls back to platform_version for backward compatibility."
+  description = <<-EOT
+    [OVERRIDE] Git revision for the platform repo (tag OR branch).
+
+    Leave empty (default) — the module auto-derives from the VERSION
+    file at the cloned source ref via file($${path.module}/../../VERSION).
+    Single source of truth: bump only `main.tf` `ref=...`.
+
+    Set explicitly only for overrides (e.g. local-path development
+    sources, when path.module isn't a git-cloned ref).
+  EOT
   type        = string
   default     = ""
 }
