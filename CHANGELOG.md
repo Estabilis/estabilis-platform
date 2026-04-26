@@ -1,5 +1,54 @@
 # Changelog
 
+## [0.29.1] - 2026-04-26
+
+### Fixed — VPC CNI cold-start race during node bootstrap
+
+Observed on cortex during the v0.29.0 rolling MNG replacement: new
+`m6a.xlarge` nodes registered as `Ready` before the `aws-node` DaemonSet
+finished allocating its first `/28` prefix on the secondary ENI. The
+scheduler placed pods on the new nodes immediately (especially the
+AZ-bound stateful workloads like CNPG and Vault, pulled by PVC
+affinity). For ~30 seconds, those pods hit:
+
+```
+Failed to create pod sandbox: rpc error: code = Unknown desc =
+failed to setup network for sandbox: plugin type="aws-cni" failed (add):
+add cmd: failed to assign an IP address to container
+```
+
+kubelet retried every 5-10s and pods recovered with zero restarts once
+the CNI finished warming up. **Workloads were never impacted** — but
+the `FailedCreatePodSandBox` event noise on every node bootstrap is
+avoidable, and Karpenter spot churn would replay the same race on
+every interruption.
+
+#### Fix
+
+`vpc-cni` addon `configuration_values` now sets:
+
+```hcl
+env = {
+  ENABLE_PREFIX_DELEGATION = "true"   # unchanged
+  WARM_PREFIX_TARGET       = "2"      # NEW (default 1)
+  MINIMUM_IP_TARGET        = "10"     # NEW (default unset)
+}
+```
+
+`WARM_PREFIX_TARGET=2` keeps two `/28` prefixes (32 IPs) pre-allocated
+on each node — bootstrap window for IP allocation drops to <5s.
+`MINIMUM_IP_TARGET=10` guarantees at least 10 free IPs at all times,
+defending against bursty pod creation (e.g., DaemonSet rollouts).
+
+Cost: 16-32 IPs reserved per node. Subnets in the platform default
+template are `/23` (512 IPs each), so the impact is negligible.
+
+#### Migration
+
+No tfvars changes needed. The vpc-cni addon is updated in-place by EKS
+on the next `terraform apply` — no node replacement, no workload
+disruption.
+
 ## [0.29.0] - 2026-04-26
 
 ### Added — Replacement-safety rails for force_new resources
