@@ -23,13 +23,12 @@
 # ---------------------------------------------------------------------------
 
 locals {
-  # Anonymous public upstreams applied when pull-through cache is enabled
-  # but `var.ecr_pull_through_cache_upstreams` is left empty. Docker Hub is
-  # opt-in (requires `ecr_dockerhub_credentials_secret_arn` to avoid the
-  # 100-pulls/6h anonymous rate limit).
+  # Truly anonymous upstreams only. AWS requires Secrets Manager credentials
+  # for ghcr.io, quay.io, gitlab-registry.com, and Docker Hub — including
+  # them in the default would fail with UnsupportedUpstreamRegistryException
+  # on apply. To cache from auth-required upstreams, set
+  # `ecr_pull_through_cache_upstreams` explicitly and provide credentials.
   ecr_default_pt_cache_upstreams = {
-    ghcr       = "ghcr.io"
-    quay       = "quay.io"
     k8s        = "registry.k8s.io"
     public-ecr = "public.ecr.aws"
   }

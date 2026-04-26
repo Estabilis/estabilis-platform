@@ -1,5 +1,32 @@
 # Changelog
 
+## [0.31.1] - 2026-04-26
+
+### Fixed — ECR pull-through cache default no longer includes auth-required upstreams
+
+The v0.31.0 default upstream set `{ ghcr, quay, k8s, public-ecr }`
+broke at apply time with `UnsupportedUpstreamRegistryException` —
+AWS requires Secrets Manager credentials for `ghcr.io`, `quay.io`,
+`gitlab-registry.com`, and Docker Hub. Only `registry.k8s.io` and
+`public.ecr.aws` are truly anonymous.
+
+Fix: drop ghcr/quay from `local.ecr_default_pt_cache_upstreams`.
+Operators caching auth-required upstreams must set
+`ecr_pull_through_cache_upstreams` explicitly and provide credentials
+(`ecr_dockerhub_credentials_secret_arn` for Docker Hub today; per-
+upstream credential map planned for v0.32.0).
+
+#### Files changed
+
+- `providers/aws/ecr.tf` — `local.ecr_default_pt_cache_upstreams` reduced to `{ k8s, public-ecr }`.
+- `providers/aws/variables.tf` — descriptions of `ecr_pull_through_cache_enabled` and `ecr_pull_through_cache_upstreams` rewritten to call out the auth requirement.
+- `providers/aws/terraform.tfvars.example` — comments updated to mark which upstreams are anonymous vs authenticated.
+
+#### Operator notes
+
+- v0.31.0 deployments with `ecr_pull_through_cache_upstreams` left empty failed at apply (or partially applied). On bump to v0.31.1, plan shows `+2` PT cache rules + `+2` creation templates total (k8s, public-ecr only); any state from a partial v0.31.0 apply is reconciled.
+- v0.31.0 deployments that explicitly limited upstreams to `{ k8s, public-ecr }` see no plan changes.
+
 ## [0.31.0] - 2026-04-26
 
 ### Changed — ECR ownership model + pull-through cache defaults

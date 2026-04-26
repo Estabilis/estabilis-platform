@@ -1089,13 +1089,13 @@ variable "ecr_lifecycle_untagged_days" {
 }
 
 variable "ecr_pull_through_cache_enabled" {
-  description = "Enable ECR pull-through cache rules. When true with an empty `ecr_pull_through_cache_upstreams`, a default anonymous set is provisioned: { ghcr, quay, k8s, public-ecr }. Cached repos auto-created by ECR inherit KMS + lifecycle from `aws_ecr_repository_creation_template.pull_through_cache`."
+  description = "Enable ECR pull-through cache rules. When true with an empty `ecr_pull_through_cache_upstreams`, a 2-prefix anonymous default is provisioned: { k8s, public-ecr }. AWS requires Secrets Manager credentials for ghcr.io, quay.io, gitlab-registry.com, and Docker Hub — those are NOT in the default. Cached repos auto-created by ECR inherit KMS + lifecycle from `aws_ecr_repository_creation_template.pull_through_cache`."
   type        = bool
   default     = false
 }
 
 variable "ecr_pull_through_cache_upstreams" {
-  description = "Pull-through cache upstreams: prefix -> upstream_registry_url. Empty + `ecr_pull_through_cache_enabled = true` activates the default anonymous set { ghcr = ghcr.io, quay = quay.io, k8s = registry.k8s.io, public-ecr = public.ecr.aws }. Override to add docker-hub (also set `ecr_dockerhub_credentials_secret_arn`) or restrict the set."
+  description = "Pull-through cache upstreams: prefix -> upstream_registry_url. Empty + `ecr_pull_through_cache_enabled = true` activates the anonymous default { k8s = registry.k8s.io, public-ecr = public.ecr.aws }. To cache from an auth-required upstream (ghcr.io, quay.io, gitlab-registry.com, docker-hub), set this map explicitly AND provide credentials — `ecr_dockerhub_credentials_secret_arn` for Docker Hub; other authenticated upstreams currently require module extension (planned for v0.32.0)."
   type        = map(string)
   default     = {}
 }
