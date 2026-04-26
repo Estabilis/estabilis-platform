@@ -226,7 +226,7 @@ resource "kubernetes_secret" "hub_cluster" {
       #                         cluster (cost optimization). Per-app
       #                         override remains via values.yaml when
       #                         isolation is required.
-      "estabilis.io/bridge.cluster-name"       = var.deployment_id
+      "estabilis.io/bridge.cluster-name"       = "${var.name_prefix}-${var.deployment_id}"
       "estabilis.io/bridge.domain"             = var.domain
       "estabilis.io/bridge.ingress-group-name" = "${var.name_prefix}-${var.environment}-shared-apps"
 
