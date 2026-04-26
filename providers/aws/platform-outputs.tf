@@ -209,8 +209,27 @@ resource "kubernetes_secret" "hub_cluster" {
       "app.kubernetes.io/managed-by"   = "terraform"
     }
     annotations = {
-      "estabilis.io/bridge.account-id"                 = data.aws_caller_identity.current.account_id
-      "estabilis.io/bridge.region"                     = var.region
+      "estabilis.io/bridge.account-id" = data.aws_caller_identity.current.account_id
+      "estabilis.io/bridge.region"     = var.region
+
+      # ADR 0023 Etapa B — cluster-level metadata consumed by client
+      # gitops ApplicationSets via the `clusters` generator. Eliminates
+      # hardcoded cluster/domain/ingress-group values in per-cluster
+      # gitops repos. New annotations:
+      #
+      #   cluster-name        — used to compose app FQDNs
+      #                         {fullname}.{cluster-name}.{domain}
+      #   domain              — DNS zone root
+      #   ingress-group-name  — alb.ingress.kubernetes.io/group.name
+      #                         default for ALL apps in this cluster, so
+      #                         a single shared ALB serves the whole
+      #                         cluster (cost optimization). Per-app
+      #                         override remains via values.yaml when
+      #                         isolation is required.
+      "estabilis.io/bridge.cluster-name"       = var.deployment_id
+      "estabilis.io/bridge.domain"             = var.domain
+      "estabilis.io/bridge.ingress-group-name" = "${var.name_prefix}-${var.environment}-shared-apps"
+
       "estabilis.io/bridge.hub-secrets-path-prefix"    = var.shared_hub_secrets_enabled ? local.shared_hub_secrets_prefix_effective : ""
       "estabilis.io/bridge.workload-operator-role-arn" = var.shared_hub_secrets_enabled ? aws_iam_role.workload_operator[0].arn : ""
     }

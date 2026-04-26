@@ -1,5 +1,47 @@
 # Changelog
 
+## [0.31.5] - 2026-04-26
+
+### Added — cluster Secret annotations for ADR 0023 Etapa B (dynamic cluster metadata)
+
+Three new annotations on the `hub-cluster` ArgoCD Secret in `argocd`
+ns, written by `providers/aws/platform-outputs.tf`:
+
+- `estabilis.io/bridge.cluster-name` = `var.deployment_id`
+- `estabilis.io/bridge.domain` = `var.domain`
+- `estabilis.io/bridge.ingress-group-name` = `${var.name_prefix}-${var.environment}-shared-apps`
+
+Eliminates hardcoded cluster/domain/ingress-group values in client
+gitops ApplicationSets. ApplicationSets matrix-generated against
+`clusters` selector now read these via `{{ index .metadata.annotations
+"estabilis.io/bridge.<key>" }}` Go-template syntax — same chart, same
+gitops repo, different values per cluster automatically.
+
+#### Why ingress-group-name
+
+ALB Controller's `alb.ingress.kubernetes.io/group.name` annotation
+merges multiple Ingresses (with the same group) onto a single ALB
+with host-based routing. Default behavior (no group) creates one ALB
+per Ingress — at $16-22/mo per ALB, a 30-app cluster costs $500+/mo
+just on ALBs. Setting a cluster-default group at the AppSet level
+(read from the annotation) collapses that to a single ALB while
+preserving per-app override capability for compliance/isolation
+needs.
+
+#### Files changed
+
+- `providers/aws/platform-outputs.tf` — 3 new annotations on
+  `kubernetes_secret.hub_cluster`.
+
+#### Operator notes
+
+- Plan diff: 1 in-place update on `kubernetes_secret.hub_cluster`
+  (annotation map extended).
+- Client gitops ApplicationSets must be refactored to matrix
+  (clusters × git) generator + read annotations to consume the new
+  values. Hardcoded values in existing AppSets continue to work but
+  miss the new dynamic capabilities.
+
 ## [0.31.4] - 2026-04-26
 
 ### Reverted — drop ArgoCD ↔ ECR OCI auth bridge (v0.31.2 + v0.31.3)
