@@ -1,5 +1,56 @@
 # Changelog
 
+## [0.31.2] - 2026-04-26
+
+### Fixed — ArgoCD can now pull OCI helm charts from platform-provisioned ECR
+
+v0.31.0 introduced ECR (per-repo + pull-through cache). `argocd-repo-server`
+had no AWS credentials, so Applications referencing
+`oci://<account>.dkr.ecr.<region>.amazonaws.com/<prefix>/<chart>` failed
+at sync with `basic credential not found`. The cortex pilot blocked on
+this; see [estabilis-platform-tools#202](https://github.com/Estabilis/estabilis-platform-tools/issues/202)
+for the full postmortem.
+
+Fix wires `external-secrets-operator` (already deployed + IRSA-bound) to
+mint ECR auth tokens via the native `ECRAuthorizationToken` generator,
+write them to an ArgoCD repo Secret, and refresh every 10h (under the
+12h ECR token TTL).
+
+#### New file `providers/aws/argocd-ecr-creds.tf`
+
+Three resources, all conditional on `var.ecr_enabled`:
+
+1. `aws_iam_policy.external_secrets_ecr` — adds `ecr:GetAuthorizationToken`
+   (mint tokens) + ECR pull permissions (so the minted token can fetch
+   artifacts; ECR token authority is bound to the requesting principal).
+2. `aws_iam_role_policy_attachment.external_secrets_ecr` — attaches the
+   policy to the existing `external_secrets_irsa` role.
+3. `kubernetes_manifest.ecr_auth_token` — `ECRAuthorizationToken`
+   generator in `argocd` ns referencing ESO's SA.
+4. `kubernetes_manifest.argocd_ecr_repo` — `ExternalSecret` in `argocd`
+   ns targeting `argocd-ecr-repo` Secret with label
+   `argocd.argoproj.io/secret-type=repository`, refreshInterval=10h,
+   url = registry root (so any chart pulled from this registry matches
+   by prefix).
+
+#### Operator notes
+
+- Apply order: ESO CRDs must be installed before the `kubernetes_manifest`
+  resources apply. ESO is deployed by ArgoCD (platform-root chart) on
+  first reconcile after the cluster bootstraps. On a fresh cluster, the
+  first `terraform apply` may report a CRD-not-found error on the
+  `kubernetes_manifest.ecr_auth_token` resource; re-run after ArgoCD
+  syncs the external-secrets Application. Subsequent applies are
+  idempotent.
+- Cortex bump path: `main.tf` ref `v0.31.1` → `v0.31.2`, then
+  `terraform plan` shows `+1` IAM policy + `+1` policy attachment +
+  `+2` Kubernetes manifests. After apply, the `argocd-ecr-repo` Secret
+  appears in `argocd` ns within ~30s of ESO reconciling.
+- Future: migrate the K8s manifests to a chart in
+  `estabilis-platform-gitops/components/argocd-ecr-creds/` rendered by
+  platform-root, eliminating the cross-domain TF→CRD ordering. Tracked
+  in #202.
+
 ## [0.31.1] - 2026-04-26
 
 ### Fixed — ECR pull-through cache default no longer includes auth-required upstreams
