@@ -50,11 +50,26 @@ resource "null_resource" "acm_requires_managed_dns" {
   }
 }
 
+locals {
+  # Primary wildcard — matches the bridge cluster-name convention used
+  # by app FQDNs (chart helper composes {fullname}.{cluster}.{domain}).
+  acm_primary_domain = "*.${var.name_prefix}-${var.deployment_id}.${var.domain}"
+
+  # Legacy wildcard — matches platform-managed Ingresses (argocd,
+  # grafana, vault, etc.) that still pin host=*.{local.cluster_name}.{domain}.
+  # Kept as SAN to avoid breaking those hostnames when the primary
+  # changed in v0.31.7. When local.cluster_name == name_prefix-deployment_id
+  # the SAN is omitted (avoids duplicate-name validation error).
+  acm_legacy_domain = "*.${local.cluster_name}.${var.domain}"
+
+  acm_legacy_san = local.acm_primary_domain != local.acm_legacy_domain ? [local.acm_legacy_domain] : []
+}
+
 resource "aws_acm_certificate" "wildcard" {
   count = var.acm_enabled ? 1 : 0
 
-  domain_name               = "*.${var.name_prefix}-${var.deployment_id}.${var.domain}"
-  subject_alternative_names = var.acm_extra_domain_names
+  domain_name               = local.acm_primary_domain
+  subject_alternative_names = concat(local.acm_legacy_san, var.acm_extra_domain_names)
   validation_method         = "DNS"
 
   lifecycle {
