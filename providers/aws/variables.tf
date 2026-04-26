@@ -211,7 +211,21 @@ variable "cluster_log_retention_days" {
 }
 
 variable "cluster_secrets_encryption_enabled" {
-  description = "Enable EKS envelope encryption for Kubernetes Secrets using a customer-managed KMS key."
+  description = <<-EOT
+    Enable EKS envelope encryption for Kubernetes Secrets using a
+    customer-managed KMS key.
+
+    !!! IRREVERSIBLE WARNING !!!
+    EKS encryption_config is ONE-WAY (add-only) at the AWS API level.
+      - false -> true on a running cluster: in-place update via UpdateClusterConfig.
+      - true  -> false on a running cluster: NOT supported by AWS. Terraform will
+        plan a full cluster destroy + recreate, which deletes EVERYTHING
+        (worker nodes, EBS volumes, EKS API endpoint, ENIs, etc.).
+
+    Default true. Once enabled in production, treat as immutable. If you
+    must remove encryption, plan a full cluster migration (new cluster +
+    velero restore), not a flip of this variable.
+  EOT
   type        = bool
   default     = true
 }
@@ -296,13 +310,30 @@ variable "autoscaler" {
 # --- Managed Node Group (only used when autoscaler = "cluster_autoscaler") ---
 
 variable "mng_instance_types" {
-  description = "EC2 instance types for the managed node group (cluster_autoscaler mode). First matching type is used; extras provide capacity fallback."
+  description = <<-EOT
+    EC2 instance types for the managed node group. First matching type is
+    used; extras provide capacity fallback (especially valuable for SPOT
+    capacity-optimized allocation).
+
+    REPLACEMENT NOTE: changing this on a running cluster forces NG
+    recreation. The behavior depends on `mng_replacement_strategy`:
+      - 'static' (default): collides with itself on the explicit name
+        (HTTP 409 ResourceInUseException). Operator must
+        `terraform destroy -target=...eks_managed_node_group["default"]`
+        before `terraform apply`.
+      - 'rolling': bump `mng_generation` in the same change to swap to a
+        new NG name; create_before_destroy gives zero-downtime rollover.
+  EOT
   type        = list(string)
   default     = ["t3a.medium", "t3.medium"]
 }
 
 variable "mng_capacity_type" {
-  description = "Capacity type for the managed node group: ON_DEMAND or SPOT."
+  description = <<-EOT
+    Capacity type for the managed node group: ON_DEMAND or SPOT.
+    REPLACEMENT NOTE: same as mng_instance_types — changing forces NG
+    recreation. See `mng_replacement_strategy` to control rollover.
+  EOT
   type        = string
   default     = "ON_DEMAND"
 
@@ -316,30 +347,129 @@ variable "mng_min_size" {
   description = "Minimum number of nodes in the managed node group."
   type        = number
   default     = 2
+
+  validation {
+    condition     = var.mng_min_size >= 0
+    error_message = "mng_min_size must be >= 0."
+  }
 }
 
 variable "mng_max_size" {
   description = "Maximum number of nodes in the managed node group."
   type        = number
   default     = 4
+
+  validation {
+    condition     = var.mng_max_size >= 1
+    error_message = "mng_max_size must be >= 1."
+  }
 }
 
 variable "mng_desired_size" {
   description = "Desired (initial) number of nodes in the managed node group."
   type        = number
   default     = 2
+
+  validation {
+    condition     = var.mng_desired_size >= 0
+    error_message = "mng_desired_size must be >= 0."
+  }
 }
 
 variable "mng_disk_size_gb" {
-  description = "Root EBS volume size (GB) for the managed node group."
+  description = <<-EOT
+    Root EBS volume size (GB) for the managed node group.
+    REPLACEMENT NOTE: changing forces NG recreation.
+    See `mng_replacement_strategy`.
+  EOT
   type        = number
   default     = 50
 }
 
 variable "mng_ami_type" {
-  description = "AMI type for the managed node group. AL2023_x86_64_STANDARD is the current AWS default."
+  description = <<-EOT
+    AMI type for the managed node group. AL2023_x86_64_STANDARD is the
+    current AWS default.
+    REPLACEMENT NOTE: changing forces NG recreation.
+    See `mng_replacement_strategy`.
+  EOT
   type        = string
   default     = "AL2023_x86_64_STANDARD"
+}
+
+# --- MNG replacement strategy (force_new safety rails) -----------------------
+#
+# Why this exists: aws_eks_node_group has multiple force_new fields
+# (instance_types, capacity_type, ami_type, disk_size). The upstream
+# terraform-aws-modules/eks module hardcodes lifecycle.create_before_destroy
+# on the resource — combined with the explicit NG name we are forced to use
+# (IAM role 38-char prefix budget overflow on long cluster names), any
+# force_new change collides with itself on the name, failing apply with
+# `409 ResourceInUseException: NodeGroup already exists`.
+#
+# This pair of variables exposes two strategies for handling that:
+#
+#   - 'static' (default, backward-compat): NG name is `<cluster>-default`.
+#     On force_new changes, operator runs `terraform destroy -target` first.
+#     Workload migrates to Karpenter / other compute during the drain.
+#
+#   - 'rolling': NG name includes `-gen<mng_generation>`. To trigger a
+#     replacement, operator bumps mng_generation in the SAME change. The
+#     module's create_before_destroy provisions the new NG before draining
+#     the old, giving zero-downtime rollover.
+#
+# Defaults preserve current behavior; new clusters can opt into 'rolling'
+# from day 1 for safer instance-type / capacity changes.
+# ---------------------------------------------------------------------------
+
+variable "mng_replacement_strategy" {
+  description = <<-EOT
+    How the module handles force_new changes on the managed node group
+    (instance_types, capacity_type, ami_type, disk_size).
+
+    - 'static' (default): NG name is `<cluster>-default`. Backward-compat
+      with deployments that already exist. Force_new changes require
+      `terraform destroy -target` on the NG before `terraform apply`,
+      because the module's create_before_destroy collides with itself
+      on the explicit name.
+
+    - 'rolling': NG name is `<cluster>-default-gen<mng_generation>`.
+      Force_new changes are made by bumping `mng_generation` in the same
+      apply: a new NG comes up with the new name, then the old one
+      drains+destroys via the module's create_before_destroy. Zero-downtime
+      rollover. Recommended for clusters that have other compute (Karpenter,
+      additional NGs) able to absorb workloads during the brief window
+      where both NGs coexist.
+
+    SWITCHING FROM static -> rolling: the NG itself is renamed, which is
+    a force_new event on `name`. The module's create_before_destroy makes
+    this safe (zero-downtime), but it IS a real replacement.
+  EOT
+  type        = string
+  default     = "static"
+
+  validation {
+    condition     = contains(["static", "rolling"], var.mng_replacement_strategy)
+    error_message = "mng_replacement_strategy must be 'static' or 'rolling'."
+  }
+}
+
+variable "mng_generation" {
+  description = <<-EOT
+    Generation suffix appended to the MNG name when
+    mng_replacement_strategy='rolling'. Bump this integer in the same
+    `terraform apply` that changes a force_new field (instance_types,
+    capacity_type, ami_type, disk_size) to trigger zero-downtime rollover.
+
+    Ignored when mng_replacement_strategy='static'.
+  EOT
+  type        = number
+  default     = 1
+
+  validation {
+    condition     = var.mng_generation >= 1
+    error_message = "mng_generation must be >= 1."
+  }
 }
 
 # --- Karpenter (only used when autoscaler = "karpenter") ---
@@ -1206,6 +1336,33 @@ variable "vault_backup_retention_days" {
   description = "Days to retain Raft snapshot backups in S3. The CronJob that uploads snapshots is deferred to a follow-up release; the bucket + lifecycle is provisioned here so future enablement needs no IAM change."
   type        = number
   default     = 30
+}
+
+variable "vault_backup_bucket_naming" {
+  description = <<-EOT
+    Naming strategy for the Vault Raft snapshot backup S3 bucket.
+
+    - 'static' (default): bucket name is `<cluster>-vault-backup`. Backward-
+      compat with existing deployments. Risk: if the bucket is destroyed
+      (toggle vault_enabled false → true) within the AWS S3 60-90 day
+      name retention window, recreating with the same name fails.
+
+    - 'random_suffix': bucket name is `<cluster>-vault-<random_suffix>`,
+      consistent with the other 6 platform buckets (observability, velero,
+      cnpg, tfstate, flow_logs, cur). Avoids the global-namespace retention
+      trap on teardown+recreate cycles.
+
+    SWITCHING FROM static -> random_suffix on a cluster that already has
+    Vault data: the bucket name changes, which forces destroy+create.
+    Snapshot history is lost. Plan accordingly.
+  EOT
+  type        = string
+  default     = "static"
+
+  validation {
+    condition     = contains(["static", "random_suffix"], var.vault_backup_bucket_naming)
+    error_message = "vault_backup_bucket_naming must be 'static' or 'random_suffix'."
+  }
 }
 
 variable "vault_kms_deletion_window_days" {

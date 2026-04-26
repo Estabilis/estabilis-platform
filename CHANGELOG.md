@@ -1,5 +1,93 @@
 # Changelog
 
+## [0.29.0] - 2026-04-26
+
+### Added — Replacement-safety rails for force_new resources
+
+Audit triggered by a real `409 ResourceInUseException` hit on cortex when
+bumping `mng_instance_types` + `mng_capacity_type`. Root cause: the
+`terraform-aws-modules/eks` submodule hardcodes
+`lifecycle { create_before_destroy = true }` on `aws_eks_node_group`, and
+the explicit NG name (forced by IAM 38-char prefix budget) collides with
+itself on any force_new field.
+
+Audit found 3 other recurrence-prone spots: vault backup S3 bucket
+(global namespace + 60-90 day retention), cluster encryption flip
+(one-way at AWS API), Karpenter IAM roles (collision risk for short
+cluster names in shared accounts).
+
+This release ships **flexibility-first** rails: defaults preserve current
+behavior, opt-ins enable safer modes, plan-time preconditions catch
+foot-guns before apply.
+
+#### New variables
+
+- **`mng_replacement_strategy`** — `"static"` (default) | `"rolling"`.
+  - `static`: NG name `<cluster>-default` (backward-compat). Force_new
+    changes (instance_types/capacity_type/ami_type/disk_size) require
+    `terraform destroy -target` before `terraform apply`.
+  - `rolling`: NG name `<cluster>-default-gen<mng_generation>`.
+    Force_new changes are made by bumping `mng_generation` in the same
+    apply — `create_before_destroy` provisions the new NG before
+    draining the old. Zero-downtime when other compute (Karpenter,
+    additional NGs) is present to absorb workloads.
+
+- **`mng_generation`** — integer >= 1 (default `1`). Suffix bumped to
+  trigger zero-downtime rollover when `mng_replacement_strategy='rolling'`.
+  Ignored on `static`.
+
+- **`vault_backup_bucket_naming`** — `"static"` (default) | `"random_suffix"`.
+  - `static`: bucket `<cluster>-vault-backup` (backward-compat).
+  - `random_suffix`: bucket `<cluster>-vault-<suffix>`, consistent with
+    the other 6 platform buckets, avoiding S3 global-namespace 60-90 day
+    retention conflicts on teardown+recreate.
+
+#### New plan-time preconditions
+
+- `terraform_data.mng_size_guard` — fails plan when
+  `mng_min_size > mng_desired_size` or `mng_desired_size > mng_max_size`.
+  Caught at plan, not apply.
+- `terraform_data.karpenter_naming_guard` — fails plan when
+  `length(cluster_name) < 8` and Karpenter is enabled, preventing IAM
+  role name collisions across deployments in the same AWS account.
+
+#### New variable validations
+
+- `mng_min_size >= 0`, `mng_desired_size >= 0`, `mng_max_size >= 1`.
+
+#### Documentation hardening
+
+- `cluster_secrets_encryption_enabled` description now flags the
+  one-way nature of EKS encryption_config: flipping `true → false` on a
+  running cluster forces full cluster destroy/recreate at the AWS API
+  level. Treat as immutable once enabled.
+- All MNG variables that force NG recreation
+  (`mng_instance_types`, `mng_capacity_type`, `mng_disk_size_gb`,
+  `mng_ami_type`) now have `REPLACEMENT NOTE` blocks pointing at
+  `mng_replacement_strategy`.
+
+#### Migration
+
+All changes are backward-compatible. Existing deployments behave
+identically with no tfvars changes:
+
+- MNG keeps name `<cluster>-default` (because `mng_replacement_strategy`
+  defaults to `"static"`).
+- Vault backup bucket keeps name `<cluster>-vault-backup` (because
+  `vault_backup_bucket_naming` defaults to `"static"`).
+- Encryption variable description is doc-only.
+
+To opt into safer behavior on an existing cluster:
+
+- Switching `mng_replacement_strategy` `static → rolling` IS a force_new
+  event on the NG `name` (it gains `-gen1` suffix). The module's
+  `create_before_destroy` makes this safe (zero-downtime), but it IS a
+  real replacement window. Plan accordingly.
+- Switching `vault_backup_bucket_naming` `static → random_suffix` forces
+  destroy+create of the bucket. Snapshot history is lost. Only do this
+  on clusters where vault backup history is acceptable to lose, or
+  manually copy snapshots first.
+
 ## [0.28.3] - 2026-04-26
 
 ### Changed — Move `vault-ingress` chart to `estabilis-platform-gitops` (ADR 0002 Phase 2)
