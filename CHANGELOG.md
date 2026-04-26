@@ -1,5 +1,64 @@
 # Changelog
 
+## [0.31.0] - 2026-04-26
+
+### Changed — ECR ownership model + pull-through cache defaults
+
+Splits ECR responsibility between platform-declarative repos and
+CI-owned workload repos, and gives pull-through cache usable defaults.
+
+#### Ownership model
+
+- `var.ecr_repositories` is now scoped to **platform-managed** repos
+  only — CLI-published addons (workload-operator image, chart). The
+  variable description is updated to call this out.
+- **Workload application repos no longer go in TF.** CI pipelines
+  create them on first `docker push` via the OIDC IAM role (added in a
+  follow-up). Forcing every workload onboarding through `terraform
+  apply` was the friction this split removes.
+- No variables removed. Existing operators keep working; updated
+  descriptions document the boundary.
+
+#### Pull-through cache
+
+- New resource `aws_ecr_repository_creation_template.pull_through_cache`
+  applied with `applied_for = ["PULL_THROUGH_CACHE"]` so cache-created
+  repos inherit KMS encryption + lifecycle policy. Without it, AWS
+  defaults apply (AES256, no lifecycle).
+- `var.ecr_pull_through_cache_upstreams` left empty with
+  `ecr_pull_through_cache_enabled = true` now activates a default
+  anonymous public set: `ghcr`, `quay`, `k8s`, `public-ecr`. Override
+  to add `docker-hub` (still requires
+  `ecr_dockerhub_credentials_secret_arn` to bypass anonymous rate
+  limits).
+
+#### Output
+
+- New output `ecr_pull_through_cache_prefixes` — map of prefix to
+  upstream URL. Use it to construct cached image refs like
+  `<registry>/k8s/coredns/coredns:v1.11.1`.
+
+#### Files changed
+
+- `providers/aws/ecr.tf` — full rewrite: locals + creation template.
+- `providers/aws/variables.tf` — descriptions updated for
+  `ecr_repositories`, `ecr_pull_through_cache_enabled`,
+  `ecr_pull_through_cache_upstreams`.
+- `providers/aws/outputs.tf` — new `ecr_pull_through_cache_prefixes`.
+- `providers/aws/platform-outputs.tf` — `global.ecrRegistry` now
+  follows `ecr_enabled` only (was guarded by non-empty
+  `ecr_repositories`, which excluded PT-cache-only deployments).
+- `providers/aws/terraform.tfvars.example` — comments updated.
+
+#### Operator notes
+
+- No state mutations on existing repos. Apply is additive: PT-cache
+  operators see 4 new pull-through cache rules + 4 creation templates
+  on first apply when leaving the upstreams map empty.
+- Operators using `ecr_repositories` for workload apps should remove
+  those entries; existing repos remain in AWS but become unmanaged
+  (lifecycle/scan settings stay as last applied).
+
 ## [0.30.0] - 2026-04-26
 
 ### Added — Single source of truth for module version (`VERSION` file)

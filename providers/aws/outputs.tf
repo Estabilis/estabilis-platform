@@ -255,8 +255,13 @@ output "ecr_registry_url" {
 }
 
 output "ecr_repository_urls" {
-  description = "Map of ECR repository name to URL."
+  description = "Map of platform-managed ECR repository name to URL. Empty when no `ecr_repositories` are declared. Workload app repos created by CI are not in this output."
   value       = { for k, v in aws_ecr_repository.this : k => v.repository_url }
+}
+
+output "ecr_pull_through_cache_prefixes" {
+  description = "Map of pull-through cache prefix to upstream URL. Construct cached image refs as `<ecr_registry_url>/<prefix>/<upstream-path>:<tag>` — e.g. `<registry>/k8s/coredns/coredns:v1.11.1` caches `registry.k8s.io/coredns/coredns:v1.11.1`."
+  value       = { for k, v in aws_ecr_pull_through_cache_rule.this : k => v.upstream_registry_url }
 }
 
 # ===========================================================================
