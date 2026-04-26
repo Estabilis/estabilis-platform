@@ -33,9 +33,24 @@ locals {
     }
     vpc-cni = {
       most_recent = true
+      # WARM_PREFIX_TARGET=2 + MINIMUM_IP_TARGET=10 close the cold-start
+      # race observed during MNG rolling replacement on cortex 2026-04-26:
+      # new nodes registered Ready before aws-node finished allocating its
+      # first /28 prefix, leaving a ~30s window where pods scheduled on
+      # the new node hit `failed to assign an IP address`. Pods recovered
+      # via kubelet retries (no impact on workload), but the noise of
+      # FailedCreatePodSandBox events on every node bootstrap is
+      # avoidable.
+      #
+      # Effect: aws-node pre-allocates 2 prefixes (32 IPs) and guarantees
+      # 10 free IPs at all times. Bootstrap window for IP allocation
+      # drops to <5s. Cost: 16-32 reserved IPs per node, trivial on /23
+      # subnets (512 IPs each).
       configuration_values = jsonencode({
         env = {
           ENABLE_PREFIX_DELEGATION = "true"
+          WARM_PREFIX_TARGET       = "2"
+          MINIMUM_IP_TARGET        = "10"
         }
       })
     }
