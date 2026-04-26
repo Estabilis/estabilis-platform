@@ -150,6 +150,21 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: vault
+  ignoreDifferences:
+    {{- /* StatefulSet volumeClaimTemplates drift — known ArgoCD quirk.
+           Kubernetes API server normalizes templates by adding
+           `apiVersion: v1` + `kind: PersistentVolumeClaim` (default
+           apiVersion of the Pod template). The chart-rendered manifest
+           omits these (they're inherited), so ArgoCD's diff sees the
+           api-server-added fields as drift. Cosmetic — does not affect
+           PVC binding or Vault Raft data persistence. */}}
+    - group: apps
+      kind: StatefulSet
+      name: vault
+      namespace: vault
+      jqPathExpressions:
+        - .spec.volumeClaimTemplates[]?.apiVersion
+        - .spec.volumeClaimTemplates[]?.kind
   syncPolicy:
     {{- include "platform-root.managedNamespaceMetadataExcluded" . | nindent 4 }}
     retry:

@@ -1,5 +1,54 @@
 # Changelog
 
+## [0.28.3] - 2026-04-25
+
+### Fixed — Permanent OutOfSync on Vault `StatefulSet` (volumeClaimTemplates drift)
+
+ArgoCD reported persistent drift on `apps/StatefulSet/vault/vault` even
+on a fresh deploy where Vault was Healthy and Running. Root cause:
+known ArgoCD diff quirk with StatefulSet `volumeClaimTemplates`.
+
+Kubernetes API server **normalizes** templates on creation by adding
+`apiVersion: v1` and `kind: PersistentVolumeClaim` (the default for
+embedded resources without explicit version/kind). The Vault helm
+chart renders the templates without these (they're inherited from
+the PodSpec context). ArgoCD's diff then sees the api-server-added
+fields as drift — every reconcile reports OutOfSync.
+
+#### Fix
+
+`bootstrap/platform-root/templates/vault.yaml` gains an
+`ignoreDifferences` block scoped to the StatefulSet:
+
+```yaml
+ignoreDifferences:
+  - group: apps
+    kind: StatefulSet
+    name: vault
+    namespace: vault
+    jqPathExpressions:
+      - .spec.volumeClaimTemplates[]?.apiVersion
+      - .spec.volumeClaimTemplates[]?.kind
+```
+
+Cosmetic-only — does not affect PVC binding, Raft data persistence,
+or auto-unseal. Eliminates a permanent OutOfSync that operators
+otherwise had to chase down on every cluster.
+
+### Migration
+
+For all v0.28.0+ clusters with Vault enabled:
+
+1. Bump `ref` and `platform_revision` to `v0.28.3`.
+2. `terraform init -upgrade && terraform apply` — no infrastructure
+   changes (template-only).
+3. `estabilis promote <client> -d <deployment> --force-refresh` —
+   re-renders the Vault Application with the new `ignoreDifferences`.
+4. The Vault Application transitions from `OutOfSync (cosmetic)` to
+   `Synced` without any pod restart or data movement.
+
+For deployments without Vault (`vault_enabled = false`): no-op.
+
 ## [0.28.2] - 2026-04-25
 
 ### Added — `vault-ingress` chart (consumes `vault_exposures` dynamically)
