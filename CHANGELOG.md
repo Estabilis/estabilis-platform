@@ -1,6 +1,36 @@
 # Changelog
 
-## [0.28.3] - 2026-04-25
+## [0.28.3] - 2026-04-26
+
+### Changed — Move `vault-ingress` chart to `estabilis-platform-gitops` (ADR 0002 Phase 2)
+
+ADR 0002 (gitops chart consolidation) target state: all platform
+component charts live in `estabilis-platform-gitops`; this repo carries
+only Terraform IaC + the bootstrap Application templates that reference
+those charts.
+
+The `vault-ingress` chart was created in `core/components/vault-ingress/`
+in v0.28.2 — wrong location per the ADR. This release moves it to
+`estabilis-platform-gitops/components/vault-ingress/` (released as
+gitops v0.38.2, paired) before any client takes a hard dependency on
+the legacy path.
+
+#### Changes
+
+- **REMOVED**: `core/components/vault-ingress/` (Chart.yaml, values.yaml,
+  templates/_helpers.tpl, templates/middleware.yaml). Migrated
+  byte-identical to `estabilis-platform-gitops v0.38.2`.
+- **CHANGED**: `bootstrap/platform-root/templates/vault-ingress.yaml`
+  now sources the chart from the gitops repo:
+  - `repoURL: .Values.platformGitopsRepoUrl` (was `platformRepoUrl`)
+  - `targetRevision: .Values.platformGitopsVersion` (was `platformVersion`)
+  - `path: components/vault-ingress` (was `core/components/vault-ingress`)
+  - `valueFiles[0]: $values/components/vault-ingress/values.yaml`
+    (was `$values/core/components/vault-ingress/values.yaml`)
+
+ArgoCD treats a `repoURL` change on a multi-source App as a transparent
+diff — same chart content, same rendered manifests, no pod restart, no
+Ingress recreation.
 
 ### Fixed — Permanent OutOfSync on Vault `StatefulSet` (volumeClaimTemplates drift)
 

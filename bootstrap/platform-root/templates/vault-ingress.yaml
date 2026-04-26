@@ -2,8 +2,13 @@
   Vault external ingress Application — multi-provider (AWS + Azure).
   Renders iff vault is enabled AND at least one exposure is enabled in
   global.vaultExposures (which terraform's vault.exposuresJson flows into).
-  Mirror of grafana-ingress.yaml — see core/components/vault-ingress for
-  the per-profile Ingress + Middleware rendering.
+  Mirror of grafana-ingress.yaml — see
+  estabilis-platform-gitops/components/vault-ingress for the per-profile
+  Ingress + Middleware rendering.
+
+  Chart location follows ADR 0002 Phase 3 — all platform component charts
+  live in `estabilis-platform-gitops`, this repo only carries the bootstrap
+  Application template that references them.
 */ -}}
 {{- if and (or (eq .Values.global.provider "aws") (eq .Values.global.provider "azure")) (ne (index .Values.components "vault") false) }}
 {{- /* Source of truth: terraform's `vault.exposuresJson` field on
@@ -34,12 +39,12 @@ metadata:
 spec:
   project: platform
   sources:
-    - repoURL: {{ .Values.platformRepoUrl }}
-      targetRevision: {{ .Values.platformVersion }}
-      path: core/components/vault-ingress
+    - repoURL: {{ .Values.platformGitopsRepoUrl }}
+      targetRevision: {{ .Values.platformGitopsVersion }}
+      path: components/vault-ingress
       helm:
         valueFiles:
-          - $values/core/components/vault-ingress/values.yaml
+          - $values/components/vault-ingress/values.yaml
           {{- include "platform-root.overrideValueFile" (dict "component" "vault-ingress" "root" $) | nindent 10 }}
           {{- include "platform-root.gitopsValueFile" (dict "component" "vault-ingress" "root" $) | nindent 10 }}
         ignoreMissingValueFiles: true
@@ -56,8 +61,8 @@ spec:
             value: "{{ .Values.global.dnsProvider }}"
           - name: global.acmCertificateArn
             value: "{{ .Values.global.acmCertificateArn }}"
-    - repoURL: {{ .Values.platformRepoUrl }}
-      targetRevision: {{ .Values.platformVersion }}
+    - repoURL: {{ .Values.platformGitopsRepoUrl }}
+      targetRevision: {{ .Values.platformGitopsVersion }}
       ref: values
     {{- include "platform-root.overrideSource" . | nindent 4 }}
     {{- include "platform-root.gitopsSource" . | nindent 4 }}
