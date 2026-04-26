@@ -1,5 +1,38 @@
 # Changelog
 
+## [0.31.4] - 2026-04-26
+
+### Reverted — drop ArgoCD ↔ ECR OCI auth bridge (v0.31.2 + v0.31.3)
+
+Cortex (and the legacy `iac-infrastructure-aws/eks/argocd.tf`) **never**
+consumed helm charts via OCI from ECR. ArgoCD reads charts directly
+from git (e.g. `Cortex-Innovation/helm-charts`, path-based) using the
+existing GitHub App org credential (`secret-type=repo-creds`). ECR is
+used for app **images** (pushed by CI), not for chart distribution.
+
+The ArgoCD↔ECR OCI auth bridge added in v0.31.2 (extended ESO IRSA
+with ECR permissions + ECRAuthorizationToken + ExternalSecret) and
+attempted-fix v0.31.3 (auth removal) was solving a problem that didn't
+exist. Removed in v0.31.4 to clean up dead infrastructure on consumer
+clusters.
+
+#### Files changed
+
+- `providers/aws/argocd-ecr-creds.tf` — deleted.
+
+#### Operator notes
+
+- Cortex consumers on v0.31.2 / v0.31.3 see 4 resource removals on
+  next apply: `aws_iam_policy.external_secrets_ecr`,
+  `aws_iam_role_policy_attachment.external_secrets_ecr`, and 2
+  `kubernetes_manifest` resources in `argocd` ns. None were
+  functionally referenced — clean removal.
+- If a future client genuinely needs OCI helm charts (e.g. private
+  charts NOT in git), reintroduce the pattern as a separate, gated
+  feature (`var.argocd_ecr_oci_enabled`) with end-to-end validation
+  before merge. Issue [#202](https://github.com/Estabilis/estabilis-platform-tools/issues/202)
+  is closed as "no real consumer demand for OCI charts".
+
 ## [0.31.2] - 2026-04-26
 
 ### Fixed — ArgoCD can now pull OCI helm charts from platform-provisioned ECR
