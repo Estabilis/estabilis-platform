@@ -61,6 +61,32 @@ jobs:
             exit 1
           fi
 
+      # Single source of truth for module version (v0.30.0+).
+      # Modules read this file via `file("${path.module}/../../VERSION")`
+      # at apply time so consumers don't have to bump both `main.tf ref`
+      # and a `platform_revision` tfvar. The release commit lands first
+      # (possibly without VERSION updated), and this step amends it
+      # with the bump in the SAME commit so the tag points at a tree
+      # where VERSION matches the tag. concurrency:group=release
+      # serializes runs, so --force-with-lease is safe.
+      - name: Sync VERSION file to release commit
+        if: steps.detect.outputs.should_release == 'true'
+        env:
+          VERSION: ${{ steps.detect.outputs.version }}
+        run: |
+          set -euo pipefail
+          echo "$VERSION" > VERSION
+          if git diff --quiet VERSION; then
+            echo "VERSION already matches $VERSION — no amend needed."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add VERSION
+          git commit --amend --no-edit
+          git push --force-with-lease origin main
+          echo "VERSION amended into release commit and pushed."
+
       - name: Extract CHANGELOG section
         if: steps.detect.outputs.should_release == 'true'
         id: changelog
@@ -116,8 +142,13 @@ jobs:
           BODY: ${{ steps.changelog.outputs.body }}
         run: |
           set -euo pipefail
+          # Use post-amend HEAD (not $GITHUB_SHA which is the pre-amend
+          # commit when "Sync VERSION file" amended). The tag was already
+          # pushed pointing at this same commit; using the explicit SHA
+          # keeps the Release page target consistent with the tag.
+          target_sha="$(git rev-parse HEAD)"
           gh release create "$VERSION" \
             --title "$VERSION" \
             --notes "$BODY" \
-            --target "$GITHUB_SHA"
-          echo "GitHub Release $VERSION created."
+            --target "$target_sha"
+          echo "GitHub Release $VERSION created at $target_sha."

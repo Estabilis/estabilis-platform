@@ -42,7 +42,7 @@ resource "kubernetes_config_map" "platform_infrastructure" {
   data = {
     # Platform versions
     "platformRepoUrl"   = var.platform_repo_url
-    "platformVersion"   = var.platform_version
+    "platformVersion"   = local.platform_version_effective
     "configRepoUrl"     = var.config_repo_url
     "configRepoVersion" = var.config_repo_version
 

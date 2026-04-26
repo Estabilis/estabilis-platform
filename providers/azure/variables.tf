@@ -68,9 +68,18 @@ variable "platform_repo_url" {
 }
 
 variable "platform_version" {
-  description = "Version of the platform chart / manifests to deploy."
+  description = <<-EOT
+    [OVERRIDE] Version of the platform chart / manifests to deploy.
+
+    Leave empty (default) — the module auto-derives from the VERSION
+    file at the cloned source ref via file($${path.module}/../../VERSION).
+    Single source of truth: bump only `main.tf` `ref=...`.
+
+    Set explicitly only for overrides (e.g. local-path development
+    sources, when path.module isn't a git-cloned ref).
+  EOT
   type        = string
-  default     = "0.1.0-alpha"
+  default     = ""
 }
 
 variable "config_repo_url" {

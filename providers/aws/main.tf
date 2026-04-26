@@ -167,10 +167,35 @@ locals {
 # Revision resolution — bridges legacy *_version vars and the new *_revision
 # vars introduced by ADR 0020 (branch tracking). The resolved values flow
 # into platform-outputs.tf to become ArgoCD Application targetRevision.
+#
+# Module self-derivation (v0.30.0+): when the operator leaves both
+# `platform_version` and `platform_revision` empty in tfvars, the module
+# reads the VERSION file at the root of its own cloned source. This
+# eliminates the duplication where `main.tf ref=` and tfvars
+# `platform_revision = ...` had to be bumped together.
+#
+# Resolution order (first non-empty wins):
+#   1. var.platform_revision (explicit override)
+#   2. var.platform_version  (legacy alias / explicit override)
+#   3. local.module_version  (read from VERSION file at the cloned ref)
+#
+# Why path.module/../../VERSION: providers/aws is 2 directories deep
+# from the repo root; the VERSION file lives at the root.
 # ---------------------------------------------------------------------------
 
 locals {
-  platform_revision_effective      = length(var.platform_revision) > 0 ? var.platform_revision : var.platform_version
+  module_version = trimspace(file("${path.module}/../../VERSION"))
+
+  # Both `platformVersion` and `platformRevision` ConfigMap keys get the
+  # same effective value — this preserves the long-standing convention
+  # documented in platform-outputs.tf where many child Applications still
+  # read `.Values.platformVersion` directly for backward compat.
+  platform_revision_effective = (
+    length(var.platform_revision) > 0 ? var.platform_revision :
+    length(var.platform_version) > 0 ? var.platform_version :
+    local.module_version
+  )
+
   config_repo_revision_effective   = length(var.config_repo_revision) > 0 ? var.config_repo_revision : var.config_repo_version
   client_gitops_revision_effective = length(var.client_gitops_repo_revision) > 0 ? var.client_gitops_repo_revision : var.client_gitops_repo_version
 }
