@@ -1,5 +1,37 @@
 # Changelog
 
+## [0.31.7] - 2026-04-26
+
+### Fixed — ACM wildcard cert FQDN aligned with bridge.cluster-name annotation
+
+ACM `domain_name` used `local.cluster_name` (= `eks-${base}`).
+Bridge annotation `cluster-name` (v0.31.5+) uses
+`${name_prefix}-${deployment_id}`. App FQDNs composed from the bridge
+annotation never matched the cert — ALB auto-discovery couldn't pick
+it up, HTTPS broke.
+
+Fix: cert covers `*.${name_prefix}-${deployment_id}.${domain}` —
+same identifier as the bridge annotation. Single wildcard covers all
+apps in the cluster.
+
+#### Files changed
+
+- `providers/aws/acm.tf` — `domain_name` realigned + Cloudflare
+  validation comment updated.
+
+#### Operator notes
+
+- `aws_acm_certificate.wildcard` is **destroyed and recreated**
+  (immutable `domain_name`). `lifecycle.create_before_destroy = true`
+  issues the new cert before deleting the old; DNS-01 validation via
+  Cloudflare takes ~30-90s.
+- ALB Controller auto-rediscovers the new cert; existing Ingresses
+  pick it up on next reconciliation (~30s).
+
+## [0.31.6] - 2026-04-26 — `cluster-name` annotation includes `name_prefix`
+
+(Empty release commit — see [#122](https://github.com/Estabilis/estabilis-platform/pull/122).)
+
 ## [0.31.5] - 2026-04-26
 
 ### Added — cluster Secret annotations for ADR 0023 Etapa B (dynamic cluster metadata)

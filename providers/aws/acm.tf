@@ -8,7 +8,15 @@
 # _acme-challenge CNAME via the Cloudflare API token already required
 # by external-dns / cert-manager DNS-01 issuer.
 #
-# Domain: *.{cluster_name}.{domain}
+# Domain: *.{name_prefix}-{deployment_id}.{domain}
+#
+# Aligned with the `estabilis.io/bridge.cluster-name` Secret annotation
+# (ADR 0023 Etapa B, v0.31.5+) so app FQDNs composed as
+# `{app}.{cluster-name}.{domain}` are covered by this single wildcard
+# cert. Earlier versions (v0.31.5 and prior) used `local.cluster_name`
+# (= `eks-{base_name}`) which produced a different identifier and a
+# cert that didn't match app hosts — see v0.31.7 CHANGELOG.
+#
 # Extra SANs: var.acm_extra_domain_names
 # ---------------------------------------------------------------------------
 
@@ -45,7 +53,7 @@ resource "null_resource" "acm_requires_managed_dns" {
 resource "aws_acm_certificate" "wildcard" {
   count = var.acm_enabled ? 1 : 0
 
-  domain_name               = "*.${local.cluster_name}.${var.domain}"
+  domain_name               = "*.${var.name_prefix}-${var.deployment_id}.${var.domain}"
   subject_alternative_names = var.acm_extra_domain_names
   validation_method         = "DNS"
 
@@ -99,7 +107,7 @@ resource "cloudflare_record" "acm_validation" {
   type    = each.value.type
   ttl     = 60
   proxied = false
-  comment = "ACM cert validation for ${local.cluster_name} (managed by estabilis-platform)"
+  comment = "ACM cert validation for ${var.name_prefix}-${var.deployment_id} (managed by estabilis-platform)"
 }
 
 resource "aws_acm_certificate_validation" "wildcard" {
