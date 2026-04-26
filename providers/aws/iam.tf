@@ -25,8 +25,16 @@ module "external_secrets_irsa" {
 
   oidc_providers = {
     main = {
-      provider_arn               = module.eks.oidc_provider_arn
-      namespace_service_accounts = ["external-secrets:external-secrets"]
+      provider_arn = module.eks.oidc_provider_arn
+      namespace_service_accounts = concat(
+        ["external-secrets:external-secrets"],
+        # When ECR is enabled, the ECRAuthorizationToken in argocd ns needs
+        # a same-namespace SA bound to this IRSA role. ESO v2 does not
+        # natively allow cross-namespace SA refs from generators without
+        # additional config, so we mirror the SA into argocd (see
+        # argocd-ecr-creds.tf for the SA + ECRAuthorizationToken).
+        var.ecr_enabled ? ["argocd:external-secrets-ecr"] : []
+      )
     }
   }
 }

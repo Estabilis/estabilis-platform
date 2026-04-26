@@ -83,6 +83,31 @@ resource "aws_iam_role_policy_attachment" "external_secrets_ecr" {
 # in #202.
 # ---------------------------------------------------------------------------
 
+# ServiceAccount in `argocd` ns bound to the external-secrets IRSA role
+# (trust extended in iam.tf when var.ecr_enabled = true). Required because
+# ESO v2 does not natively allow cross-namespace serviceAccountRef from
+# generator resources.
+resource "kubernetes_service_account" "external_secrets_ecr" {
+  count = var.ecr_enabled ? 1 : 0
+
+  metadata {
+    name      = "external-secrets-ecr"
+    namespace = "argocd"
+    annotations = {
+      "eks.amazonaws.com/role-arn" = module.external_secrets_irsa.iam_role_arn
+    }
+    labels = {
+      "estabilis.io/managed-by" = "platform"
+      "estabilis.io/component"  = "argocd-ecr-creds"
+    }
+  }
+  automount_service_account_token = true
+
+  depends_on = [
+    kubernetes_namespace.argocd,
+  ]
+}
+
 resource "kubernetes_manifest" "ecr_auth_token" {
   count = var.ecr_enabled ? 1 : 0
 
@@ -95,16 +120,21 @@ resource "kubernetes_manifest" "ecr_auth_token" {
     }
     spec = {
       region = var.region
-      # No `auth` block: ESO uses the controller pod's AWS credentials
-      # (the IRSA bound to the `external-secrets` SA in the `external-secrets`
-      # namespace, extended with ECR permissions above). Avoids the
-      # cross-namespace SA reference complications with `auth.jwt`.
+      # Same-namespace SA reference (no `namespace` field). Avoids the
+      # ESO v2 cross-namespace generator-SA limitation.
+      auth = {
+        jwt = {
+          serviceAccountRef = {
+            name = kubernetes_service_account.external_secrets_ecr[0].metadata[0].name
+          }
+        }
+      }
     }
   }
 
   depends_on = [
     aws_iam_role_policy_attachment.external_secrets_ecr,
-    kubernetes_namespace.argocd,
+    kubernetes_service_account.external_secrets_ecr,
   ]
 }
 
