@@ -100,11 +100,11 @@ spec:
           {{- include "platform-root.schedulingValuesFor" (dict
                 "mode" $mode
                 "paths" (list "gateway" "distributor" "querier" "queryFrontend" "queryScheduler" "ruler" "compactor" "indexGateway")
-             ) | nindent 10 }}
+                "provider" .Values.global.provider) | nindent 10 }}
           {{- include "platform-root.schedulingValuesFor" (dict
                 "mode" $modeIngester
                 "paths" (list "ingester")
-             ) | nindent 10 }}
+                "provider" .Values.global.provider) | nindent 10 }}
         {{- if eq .Values.global.provider "azure" }}
         parameters:
           - name: loki.storage.azure.accountName
@@ -171,11 +171,11 @@ spec:
           {{- include "platform-root.schedulingValuesFor" (dict
                 "mode" $mode
                 "paths" (list "gateway" "distributor" "querier" "query_frontend" "query_scheduler" "ruler" "compactor" "store_gateway" "alertmanager" "overrides_exporter")
-             ) | nindent 10 }}
+                "provider" .Values.global.provider) | nindent 10 }}
           {{- include "platform-root.schedulingValuesFor" (dict
                 "mode" $modeIngester
                 "paths" (list "ingester")
-             ) | nindent 10 }}
+                "provider" .Values.global.provider) | nindent 10 }}
         {{- if eq .Values.global.provider "azure" }}
         parameters:
           - name: mimir.structuredConfig.common.storage.azure.account_name

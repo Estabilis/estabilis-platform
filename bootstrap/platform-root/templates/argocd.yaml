@@ -22,6 +22,7 @@ spec:
           {{- include "platform-root.schedulingValuesFor" (dict
                 "mode" (default "auto" (index .Values.scheduling "argocd"))
                 "paths" (list "controller" "server" "repoServer" "applicationSet" "notifications" "dex" "redis")
+             "provider" .Values.global.provider
              ) | nindent 10 }}
     - repoURL: {{ .Values.platformRepoUrl }}
       targetRevision: {{ .Values.platformVersion }}

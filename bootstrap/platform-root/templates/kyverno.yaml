@@ -25,16 +25,16 @@ spec:
           {{- include "platform-root.schedulingValuesFor" (dict
                 "mode" $mode
                 "paths" (list "admissionController" "backgroundController" "cleanupController" "reportsController")
-             ) | nindent 10 }}
+                "provider" .Values.global.provider) | nindent 10 }}
           crds:
             migration:
               tolerations:
-                {{- include "platform-root.schedulingTolerations" . | nindent 16 }}
+                {{- include "platform-root.schedulingTolerations" (dict "provider" .Values.global.provider) | nindent 16 }}
               affinity:
                 {{- include "platform-root.schedulingAffinity" (dict "mode" $mode) | nindent 16 }}
           webhooksCleanup:
             tolerations:
-              {{- include "platform-root.schedulingTolerations" . | nindent 14 }}
+              {{- include "platform-root.schedulingTolerations" (dict "provider" .Values.global.provider) | nindent 14 }}
             affinity:
               {{- include "platform-root.schedulingAffinity" (dict "mode" $mode) | nindent 14 }}
         {{- include "platform-root.provenanceParametersBlock" $ | nindent 8 }}

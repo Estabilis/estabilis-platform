@@ -53,6 +53,7 @@ spec:
           {{- include "platform-root.schedulingValuesFor" (dict
                 "mode" (default "auto" (index .Values.scheduling "opencost"))
                 "paths" (list "opencost")
+             "provider" .Values.global.provider
              ) | nindent 10 }}
         parameters:
           {{- if eq .Values.global.provider "azure" }}
