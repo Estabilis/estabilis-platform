@@ -1,0 +1,53 @@
+{{- /*
+  Client-authored ArgoCD ApplicationSets and Applications.
+
+  Reads ArgoCD resources (typically ApplicationSets) from the client's
+  gitops repo at platforms/{deploymentId}/argocd/. The destination is
+  the argocd namespace itself, so the resources are picked up by the
+  ArgoCD controller as soon as they sync.
+
+  Use case: client-managed ApplicationSets that generate Application
+  per-app (the Cortex `client-apps` AppSet matrix-generates Applications
+  for each `platforms/{deploymentId}/apps/*` directory). Without this
+  Application, those AppSets only land in the cluster via manual
+  `kubectl apply` — drift waiting to happen.
+
+  Sync-wave 5 (after platform-level Applications including
+  external-secrets, ALB controller, kyverno; before client-managed apps
+  themselves which sync through the AppSets we install here).
+
+  Only active when clientGitopsRepoUrl AND deploymentId are set.
+*/ -}}
+{{- if and .Values.clientGitopsRepoUrl .Values.deploymentId }}
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: client-argocd-appsets
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "5"
+spec:
+  project: platform
+  source:
+    repoURL: {{ .Values.clientGitopsRepoUrl }}
+    targetRevision: {{ include "platform-root.clientGitopsRef" . | default "HEAD" }}
+    path: platforms/{{ .Values.deploymentId }}/argocd
+    directory:
+      recurse: true
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    retry:
+      limit: 10
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 3m
+    syncOptions:
+      - ServerSideApply=true
+      - CreateNamespace=false
+{{- end }}
