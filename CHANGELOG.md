@@ -1,5 +1,50 @@
 # Changelog
 
+## [0.31.10] - 2026-04-27
+
+### Added — `bridge.tier` + `bridge.secret-path-template` annotations on `hub-cluster` Secret
+
+Two new annotations on the ArgoCD `hub-cluster` cluster Secret consumed
+by client ApplicationSets via the `clusters` generator. Apps using the
+Cortex `common-app` chart (>= v0.2.0) now derive their ExternalSecret
+backend path purely from cluster annotations — no per-app values.yaml
+hardcoding, no per-cluster overrides.
+
+- **`estabilis.io/bridge.tier`** — derived from `var.environment`.
+  Maps `prd` / `prod` → `"production"` (matches the Vault path
+  convention `secret/org/production/*`); other environments
+  (`hml`, `stg`, `dev`, `uat`) pass through verbatim.
+
+- **`estabilis.io/bridge.secret-path-template`** — Vault path schema
+  `"secret/data/org/{tier}/{app}"` when `vault_enabled = true`, empty
+  string otherwise. The chart fails loud (`required`) on empty so apps
+  do NOT silently render an invalid path.
+
+The `{tier}` / `{app}` substitution variables are resolved by the chart
+template at render time (`{tier}` ← cluster annotation; `{app}` ←
+`Release.Name`).
+
+Future provider migrations (Vault → Azure Key Vault → AWS Secrets
+Manager) require changing **only** the path template string in the
+upstream — zero changes to client repos or chart consumers. See
+`locals.tf:bridge_secret_path_template` for the provider mapping
+table.
+
+### Migration
+
+Client ApplicationSets must inject two new helm parameters when
+rendering common-app v0.2.0+:
+
+```yaml
+- name: externalSecrets.tier
+  value: '{{ index .metadata.annotations "estabilis.io/bridge.tier" }}'
+- name: externalSecrets.pathTemplate
+  value: '{{ index .metadata.annotations "estabilis.io/bridge.secret-path-template" }}'
+```
+
+(The other 7 `bridge.*` annotations remain unchanged. Existing
+ApplicationSets that don't enable ExternalSecrets are unaffected.)
+
 ## [0.31.9] - 2026-04-27
 
 ### Fixed — VPC CNI canonical IP target pair (replaces v0.29.1 attempt)
