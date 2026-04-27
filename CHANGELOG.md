@@ -1,5 +1,33 @@
 # Changelog
 
+## [0.32.1] - 2026-04-27
+
+### Fixed — `validation` null short-circuit on storage-class IOPS/throughput
+
+The `default_storage_class_throughput` and `default_storage_class_iops`
+variables shipped in v0.32.0 used the canonical-looking guard:
+
+  ```
+  condition = var.foo == null || (var.foo >= 125 && var.foo <= 1000)
+  ```
+
+Terraform's `||` operator does **not** short-circuit inside
+`validation { condition }` blocks, so when the variable was left
+null (the default), the right-hand side still evaluated `null >= 125`
+and produced `Error during operation: argument must not be null` at
+plan time. The first downstream consumer (HML cluster) hit this on
+the very first `terraform plan` post-bump.
+
+Replaced the `||` form with the ternary `var.foo == null ? true :
+(...)`, which **does** short-circuit and is the documented workaround
+for nullable validations. No behavior change when the variable is set
+explicitly.
+
+This is the same class of pitfall as `coalesce(x, "")` in validation
+contexts — keeping the fix small (just the two condition lines) so
+the v0.32.0 changelog entry below remains the canonical reference for
+the storage-class feature itself.
+
 ## [0.32.0] - 2026-04-27
 
 ### Added — Default StorageClass `gp3` (AWS provider)
