@@ -1,5 +1,60 @@
 # Changelog
 
+## [0.32.0] - 2026-04-27
+
+### Added — Default StorageClass `gp3` (AWS provider)
+
+EKS 1.30+ no longer ships the in-tree gp2 StorageClass, so a fresh
+Estabilis AWS cluster came up with no default class — every PVC that
+omitted `storageClassName` (loki, mimir, vault, cnpg, tempo,
+pyroscope, ...) stayed Pending. Until now the gap was being closed
+manually after each bootstrap (or by the legacy
+`iac-infrastructure-aws/eks/storage.tf` for the legacy cortex
+cluster).
+
+`providers/aws/storage.tf` now declares a `gp3` StorageClass via the
+existing `hashicorp/kubernetes` provider:
+
+  - provisioner `ebs.csi.aws.com` (consumes the EBS CSI addon already
+    installed by the EKS module)
+  - `volumeBindingMode: WaitForFirstConsumer` (AZ-aware scheduling)
+  - `allowVolumeExpansion: true` (gp3 supports online resize; the
+    legacy class did not have this enabled)
+  - encrypted at rest by default (matches the EC2NodeClass root-disk
+    policy; legacy class did not encrypt)
+  - `is-default-class` annotation togglable
+
+New variables (all sane defaults; no tfvars change needed for the
+common case):
+
+  create_default_storage_class       bool   default true
+  default_storage_class_is_default   bool   default true
+  default_storage_class_encrypted    bool   default true
+  default_storage_class_throughput   number default null  (AWS baseline 125 MiB/s)
+  default_storage_class_iops         number default null  (AWS baseline 3000 IOPS)
+
+New output: `default_storage_class_name` — downstream charts can wire
+`storageClass` parameters without hardcoding.
+
+#### Upgrade note for existing clusters
+
+Clusters that already carry a hand-applied `gp3` StorageClass
+(cortex-platform-aws-us-east-1-prd, anything bootstrapped before this
+release) need a one-time import after pulling the module:
+
+```
+cd providers/aws
+terraform init -upgrade
+terraform import 'module.estabilis_platform.kubernetes_storage_class_v1.gp3[0]' gp3
+terraform plan
+terraform apply
+```
+
+The plan will likely show drift on `allowVolumeExpansion` and
+`parameters.encrypted` (the hand-applied class typically has neither
+set). Both changes are non-destructive — they only affect new PVCs
+created after the apply, never existing volumes.
+
 ## [0.31.13] - 2026-04-27
 
 ### Fixed — Azure-specific spot toleration emitted on AWS clusters
