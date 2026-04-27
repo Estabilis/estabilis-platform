@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.31.12] - 2026-04-27
+
+### Changed — vpc-cni back to aws-node defaults (no env tuning)
+
+Reverts the prior two attempts at pre-allocation tuning, both of which
+left Karpenter-spawned nodes susceptible to `FailedCreatePodSandBox`
+until their `aws-node` pod was manually restarted:
+
+  v0.29.1  WARM_PREFIX_TARGET=2 + MINIMUM_IP_TARGET=10  (non-canonical)
+  v0.31.9  MINIMUM_IP_TARGET=10 + WARM_IP_TARGET=2     (canonical pair, race still observed)
+
+New config keeps only `ENABLE_PREFIX_DELEGATION=true` (so each allocation
+is a /28 prefix instead of a single secondary IP) and falls back to the
+aws-node default behavior (`WARM_ENI_TARGET=1`, `WARM_PREFIX_TARGET=1`,
+lazy allocation). Operator preference based on observation that the
+untuned default produced the alarm less often.
+
 ## [0.31.11] - 2026-04-27
 
 ### Added — `client-argocd-appsets` Application
