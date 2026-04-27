@@ -28,10 +28,10 @@ spec:
           {{- $mode := default "auto" (index .Values.scheduling "trivy-operator") }}
           {{- include "platform-root.schedulingValuesTopLevel" (dict
                 "mode" $mode
-             ) | nindent 10 }}
+                "provider" .Values.global.provider) | nindent 10 }}
           trivy:
             scanJobTolerations:
-              {{- include "platform-root.schedulingTolerations" . | nindent 14 }}
+              {{- include "platform-root.schedulingTolerations" (dict "provider" .Values.global.provider) | nindent 14 }}
             scanJobAffinity:
               {{- include "platform-root.schedulingAffinity" (dict "mode" $mode) | nindent 14 }}
     - repoURL: {{ .Values.platformRepoUrl }}

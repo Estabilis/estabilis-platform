@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.31.13] - 2026-04-27
+
+### Fixed — Azure-specific spot toleration emitted on AWS clusters
+
+The `platform-root.schedulingTolerations` helper used to emit
+`kubernetes.azure.com/scalesetpriority=spot:NoSchedule` unconditionally
+in every Application that called it. On AWS that taint never exists,
+so the toleration was inert noise polluting Pod specs (cosmetic; no
+functional harm).
+
+The helper now requires `.provider` in the dict and only emits the
+Azure toleration when the value is `"azure"`. All 16 callers in
+`bootstrap/platform-root/templates/*.yaml` updated to pass
+`"provider" .Values.global.provider`.
+
+When `.provider` is omitted or any value other than `"azure"`, no
+toleration is emitted (safe default — pods schedule normally).
+
 ## [0.31.12] - 2026-04-27
 
 ### Changed — vpc-cni back to aws-node defaults (no env tuning)

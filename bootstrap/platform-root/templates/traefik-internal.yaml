@@ -32,6 +32,7 @@ spec:
           {{- /* Scheduling (ADR 0012) */}}
           {{- include "platform-root.schedulingValuesTopLevel" (dict
                 "mode" (default "auto" (index .Values.scheduling "traefik-internal"))
+             "provider" .Values.global.provider
              ) | nindent 10 }}
     - repoURL: {{ .Values.platformRepoUrl }}
       targetRevision: {{ .Values.platformVersion }}

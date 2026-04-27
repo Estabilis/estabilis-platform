@@ -292,11 +292,26 @@ per-platform override paths scoped by deploymentId.
   (see bootstrap/platform-root/templates/*.yaml).
 */ -}}
 
+{{- /*
+  schedulingTolerations — cloud-specific spot toleration, gated by
+  `.provider`. Caller passes `provider` (typically
+  `.Values.global.provider`) in the dict. Without a match, emits
+  nothing — pods schedule normally on untainted nodes (AWS spot pools
+  use a different taint, not this one).
+
+  Until 2026-04-27 this helper emitted the AKS toleration
+  unconditionally, leaking Azure-specific config into AWS Pod specs
+  (no functional harm since the taint never existed there, but a
+  cosmetic anomaly that surfaces in audits).
+*/ -}}
 {{- define "platform-root.schedulingTolerations" -}}
+{{- $provider := default "" .provider -}}
+{{- if eq $provider "azure" -}}
 - key: "kubernetes.azure.com/scalesetpriority"
   operator: "Equal"
   value: "spot"
   effect: "NoSchedule"
+{{- end -}}
 {{- end -}}
 
 {{- define "platform-root.schedulingAffinity" -}}

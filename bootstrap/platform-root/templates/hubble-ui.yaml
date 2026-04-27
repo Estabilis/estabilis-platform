@@ -22,6 +22,7 @@ spec:
           {{- /* Scheduling (ADR 0012 — issue #97) */}}
           {{- include "platform-root.schedulingValuesTopLevel" (dict
                 "mode" (default "auto" (index .Values.scheduling "hubble-ui"))
+             "provider" .Values.global.provider
              ) | nindent 10 }}
         {{- include "platform-root.provenanceParametersBlock" $ | nindent 8 }}
     - repoURL: {{ .Values.platformRepoUrl }}

@@ -46,7 +46,8 @@ spec:
         valuesObject:
           {{- /* Scheduling (ADR 0012) */}}
           {{- $mode := default "auto" (index .Values.scheduling "vault") }}
-          {{- include "platform-root.schedulingValuesTopLevel" (dict "mode" $mode) | nindent 10 }}
+          {{- include "platform-root.schedulingValuesTopLevel" (dict "mode" $mode
+                "provider" .Values.global.provider) | nindent 10 }}
         parameters:
           {{- if eq .Values.global.provider "aws" }}
           {{- /* IRSA annotation — vault SA assumes the role provisioned

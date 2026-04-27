@@ -23,6 +23,7 @@ spec:
           {{- /* Scheduling (ADR 0012 — issue #97) */}}
           {{- include "platform-root.schedulingValuesTopLevel" (dict
                 "mode" (default "auto" (index .Values.scheduling "traefik"))
+             "provider" .Values.global.provider
              ) | nindent 10 }}
     - repoURL: {{ .Values.platformRepoUrl }}
       targetRevision: {{ .Values.platformVersion }}

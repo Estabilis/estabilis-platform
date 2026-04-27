@@ -21,6 +21,7 @@ spec:
           {{- /* Scheduling (ADR 0012 — issue #97) — cnpg-operator chart Deployment */}}
           {{- include "platform-root.schedulingValuesTopLevel" (dict
                 "mode" (default "auto" (index .Values.scheduling "cnpg"))
+             "provider" .Values.global.provider
              ) | nindent 10 }}
         parameters:
           - name: crds.create

@@ -26,11 +26,11 @@ spec:
           {{- $mode := default "auto" (index .Values.scheduling "cert-manager") }}
           {{- include "platform-root.schedulingValuesTopLevel" (dict
                 "mode" $mode
-             ) | nindent 10 }}
+                "provider" .Values.global.provider) | nindent 10 }}
           {{- include "platform-root.schedulingValuesFor" (dict
                 "mode" $mode
                 "paths" (list "webhook" "cainjector" "startupapicheck")
-             ) | nindent 10 }}
+                "provider" .Values.global.provider) | nindent 10 }}
         parameters:
           {{- include "platform-root.provenanceParameters" $ | nindent 10 }}
           {{- if eq .Values.global.provider "azure" }}
