@@ -36,4 +36,31 @@ locals {
   # Consumed by iam.tf (workload_operator policy), platform-outputs.tf
   # (ConfigMap + hub cluster secret annotations), and outputs.tf.
   shared_hub_secrets_prefix_effective = length(var.shared_hub_secrets_prefix) > 0 ? var.shared_hub_secrets_prefix : "estabilis/shared/${var.name_prefix}"
+
+  # ---------------------------------------------------------------------------
+  # ExternalSecret path resolution — provider-agnostic.
+  #
+  # The `tier` + `secret_path_template` pair is published as cluster
+  # annotations (see platform-outputs.tf, hub-cluster Secret) so client
+  # ApplicationSets can inject them into helm parameters. Apps using the
+  # Cortex `common-app` chart (>= v0.2.0) consume them to construct the
+  # ExternalSecret backend path:
+  #
+  #   {tier} → derived from environment (prd|prod → "production")
+  #   {app}  → Release.Name on render
+  #
+  # Provider mapping (today only Vault wired; AKV / AWS SM follow the
+  # same shape — only the template string changes):
+  #
+  #   Vault              "secret/data/org/{tier}/{app}"
+  #   Azure Key Vault    "{app}-{tier}"   (no slashes allowed in AKV name)
+  #   AWS Secrets Manager "estabilis/{tier}/{app}" or any chosen prefix
+  #
+  # When vault_enabled = false, secret_path_template is empty — the
+  # client AppSet sees an empty annotation and the chart's `required`
+  # check on `pathTemplate` raises a clear error instead of rendering
+  # an invalid path. This matches "fail loud" — no silent best-effort.
+  # ---------------------------------------------------------------------------
+  bridge_tier                 = contains(["prd", "prod"], var.environment) ? "production" : var.environment
+  bridge_secret_path_template = var.vault_enabled ? "secret/data/org/{tier}/{app}" : ""
 }

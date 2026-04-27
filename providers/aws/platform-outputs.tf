@@ -232,6 +232,15 @@ resource "kubernetes_secret" "hub_cluster" {
 
       "estabilis.io/bridge.hub-secrets-path-prefix"    = var.shared_hub_secrets_enabled ? local.shared_hub_secrets_prefix_effective : ""
       "estabilis.io/bridge.workload-operator-role-arn" = var.shared_hub_secrets_enabled ? aws_iam_role.workload_operator[0].arn : ""
+
+      # ExternalSecret path resolution — consumed by client ApplicationSets
+      # to inject helm parameters `externalSecrets.tier` and
+      # `externalSecrets.pathTemplate` into the common-app chart (>= v0.2.0).
+      # Path computation lives in locals.tf (see bridge_tier +
+      # bridge_secret_path_template) so Provider switching (Vault → AKV /
+      # AWS SM) is a one-line change in the upstream module.
+      "estabilis.io/bridge.tier"                 = local.bridge_tier
+      "estabilis.io/bridge.secret-path-template" = local.bridge_secret_path_template
     }
   }
 
