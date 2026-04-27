@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.31.11] - 2026-04-27
+
+### Added — `client-argocd-appsets` Application
+
+New Application template in `bootstrap/platform-root/templates/`
+that syncs `platforms/{deploymentId}/argocd/` from the client gitops
+repo into the `argocd` namespace. Closes the gap where client-authored
+ApplicationSets (the matrix-generator pattern that creates one
+Application per `apps/*` subdirectory) were applied only via manual
+`kubectl apply` — they now live in gitops, reconciled automatically.
+
+Sync-wave 5 (after platform-level Applications, before client apps
+themselves).
+
+Only active when `clientGitopsRepoUrl` AND `deploymentId` are set —
+same gate as `client-kyverno-exceptions`.
+
+
 ## [0.31.10] - 2026-04-27
 
 ### Added — `bridge.tier` + `bridge.secret-path-template` annotations on `hub-cluster` Secret
