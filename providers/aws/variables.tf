@@ -1415,3 +1415,72 @@ variable "vault_exposures" {
   }))
   default = {}
 }
+
+# ---------------------------------------------------------------------------
+# Default StorageClass (gp3) — see storage.tf
+# ---------------------------------------------------------------------------
+
+variable "create_default_storage_class" {
+  description = <<-EOT
+    Create the `gp3` StorageClass via the kubernetes provider.
+
+    EKS 1.30+ does not ship a default in-tree gp2 StorageClass anymore,
+    so leaving this off on a fresh cluster will leave every PVC Pending
+    until the operator brings their own. Set to false only when the
+    operator already manages a default class out-of-band.
+  EOT
+  type        = bool
+  default     = true
+}
+
+variable "default_storage_class_is_default" {
+  description = <<-EOT
+    Annotate the `gp3` StorageClass with
+    `storageclass.kubernetes.io/is-default-class=true`. Set to false
+    when the cluster already carries another class that should be the
+    cluster default (e.g., io2 for high-perf workloads).
+  EOT
+  type        = bool
+  default     = true
+}
+
+variable "default_storage_class_encrypted" {
+  description = <<-EOT
+    Encrypt at rest every PVC provisioned through the `gp3`
+    StorageClass. Defaults to true to match the EC2NodeClass root-disk
+    policy (every node EBS is encrypted). Disabling here only makes
+    sense on dev clusters where the operator has measured the
+    encryption overhead on a specific workload — production should
+    leave this true.
+  EOT
+  type        = bool
+  default     = true
+}
+
+variable "default_storage_class_throughput" {
+  description = <<-EOT
+    gp3 baseline throughput is 125 MiB/s; AWS bills any value above
+    that. Leave null to inherit the AWS free-tier baseline.
+  EOT
+  type        = number
+  default     = null
+
+  validation {
+    condition     = var.default_storage_class_throughput == null || (try(var.default_storage_class_throughput, 0) >= 125 && try(var.default_storage_class_throughput, 0) <= 1000)
+    error_message = "gp3 throughput must be between 125 and 1000 MiB/s when set."
+  }
+}
+
+variable "default_storage_class_iops" {
+  description = <<-EOT
+    gp3 baseline IOPS is 3000; AWS bills any value above that. Leave
+    null to inherit the AWS free-tier baseline.
+  EOT
+  type        = number
+  default     = null
+
+  validation {
+    condition     = var.default_storage_class_iops == null || (try(var.default_storage_class_iops, 0) >= 3000 && try(var.default_storage_class_iops, 0) <= 16000)
+    error_message = "gp3 IOPS must be between 3000 and 16000 when set."
+  }
+}

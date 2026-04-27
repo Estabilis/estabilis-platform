@@ -338,3 +338,12 @@ output "vault_exposures_json" {
   description = "JSON-encoded Vault exposures (resolved hosts)."
   value       = jsonencode({ for k, v in local.vault_exposures_resolved : k => v if v.enabled })
 }
+
+# ---------------------------------------------------------------------------
+# Storage
+# ---------------------------------------------------------------------------
+
+output "default_storage_class_name" {
+  description = "Name of the default StorageClass created by this module. Empty when create_default_storage_class is false. Downstream consumers can reference this to pin chart `storageClass` values without hardcoding."
+  value       = var.create_default_storage_class ? kubernetes_storage_class_v1.gp3[0].metadata[0].name : ""
+}
