@@ -33,24 +33,35 @@ locals {
     }
     vpc-cni = {
       most_recent = true
-      # WARM_PREFIX_TARGET=2 + MINIMUM_IP_TARGET=10 close the cold-start
-      # race observed during MNG rolling replacement on cortex 2026-04-26:
-      # new nodes registered Ready before aws-node finished allocating its
-      # first /28 prefix, leaving a ~30s window where pods scheduled on
-      # the new node hit `failed to assign an IP address`. Pods recovered
-      # via kubelet retries (no impact on workload), but the noise of
-      # FailedCreatePodSandBox events on every node bootstrap is
-      # avoidable.
+      # MINIMUM_IP_TARGET + WARM_IP_TARGET is the canonical AWS pattern
+      # for closing the cold-start race observed during the v0.29.0 MNG
+      # rolling replacement on cortex 2026-04-26 (new nodes registered
+      # Ready before aws-node finished allocating the first /28 prefix,
+      # leaving a ~30s window of FailedCreatePodSandBox).
       #
-      # Effect: aws-node pre-allocates 2 prefixes (32 IPs) and guarantees
-      # 10 free IPs at all times. Bootstrap window for IP allocation
-      # drops to <5s. Cost: 16-32 reserved IPs per node, trivial on /23
-      # subnets (512 IPs each).
+      # The previous v0.29.1 attempt (WARM_PREFIX_TARGET=2 +
+      # MINIMUM_IP_TARGET=10) was non-canonical: per the AWS VPC CNI
+      # docs, MINIMUM_IP_TARGET only overrides WARM_PREFIX_TARGET when
+      # WARM_IP_TARGET is *also* set. With only one of the pair set,
+      # behavior is undefined and was observed leaving fresh nodes with
+      # zero prefixes during multi-node Karpenter bursts (cortex prd
+      # 2026-04-27 incident).
+      #
+      # Canonical config: MINIMUM_IP_TARGET pre-allocates the floor
+      # before the node reports Ready (covers cold-start), WARM_IP_TARGET
+      # keeps a small slack for micro-bursts. ENABLE_PREFIX_DELEGATION
+      # remains so each allocation is a /28 (16 IPs) instead of a
+      # single secondary IP — scales to high pod density on large
+      # instances without ENI exhaustion.
+      #
+      # Refs:
+      # - https://github.com/aws/amazon-vpc-cni-k8s/blob/master/docs/prefix-and-ip-target.md
+      # - https://github.com/aws/amazon-vpc-cni-k8s#warm_ip_target
       configuration_values = jsonencode({
         env = {
           ENABLE_PREFIX_DELEGATION = "true"
-          WARM_PREFIX_TARGET       = "2"
           MINIMUM_IP_TARGET        = "10"
+          WARM_IP_TARGET           = "2"
         }
       })
     }

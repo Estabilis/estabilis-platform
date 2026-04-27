@@ -1,5 +1,66 @@
 # Changelog
 
+## [0.31.9] - 2026-04-27
+
+### Fixed — VPC CNI canonical IP target pair (replaces v0.29.1 attempt)
+
+The v0.29.1 fix introduced `WARM_PREFIX_TARGET=2` + `MINIMUM_IP_TARGET=10`
+to close the bootstrap race where pods scheduled on a new node hit
+`FailedCreatePodSandBox` for ~30s before aws-node finished allocating
+the first `/28` prefix. The intent was correct, but the variable pair
+chosen was non-canonical — per the [AWS VPC CNI
+docs](https://github.com/aws/amazon-vpc-cni-k8s/blob/master/docs/prefix-and-ip-target.md):
+
+> "WARM_IP_TARGET and MINIMUM_IP_TARGET if set will override
+> WARM_PREFIX_TARGET."
+
+The override requires **both** of the pair to be set. With only
+`MINIMUM_IP_TARGET=10` (no `WARM_IP_TARGET`), behavior is undefined.
+On cortex prd 2026-04-27 this surfaced as 3 of 5 newly-provisioned
+`c7a.medium` nodes registering Ready with **zero** `/28` prefixes
+allocated, blocking pod sandbox creation until manual restart of
+the aws-node DaemonSet.
+
+#### Fix
+
+Replace `WARM_PREFIX_TARGET` with the canonical `WARM_IP_TARGET`:
+
+```diff
+ env = {
+   ENABLE_PREFIX_DELEGATION = "true"
+-  WARM_PREFIX_TARGET       = "2"
+   MINIMUM_IP_TARGET        = "10"
++  WARM_IP_TARGET           = "2"
+ }
+```
+
+`MINIMUM_IP_TARGET=10` pre-allocates the floor before the node
+reports Ready (covers cold-start). `WARM_IP_TARGET=2` keeps two free
+IPs ahead of demand for micro-bursts. Together they override
+`WARM_PREFIX_TARGET` to its default (1) and produce deterministic
+behavior across multi-node Karpenter bursts.
+
+#### Files changed
+
+- `providers/aws/eks.tf` — env vars replaced; comment updated to
+  cite the AWS docs override rule.
+
+#### Operator notes
+
+- vpc-cni addon updates in-place on next `terraform apply`. No node
+  replacement, no pod restarts. aws-node DaemonSet rolls automatically
+  to pick up new env vars.
+- Existing nodes with the broken config can be cured by deleting
+  their aws-node pod (DS recreates with new env). Or wait for
+  Karpenter/MNG churn to roll them naturally.
+- For clusters that already saw the v0.29.1 vars in production:
+  verify post-apply that nodes have at least 1 prefix:
+  ```
+  aws ec2 describe-network-interfaces \
+    --filters "Name=attachment.instance-id,Values=<node-id>" \
+    --query 'NetworkInterfaces[].Ipv4Prefixes[].Ipv4Prefix'
+  ```
+
 ## [0.31.8] - 2026-04-26
 
 ### Fixed — ACM cert SAN keeps `*.{local.cluster_name}.{domain}` covered
