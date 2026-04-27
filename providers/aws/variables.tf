@@ -1465,8 +1465,13 @@ variable "default_storage_class_throughput" {
   type        = number
   default     = null
 
+  # Ternary, NOT `null || (...)` — Terraform's `||` does not
+  # short-circuit inside `validation { condition }`, so the right-hand
+  # comparison still evaluates against null and explodes with
+  # "argument must not be null". The ternary form *does* short-circuit
+  # and is the canonical workaround for nullable validations.
   validation {
-    condition     = var.default_storage_class_throughput == null || (try(var.default_storage_class_throughput, 0) >= 125 && try(var.default_storage_class_throughput, 0) <= 1000)
+    condition     = var.default_storage_class_throughput == null ? true : (var.default_storage_class_throughput >= 125 && var.default_storage_class_throughput <= 1000)
     error_message = "gp3 throughput must be between 125 and 1000 MiB/s when set."
   }
 }
@@ -1480,7 +1485,7 @@ variable "default_storage_class_iops" {
   default     = null
 
   validation {
-    condition     = var.default_storage_class_iops == null || (try(var.default_storage_class_iops, 0) >= 3000 && try(var.default_storage_class_iops, 0) <= 16000)
+    condition     = var.default_storage_class_iops == null ? true : (var.default_storage_class_iops >= 3000 && var.default_storage_class_iops <= 16000)
     error_message = "gp3 IOPS must be between 3000 and 16000 when set."
   }
 }
