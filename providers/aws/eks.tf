@@ -42,23 +42,38 @@ locals {
       # See kube-proxy comment above. vpc-cni MUST be installed before nodes
       # come up so kubelet can initialize the CNI plugin.
       before_compute = true
-      # No custom env tuning. Two prior attempts at pre-allocation tuning
-      # both produced FailedCreatePodSandBox events:
-      #   v0.29.1: WARM_PREFIX_TARGET=2 + MINIMUM_IP_TARGET=10
-      #            (non-canonical pair; nodes ended up with zero prefixes)
-      #   v0.31.9: MINIMUM_IP_TARGET=10 + WARM_IP_TARGET=2
-      #            (canonical pair; race condition still observed on
-      #            cortex prd 2026-04-27 — Karpenter-spawned nodes hit
-      #            FailedCreatePodSandBox until aws-node pod was deleted
-      #            and recreated, after which a /28 prefix was allocated
-      #            and pods scheduled fine)
-      # Reverting to the aws-node defaults (WARM_ENI_TARGET=1,
-      # WARM_PREFIX_TARGET=1, no MINIMUM/WARM_IP) since both attempts to
-      # tighten the floor have made the race more visible rather than
-      # less. Prefix delegation stays on so each allocation is a /28.
+
+      # Two configuration knobs:
+      #
+      # 1. enableNetworkPolicy = "true" — REQUIRED.
+      #    The vpc-cni v1.14+ DaemonSet ships an `aws-network-policy-agent`
+      #    sidecar that enforces Kubernetes NetworkPolicy CRs via eBPF.
+      #    By default the sidecar runs but enforcement is OFF — policies
+      #    end up as security theater. Mirror legacy cortex-eks-prod
+      #    (eks.tf:50) which has had this on since before v1.14.
+      #
+      # 2. ENABLE_PREFIX_DELEGATION — operator-controlled via
+      #    `var.vpc_cni_enable_prefix_delegation` (default false).
+      #
+      #    Prior history under prefix delegation = true (v0.30.x → v0.35.2):
+      #      - v0.29.1: WARM_PREFIX_TARGET=2 + MINIMUM_IP_TARGET=10
+      #                 (non-canonical pair; nodes ended up with zero prefixes)
+      #      - v0.31.9: MINIMUM_IP_TARGET=10 + WARM_IP_TARGET=2
+      #                 (canonical pair; race condition still observed)
+      #      - v0.35.0: aws-node defaults (WARM_ENI_TARGET=1,
+      #                 WARM_PREFIX_TARGET=1) + prefix delegation on
+      #                 (cortex 2026-04-28: hit `InsufficientCidrBlocks`
+      #                 in shared VPC vpc-main-tech-services where IPs
+      #                 are fragmented across the /23 subnet — no
+      #                 contiguous /28 blocks available)
+      #
+      #    Default OFF (matches legacy cortex-eks-prod, fragmentation-tolerant).
+      #    Operators with dedicated VPCs can opt-in via tfvars to gain
+      #    pod density (~50 → ~110 pods/node on c6a.xlarge).
       configuration_values = jsonencode({
+        enableNetworkPolicy = "true"
         env = {
-          ENABLE_PREFIX_DELEGATION = "true"
+          ENABLE_PREFIX_DELEGATION = tostring(var.vpc_cni_enable_prefix_delegation)
         }
       })
     }

@@ -1795,3 +1795,32 @@ variable "fargate_log_filters" {
   type        = string
   default     = ""
 }
+
+# ---------------------------------------------------------------------------
+# vpc-cni — see eks.tf vpc-cni addon block for context
+# ---------------------------------------------------------------------------
+
+variable "vpc_cni_enable_prefix_delegation" {
+  description = <<-EOT
+    Enable IPv4 prefix delegation on the vpc-cni addon. When `true`, each
+    ENI is allocated /28 prefix chunks (16 IPs each) instead of individual
+    secondary IPs, raising max pods/node from ~50 to ~110 on
+    c6a.xlarge-class.
+
+    REQUIRES contiguous /28 blocks available in EVERY subnet the cluster
+    uses. In shared VPCs (multiple clusters / EC2 / RDS coexisting) the
+    available IPs are usually fragmented across the subnet — prefix
+    delegation fails with `InsufficientCidrBlocks` on
+    `AssignPrivateIpAddresses` and pods stay in `ContainerCreating` with
+    `failed to assign an IP address to container`.
+
+    Observed on cortex-prd 2026-04-28 in shared VPC
+    `vpc-main-tech-services` (subnet `subnet-0e7ee2c1d44ff476a` had only
+    377/512 IPs free, fragmented across the /23 — no /28 chunks available).
+
+    Default `false` mirrors legacy cortex-eks-prod (always-works,
+    fragmentation-tolerant). Flip `true` only on dedicated VPCs.
+  EOT
+  type        = bool
+  default     = false
+}
