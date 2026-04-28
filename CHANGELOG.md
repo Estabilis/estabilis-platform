@@ -1,5 +1,37 @@
 # Changelog
 
+## [0.35.2] - 2026-04-28
+
+### Fixed — Fargate log group creation failed with AccessDeniedException
+
+v0.35.1 defaulted `fargate_log_kms_key_arn` to `aws_kms_key.s3_data.arn`,
+but that KMS key's policy does not grant `logs.<region>.amazonaws.com`
+the `kms:Encrypt*`/`kms:Decrypt*` permissions required by CloudWatch
+Logs. Result: `terraform apply` failed on
+`aws_cloudwatch_log_group.fargate` with:
+
+```
+api error AccessDeniedException: The specified KMS key does not exist
+or is not allowed to be used with Arn 'arn:aws:logs:...:log-group:.../fargate'
+```
+
+#### Fix
+
+Default changed to **AWS-managed encryption** (no customer-managed KMS
+key). Logs are still encrypted at rest — just with the default
+`alias/aws/logs` key. Mirrors legacy `cortex-eks-prod` (no customer KMS
+on Fargate log group).
+
+Operators wanting customer-managed KMS pass `var.fargate_log_kms_key_arn`
+explicitly AND ensure the key policy grants
+`logs.<region>.amazonaws.com` access. v0.35.1 description updated to
+flag this requirement.
+
+#### No data loss / migration
+
+Operators on v0.35.1 hit the error before any log group was created.
+Just bump to v0.35.2 and re-apply.
+
 ## [0.35.1] - 2026-04-28
 
 ### Fixed — Karpenter on Fargate broken in `autoscaler = "karpenter"` (and hybrid)
