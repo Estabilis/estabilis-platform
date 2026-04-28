@@ -1727,3 +1727,71 @@ variable "network_observability_agent_service_account" {
   type        = string
   default     = "aws-network-flow-monitor-agent-service-account"
 }
+
+# ---------------------------------------------------------------------------
+# Fargate pod logging — see fargate-logging.tf
+# ---------------------------------------------------------------------------
+
+variable "fargate_logging_enabled" {
+  description = <<-EOT
+    Enable EKS Fargate pod log shipping to CloudWatch via the built-in
+    Fluent Bit agent. Provisions the `aws-observability` namespace +
+    `aws-logging` ConfigMap + per-Fargate-profile IAM policy granting
+    CloudWatch Logs write to `/aws/eks/<cluster>/fargate`.
+
+    Without this, Fargate pods silently drop stdout/stderr and emit
+    `LoggingDisabled` warning events. Independent from `cluster_log_types`
+    (control-plane logs).
+
+    Default `true` because losing pod logs by default is a foot-gun —
+    even operators using Alloy/Loki should keep this on for Fargate-bound
+    pods (CoreDNS, Karpenter, ebs-csi-controller) that aren't covered by
+    the Alloy DaemonSet (DaemonSets don't run on Fargate).
+
+    Cost: CloudWatch Logs ingestion + storage. Typically $5-20/mo per
+    cluster in steady state — only Fargate pods log here.
+  EOT
+  type        = bool
+  default     = true
+}
+
+variable "fargate_log_retention_days" {
+  description = <<-EOT
+    Override CloudWatch Logs retention for `/aws/eks/<cluster>/fargate`.
+    `null` falls back to `var.cluster_log_retention_days` (same as the
+    cluster control-plane log group). Set to a different value if you
+    want longer retention on pod logs vs control-plane.
+  EOT
+  type        = number
+  default     = null
+}
+
+variable "fargate_log_kms_key_arn" {
+  description = <<-EOT
+    Override the KMS key used to encrypt the `/aws/eks/<cluster>/fargate`
+    log group. Empty string (default) uses `aws_kms_key.s3_data` (the
+    same key that encrypts observability/velero/cnpg/cost-export buckets).
+  EOT
+  type        = string
+  default     = ""
+}
+
+variable "fargate_log_filters" {
+  description = <<-EOT
+    Additional Fluent Bit config snippet appended to the `aws-logging`
+    ConfigMap, after the `[OUTPUT]` block. Use to add `[FILTER]` blocks
+    for redaction, multi-output, drop-by-tag, etc. Format is raw Fluent
+    Bit config syntax. Empty string (default) means just `[OUTPUT]`
+    with no extra filters.
+
+    Example:
+      fargate_log_filters = <<-EOC
+        [FILTER]
+            Name modify
+            Match *
+            Remove sensitive_field
+      EOC
+  EOT
+  type        = string
+  default     = ""
+}

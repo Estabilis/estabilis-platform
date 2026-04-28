@@ -368,6 +368,11 @@ output "vault_exposures_json" {
 # Storage
 # ---------------------------------------------------------------------------
 
+output "fargate_log_group_name" {
+  description = "CloudWatch log group name receiving Fargate pod stdout/stderr. Empty when fargate_logging_enabled = false."
+  value       = local.fargate_logging_effective ? aws_cloudwatch_log_group.fargate[0].name : ""
+}
+
 output "network_observability_enabled" {
   description = "Whether Container Network Observability (NFM) is provisioned for this cluster."
   value       = var.network_observability_enabled

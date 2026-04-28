@@ -17,6 +17,32 @@
 # Rendered when var.autoscaler includes Karpenter ("karpenter" or "hybrid").
 # ---------------------------------------------------------------------------
 
+data "aws_iam_policy_document" "karpenter_irsa_trust" {
+  count = contains(["karpenter", "hybrid"], var.autoscaler) ? 1 : 0
+
+  statement {
+    effect  = "Allow"
+    actions = ["sts:AssumeRoleWithWebIdentity"]
+
+    principals {
+      type        = "Federated"
+      identifiers = [module.eks.oidc_provider_arn]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "${replace(module.eks.cluster_oidc_issuer_url, "https://", "")}:sub"
+      values   = ["system:serviceaccount:karpenter:karpenter"]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "${replace(module.eks.cluster_oidc_issuer_url, "https://", "")}:aud"
+      values   = ["sts.amazonaws.com"]
+    }
+  }
+}
+
 module "karpenter" {
   count = contains(["karpenter", "hybrid"], var.autoscaler) ? 1 : 0
 
@@ -25,12 +51,38 @@ module "karpenter" {
 
   cluster_name = module.eks.cluster_name
 
-  # v21 default: create_pod_identity_association = true. The IRSA-mode flags
-  # `enable_irsa` and `irsa_oidc_provider_arn` were removed entirely. The
-  # Helm chart values.yaml rendered by ArgoCD must NOT set the Karpenter
-  # ServiceAccount's `eks.amazonaws.com/role-arn` annotation — Pod Identity
-  # is the authoritative authentication path.
-  create_pod_identity_association = true
+  # v21 of the karpenter sub-module switched the default authentication
+  # path to Pod Identity (`create_pod_identity_association = true`) and
+  # REMOVED the IRSA flags (`enable_irsa`, `irsa_oidc_provider_arn`).
+  # Pod Identity REQUIRES the `eks-pod-identity-agent` DaemonSet running
+  # on the node where the pod lands. Fargate does NOT run DaemonSets.
+  #
+  # Both `autoscaler = "karpenter"` (pure) and `autoscaler = "hybrid"`
+  # land Karpenter pods on the `karpenter` namespace Fargate profile
+  # (selectors take precedence over MNG nodes), so Pod Identity is
+  # non-functional for Karpenter in ALL our modes — controller hangs
+  # waiting for AWS APIs (`AWS_CONTAINER_CREDENTIALS_FULL_URI`
+  # endpoint `169.254.170.23` unreachable from Fargate without the
+  # agent), health probes time out, pods stuck `0/1 Ready` forever.
+  # Observed on cortex-prd 2026-04-28 v0.35.0 bootstrap.
+  #
+  # Fix (matches legacy `cortex-eks-prod`): disable Pod Identity
+  # association and add IRSA federation to the trust policy via
+  # `iam_role_source_assume_policy_documents` (data block above —
+  # additive merge with the module's default `pods.eks.amazonaws.com`
+  # statement). The Karpenter helm chart values annotate the SA with
+  # `eks.amazonaws.com/role-arn` (via platform-root helm parameters),
+  # so the AWS SDK uses `AssumeRoleWithWebIdentity`.
+  #
+  # NOTE: AWS SDKs do NOT auto-fall-back between credential providers —
+  # Pod Identity webhook injecting `AWS_CONTAINER_CREDENTIALS_FULL_URI`
+  # would lock the SDK to that path. We therefore DELETE the Pod
+  # Identity association entirely (not coexist with it).
+  create_pod_identity_association = false
+
+  iam_role_source_assume_policy_documents = [
+    data.aws_iam_policy_document.karpenter_irsa_trust[0].json,
+  ]
 
   # v21 controller policy exceeds the 6144-char AWS IAM customer-managed
   # policy size cap (observed on cortex 2026-04-28: `LimitExceeded:
