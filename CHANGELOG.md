@@ -1,5 +1,184 @@
 # Changelog
 
+## [0.35.0] - 2026-04-28
+
+### Added — Provenance tags on every AWS resource (`source` / `version`)
+
+Every AWS resource provisioned by this module now carries 4 provenance
+tags via `provider "aws" { default_tags }`. Mirrors the
+`cortex-postgres-aws-*` pattern so AWS Cost Explorer, Resource Groups,
+Tag Editor, and CloudTrail all show which repo + commit produced each
+resource — no manual labeling.
+
+```
+platform_source  = https://github.com/Estabilis/estabilis-platform
+platform_version = <upstream VERSION file at the cloned ref>
+source           = <client repo URL>           (passed via var.repo_url)
+version          = <client semver>             (passed via var.client_version)
+```
+
+The first pair is intrinsic to this module (constant URL + the same
+VERSION file already used to populate `platform_revision_effective`).
+The second pair is opt-in from the client side — empty values are
+filtered out.
+
+#### Module surface
+
+  variables.tf — 2 new vars (both default `""`):
+    `repo_url`        client GitHub URL
+    `client_version`  client deployment semver
+
+  main.tf — `caf_tags` extended with the 4 keys above.
+
+#### Client adoption (1-time per client repo, reusable forever)
+
+Add to the client's `providers/aws/main.tf`:
+
+```hcl
+locals {
+  changelog_path  = "${path.module}/../../CHANGELOG.md"
+  current_version = regex("## \\[([0-9]+\\.[0-9]+\\.[0-9]+)\\]", file(local.changelog_path))[0]
+}
+
+module "estabilis_platform" {
+  source = "..."
+  ...
+  repo_url       = var.repo_url
+  client_version = local.current_version
+}
+```
+
+Add `var.repo_url` to the client's `variables.tf` (default to the client
+repo URL). Every `chore(release)` commit on the client bumps the
+`version` tag automatically — no manual sync.
+
+The `estabilis-platform-downstream/templates/aws/` shell ships with
+this wiring pre-installed.
+
+### Added — Container Network Observability (Amazon CloudWatch NFM) on AWS
+
+New opt-in feature that wires Amazon CloudWatch Network Flow Monitor
+(NFM) into the EKS cluster, providing the "Container Network
+Observability" experience available in the EKS console
+(`Cluster → Observability → Network`). Disabled by default — NFM is a
+paid CloudWatch service.
+
+Reference:
+[EKS docs](https://docs.aws.amazon.com/eks/latest/userguide/network-observability.html).
+
+#### New file
+
+`providers/aws/network-observability.tf` — provisions, when
+`var.network_observability_enabled = true`:
+
+  - `aws_iam_role.network_flow_monitor_agent` + Pod Identity association
+    bound to the AWS-managed
+    `CloudWatchNetworkFlowMonitorAgentPublishPolicy` (Pod Identity is the
+    AWS-recommended path for the NFM agent — IRSA still works but is no
+    longer the default).
+  - `aws_networkflowmonitor_scope` — account+region singleton when
+    `network_observability_scope_mode = "create"` (default), or skipped
+    with the existing ARN passed in via
+    `network_observability_existing_scope_arn` when `mode = "existing"`.
+    Operators with multiple clusters in the same account+region SHOULD
+    set `mode = "existing"` on the second/Nth cluster to avoid paying
+    for duplicate Scopes.
+  - `aws_networkflowmonitor_monitor` — per-cluster, with
+    `local_resource.type = AWS::EKS::Cluster` and a defaultable
+    `remote_resource` list (same-region by default; override via
+    `var.network_observability_remote_resources`).
+  - `aws_eks_addon.network_flow_monitor_agent` — the
+    `aws-network-flow-monitoring-agent` addon (≥ v1.1.0) configured via
+    `configuration_values` merged from `var.network_observability_addon_config`
+    so operators only override the `OPEN_METRICS*` keys they care about.
+
+#### New variables
+
+  network_observability_enabled                  bool   default false
+  network_observability_scope_mode               string default "create"   ("create" | "existing")
+  network_observability_existing_scope_arn       string default ""
+  network_observability_monitor_name             string default ""         (defaults to `<cluster>-monitor`)
+  network_observability_remote_resources         list   default []
+  network_observability_addon_version            string default null
+  network_observability_addon_config             map    default {}
+  network_observability_agent_namespace          string default "amazon-network-flow-monitor"
+  network_observability_agent_service_account    string default "aws-network-flow-monitor-agent-service-account"
+
+#### New outputs
+
+  network_observability_enabled         bool
+  network_observability_scope_arn       string  ARN — share with sibling clusters in the same account+region
+  network_observability_monitor_arn     string
+  network_observability_agent_role_arn  string
+
+### Fixed — `effective_addons` substitution → merge
+
+Pre-existing bug in `eks.tf`: `effective_addons` switched fully to
+`var.cluster_addons` whenever the user supplied any keys, **silently
+dropping the 5 platform defaults** (coredns, kube-proxy, vpc-cni,
+eks-pod-identity-agent, aws-ebs-csi-driver). Operators trying to enable
+e.g. `amazon-cloudwatch-observability` had to re-declare every default
+or break the cluster. Now uses `merge(local.default_addons,
+var.cluster_addons)` so per-key overrides work as expected.
+
+### Changed — Provider + module version bumps (BREAKING)
+
+All AWS-side providers and root-level modules bumped to current latest.
+Cluster operators upgrading from earlier platform tags MUST run
+`terraform init -upgrade` and acknowledge the breaking changes below.
+The cortex AWS HML cluster was destroyed and re-applied on this version
+to validate the greenfield path end-to-end.
+
+| Dependency                                         | From       | To          |
+| -------------------------------------------------- | ---------- | ----------- |
+| `hashicorp/aws`                                    | `~> 5.80`  | `~> 6.42`   |
+| `terraform-aws-modules/eks/aws`                    | `~> 20.37` | `~> 21.19`  |
+| `terraform-aws-modules/iam/aws/.../eks` submodule  | `~> 5.60`  | `~> 6.5` (submodule renamed — see below) |
+| `hashicorp/kubernetes`                             | `~> 2.37`  | `~> 3.1`    |
+| `hashicorp/helm`                                   | `~> 2.17`  | `~> 3.1`    |
+| `cloudflare/cloudflare`                            | `~> 4.0`   | `~> 5.19`   |
+| `hashicorp/tls`, `time`, `random`, `http`          | minors     | latest      |
+
+Code-side adjustments applied in this release:
+
+  - **EKS module v21** stripped `cluster_` prefixes from cluster-level
+    inputs. Renamed in `eks.tf`: `cluster_name` → `name`,
+    `cluster_additional_security_group_ids` → `additional_security_group_ids`,
+    `cluster_endpoint_*` → `endpoint_*`, `cluster_enabled_log_types`
+    → `enabled_log_types`, `cluster_encryption_config`
+    → `encryption_config`, `cluster_addons` → `addons`. Outputs are
+    unchanged (`module.eks.cluster_name`, `cluster_endpoint`, etc.
+    still resolve as before).
+  - **Karpenter sub-module v21** removed `enable_irsa` and
+    `irsa_oidc_provider_arn` — Pod Identity is now the only authentication
+    path. The chart values rendered by ArgoCD MUST NOT annotate the
+    Karpenter ServiceAccount with `eks.amazonaws.com/role-arn`.
+  - **IAM module v6** renamed the submodule
+    `iam-role-for-service-accounts-eks` → `iam-role-for-service-accounts`.
+    The 8 module calls (`external_secrets_irsa`, `external_dns_irsa`,
+    `cert_manager_irsa`, `velero_irsa`, `vault_irsa`, `alb_controller_irsa`,
+    `cluster_autoscaler_irsa`, `ebs_csi_irsa`) updated. Inputs renamed:
+    `role_name` → `name`. Outputs renamed: `iam_role_arn` → `arn`,
+    `iam_role_name` → `name`. The `karpenter` sub-module of the EKS
+    module is unaffected — it kept the old `iam_role_arn` /
+    `iam_role_name` / `node_iam_role_*` names.
+  - **Helm provider v3** moved provider configuration from
+    `kubernetes { ... }` block syntax to `kubernetes = { ... }` object
+    syntax (terraform-plugin-framework). `main.tf` updated.
+  - **Cloudflare provider v5** is a complete rewrite (schema v500). The
+    `cloudflare_record` resource was renamed to `cloudflare_dns_record`
+    and `name` is now a FQDN rather than a zone-relative label. The
+    computed `hostname` attribute was removed (`r.name` is the FQDN).
+    `acm.tf` updated. **State migration:** v4 → v5 of an in-place
+    cluster requires `tf-migrate` from Cloudflare or
+    `terraform state mv` per resource — the safe upgrade path is a
+    fresh apply, which is what the cortex AWS HML cluster did for this
+    release.
+  - **AWS provider v6**: `aws_eks_addon.resolve_conflicts` was removed in
+    favour of `resolve_conflicts_on_create` and `resolve_conflicts_on_update`.
+    The EKS module v21 owns these for managed addons; the new
+    `network-observability.tf` sets both explicitly.
+
 ## [0.34.0] - 2026-04-28
 
 ### Added — Vault root-token Secrets Manager shell + github-auth variables
