@@ -1,5 +1,83 @@
 # Changelog
 
+## [0.35.3] - 2026-04-28
+
+### Fixed — vpc-cni prefix delegation breaks pod IP allocation in shared VPCs
+
+v0.35.x defaulted `ENABLE_PREFIX_DELEGATION = "true"` for vpc-cni
+unconditionally. Prefix delegation allocates `/28` chunks (16 IPs)
+instead of individual IPs, raising pod density per node from ~50 to
+~110 on c6a.xlarge — but it REQUIRES contiguous /28 blocks available
+in every subnet the cluster uses.
+
+In shared VPCs (multiple EKS clusters / RDS / standalone EC2
+coexisting in the same /23), available IPs become fragmented across
+the subnet. AWS API rejects `AssignPrivateIpAddresses` with:
+
+```
+InsufficientCidrBlocks: The specified subnet does not have enough
+free cidr blocks to satisfy the request.
+```
+
+Karpenter-spawned EC2 nodes register `Ready` (kubelet OK), but pods
+stay stuck `ContainerCreating` forever with:
+
+```
+failed to setup network for sandbox: plugin type="aws-cni" failed:
+failed to assign an IP address to container
+```
+
+Observed on cortex-prd 2026-04-28: subnet `subnet-0e7ee2c1d44ff476a`
+in shared VPC `vpc-main-tech-services` (us-east-1c, 10.207.4.0/23)
+had 377/512 IPs free but fragmented — no contiguous /28 available.
+Manual `aws eks update-addon` to set
+`ENABLE_PREFIX_DELEGATION=false` unblocked the bring-up.
+
+#### Fix
+
+Inverted default: `ENABLE_PREFIX_DELEGATION = "false"` (mirror legacy
+`cortex-eks-prod` — always works in fragmented shared VPCs).
+Operators with dedicated VPCs can opt-in for density via the new
+variable `var.vpc_cni_enable_prefix_delegation = true` in tfvars.
+
+### Added — NetworkPolicy enforcement on by default
+
+The vpc-cni v1.14+ DaemonSet ships an `aws-network-policy-agent`
+sidecar (`aws-eks-nodeagent` container in `aws-node` pod). The
+sidecar runs by default, but enforcement is OFF unless
+`enableNetworkPolicy = "true"` is set in addon config.
+
+Both legacy `cortex-eks-prod` (eks.tf:50) and the
+`estabilis-platform-gitops/components/network-policies/` chart ship
+NetworkPolicy CRs assuming an enforcer exists — but v0.35.x left
+enforcement OFF, making the policies security theater.
+
+Set `enableNetworkPolicy = "true"` unconditionally in addon config
+(no variable — clusters without enforcement are silently insecure;
+default should always be ON when policies are deployed). Matches
+legacy.
+
+### Migration
+
+Cluster on v0.35.0–v0.35.2: bump `main.tf ref → v0.35.3`,
+`terraform init -upgrade`, `terraform plan`. Expected:
+
+- `aws_eks_addon.this[vpc-cni]`: `configuration_values` update
+  (adds `enableNetworkPolicy=true`, flips
+  `ENABLE_PREFIX_DELEGATION=false`)
+
+`terraform apply` triggers vpc-cni rolling update on all aws-node
+pods (~30s on EC2 nodes). Pods already running keep their IPs;
+network policies start being enforced immediately. Operators
+with NetworkPolicies that have restrictive egress should review
+before applying — enforcement going from OFF → ON in a running
+cluster can break previously-permissive traffic.
+
+For the cortex-prd 2026-04-28 bring-up: terraform apply will
+no-op for prefix delegation (already manually set to false in
+v0.35.2 unblock) and add `enableNetworkPolicy=true` (rolling
+update). No data plane impact.
+
 ## [0.35.2] - 2026-04-28
 
 ### Fixed — Fargate log group creation failed with AccessDeniedException
