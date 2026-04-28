@@ -164,7 +164,7 @@ data "aws_iam_policy_document" "platform_secret_policy" {
 
     principals {
       type        = "AWS"
-      identifiers = [module.external_secrets_irsa.iam_role_arn]
+      identifiers = [module.external_secrets_irsa.arn]
     }
 
     actions = [

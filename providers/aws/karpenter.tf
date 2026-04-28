@@ -21,13 +21,23 @@ module "karpenter" {
   count = contains(["karpenter", "hybrid"], var.autoscaler) ? 1 : 0
 
   source  = "terraform-aws-modules/eks/aws//modules/karpenter"
-  version = "~> 20.37"
+  version = "~> 21.19"
 
   cluster_name = module.eks.cluster_name
 
-  # Create IAM role for the Karpenter controller (IRSA).
-  enable_irsa            = true
-  irsa_oidc_provider_arn = module.eks.oidc_provider_arn
+  # v21 default: create_pod_identity_association = true. The IRSA-mode flags
+  # `enable_irsa` and `irsa_oidc_provider_arn` were removed entirely. The
+  # Helm chart values.yaml rendered by ArgoCD must NOT set the Karpenter
+  # ServiceAccount's `eks.amazonaws.com/role-arn` annotation — Pod Identity
+  # is the authoritative authentication path.
+  create_pod_identity_association = true
+
+  # v21 controller policy exceeds the 6144-char AWS IAM customer-managed
+  # policy size cap (observed on cortex 2026-04-28: `LimitExceeded:
+  # Cannot exceed quota for PolicySize: 6144`). Switching to inline mode
+  # uses the 10240-char inline-policy budget instead. Documented in the
+  # upstream module as the canonical workaround for this exact error.
+  enable_inline_policy = true
 
   # Node IAM role (used by EC2NodeClass). SSM is intentionally omitted —
   # pods on those nodes could escalate via Session Manager otherwise.

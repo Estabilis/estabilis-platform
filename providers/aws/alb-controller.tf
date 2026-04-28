@@ -12,10 +12,12 @@
 module "alb_controller_irsa" {
   count = var.ingress_controller == "alb" ? 1 : 0
 
-  source  = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
-  version = "~> 5.60"
+  source  = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts"
+  version = "~> 6.5"
 
-  role_name                              = "${local.cluster_name}-alb-controller"
+  # v6 default flipped use_name_prefix to true; pin false (see eks.tf).
+  use_name_prefix                        = false
+  name                                   = "${local.cluster_name}-alb-controller"
   attach_load_balancer_controller_policy = true
 
   oidc_providers = {

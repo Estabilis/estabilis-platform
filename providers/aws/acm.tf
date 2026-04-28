@@ -101,13 +101,14 @@ resource "aws_route53_record" "acm_validation" {
 # ---------------------------------------------------------------------------
 # DNS validation records — Cloudflare path.
 #
-# ACM emits validation records as fully-qualified CNAMEs ending with
-# `.${var.domain}.` — Cloudflare's API expects relative names, so we
-# trimsuffix the zone to keep the record under the right zone without
-# duplicating the apex.
+# Cloudflare provider v5+ ships `cloudflare_dns_record` (replaces the v4
+# `cloudflare_record` resource). In v5 the `name` attribute is a FQDN
+# rather than a zone-relative label, so we only trim the trailing dot
+# emitted by ACM. The computed `hostname` attribute was also dropped —
+# `r.name` IS the FQDN now.
 # ---------------------------------------------------------------------------
 
-resource "cloudflare_record" "acm_validation" {
+resource "cloudflare_dns_record" "acm_validation" {
   for_each = var.acm_enabled && var.dns_provider == "cloudflare" ? {
     for dvo in aws_acm_certificate.wildcard[0].domain_validation_options : dvo.domain_name => {
       name   = dvo.resource_record_name
@@ -117,7 +118,7 @@ resource "cloudflare_record" "acm_validation" {
   } : {}
 
   zone_id = var.cloudflare_zone_id
-  name    = trimsuffix(each.value.name, ".${var.domain}.")
+  name    = trimsuffix(each.value.name, ".")
   content = trimsuffix(each.value.record, ".")
   type    = each.value.type
   ttl     = 60
@@ -132,6 +133,6 @@ resource "aws_acm_certificate_validation" "wildcard" {
   validation_record_fqdns = var.dns_provider == "route53" ? (
     [for r in aws_route53_record.acm_validation : r.fqdn]
     ) : (
-    [for r in cloudflare_record.acm_validation : r.hostname]
+    [for r in cloudflare_dns_record.acm_validation : r.name]
   )
 }

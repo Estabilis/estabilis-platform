@@ -126,10 +126,11 @@ resource "aws_s3_bucket_lifecycle_configuration" "vault_backup" {
 module "vault_irsa" {
   count = var.vault_enabled ? 1 : 0
 
-  source  = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
-  version = "~> 5.60"
+  source  = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts"
+  version = "~> 6.5"
 
-  role_name = "${local.cluster_name}-vault"
+  use_name_prefix = false
+  name            = "${local.cluster_name}-vault"
 
   oidc_providers = {
     main = {
@@ -143,7 +144,7 @@ resource "aws_iam_role_policy" "vault" {
   count = var.vault_enabled ? 1 : 0
 
   name = "${local.cluster_name}-vault"
-  role = module.vault_irsa[0].iam_role_name
+  role = module.vault_irsa[0].name
 
   policy = jsonencode({
     Version = "2012-10-17"

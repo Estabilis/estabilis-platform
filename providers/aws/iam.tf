@@ -15,10 +15,13 @@
 # ========================== external-secrets ==============================
 
 module "external_secrets_irsa" {
-  source  = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
-  version = "~> 5.60"
+  source  = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts"
+  version = "~> 6.5"
 
-  role_name                             = "${local.cluster_name}-external-secrets"
+  # v6 default flipped use_name_prefix to true; CAF names overflow IAM's
+  # 38-char name_prefix cap. See ebs_csi_irsa in eks.tf.
+  use_name_prefix                       = false
+  name                                  = "${local.cluster_name}-external-secrets"
   attach_external_secrets_policy        = true
   external_secrets_secrets_manager_arns = ["arn:${data.aws_partition.current.partition}:secretsmanager:${var.region}:${data.aws_caller_identity.current.account_id}:secret:estabilis/${var.deployment_id}/*"]
   external_secrets_kms_key_arns         = [aws_kms_key.platform_secrets.arn]
@@ -36,10 +39,11 @@ module "external_secrets_irsa" {
 module "external_dns_irsa" {
   count = var.dns_provider == "route53" ? 1 : 0
 
-  source  = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
-  version = "~> 5.60"
+  source  = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts"
+  version = "~> 6.5"
 
-  role_name                     = "${local.cluster_name}-external-dns"
+  use_name_prefix               = false
+  name                          = "${local.cluster_name}-external-dns"
   attach_external_dns_policy    = true
   external_dns_hosted_zone_arns = local.route53_zone_arns_or_wildcard
 
@@ -59,10 +63,11 @@ module "external_dns_irsa" {
 module "cert_manager_irsa" {
   count = var.dns_provider == "route53" ? 1 : 0
 
-  source  = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
-  version = "~> 5.60"
+  source  = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts"
+  version = "~> 6.5"
 
-  role_name                     = "${local.cluster_name}-cert-manager"
+  use_name_prefix               = false
+  name                          = "${local.cluster_name}-cert-manager"
   attach_cert_manager_policy    = true
   cert_manager_hosted_zone_arns = local.route53_zone_arns_or_wildcard
 
@@ -77,10 +82,11 @@ module "cert_manager_irsa" {
 # ========================== velero ========================================
 
 module "velero_irsa" {
-  source  = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
-  version = "~> 5.60"
+  source  = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts"
+  version = "~> 6.5"
 
-  role_name             = "${local.cluster_name}-velero"
+  use_name_prefix       = false
+  name                  = "${local.cluster_name}-velero"
   attach_velero_policy  = true
   velero_s3_bucket_arns = [aws_s3_bucket.velero.arn]
 

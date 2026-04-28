@@ -23,7 +23,7 @@ locals {
   normalized_url = replace(var.github_org_url, "/+$", "")
 }
 
-resource "kubernetes_secret" "repo_creds" {
+resource "kubernetes_secret_v1" "repo_creds" {
   metadata {
     name      = local.effective_name
     namespace = var.namespace

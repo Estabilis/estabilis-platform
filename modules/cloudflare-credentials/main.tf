@@ -19,7 +19,7 @@ locals {
   effective_name = var.secret_name != "" ? var.secret_name : "cloudflare-credentials"
 }
 
-resource "kubernetes_secret" "cloudflare_credentials" {
+resource "kubernetes_secret_v1" "cloudflare_credentials" {
   metadata {
     name      = local.effective_name
     namespace = var.namespace

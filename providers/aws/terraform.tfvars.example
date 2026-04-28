@@ -239,3 +239,37 @@ client_gitops_repo_revision = "main"
 # extra_tags = {
 #   # Example: PCI-Scope = "out"
 # }
+
+# --- Container Network Observability (NFM) ---
+# Disabled by default — NFM is a paid CloudWatch service. Enable per-cluster.
+# Reference: docs.aws.amazon.com/eks/latest/userguide/network-observability.html
+# network_observability_enabled = true
+#
+# Scope provisioning (account+region singleton):
+#   "create"   = first cluster in the account+region (default)
+#   "existing" = reuse a Scope; pass the ARN below
+# network_observability_scope_mode         = "create"
+# network_observability_existing_scope_arn = ""    # required when scope_mode = "existing"
+#
+# Override the NFM Monitor name (immutable post-creation, defaults to
+# `<cluster-name>-monitor`).
+# network_observability_monitor_name = ""
+#
+# Pin the EKS addon version. Leave null to track the most recent compatible
+# version for the cluster's Kubernetes minor.
+# network_observability_addon_version = "v1.1.0-eksbuild.1"
+#
+# Override the NFM agent's OpenMetrics knobs. Defaults follow AWS docs:
+#   OPEN_METRICS = "off", OPEN_METRICS_ADDRESS = "127.0.0.1", OPEN_METRICS_PORT = 80
+# network_observability_addon_config = {
+#   OPEN_METRICS      = "on"
+#   OPEN_METRICS_PORT = 9090
+# }
+#
+# Cross-region/cross-VPC flow tracking. Defaults to monitoring flows that
+# stay within `var.region`. Override with one or more remote_resource blocks
+# (same five types as local_resource — VPC, Subnet, AvailabilityZone, Region,
+# EKS::Cluster).
+# network_observability_remote_resources = [
+#   { type = "AWS::EC2::Region", identifier = "us-west-2" },
+# ]

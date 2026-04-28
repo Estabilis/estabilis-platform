@@ -1,11 +1,11 @@
 output "secret_name" {
   description = "Name of the Kubernetes Secret created by the module."
-  value       = kubernetes_secret.cloudflare_credentials.metadata[0].name
+  value       = kubernetes_secret_v1.cloudflare_credentials.metadata[0].name
 }
 
 output "namespace" {
   description = "Namespace where the Secret was created."
-  value       = kubernetes_secret.cloudflare_credentials.metadata[0].namespace
+  value       = kubernetes_secret_v1.cloudflare_credentials.metadata[0].namespace
 }
 
 output "zone_id" {

@@ -31,10 +31,13 @@ provider "kubernetes" {
 }
 
 provider "helm" {
-  kubernetes {
+  # v3 migrated provider configuration from `kubernetes { ... }` block syntax
+  # to `kubernetes = { ... }` object syntax (terraform-plugin-framework). The
+  # `exec` nested block likewise becomes an object.
+  kubernetes = {
     host                   = local.cluster_endpoint
     cluster_ca_certificate = local.cluster_ca_certificate
-    exec {
+    exec = {
       api_version = "client.authentication.k8s.io/v1beta1"
       command     = "aws"
       args        = ["eks", "get-token", "--cluster-name", local.cluster_name, "--region", var.region]
@@ -79,6 +82,12 @@ locals {
   # CAF tags — automatic + optional (empty values filtered out). Applied to
   # every resource via provider default_tags. Per-resource blocks may add
   # AWS-specific tags (e.g., karpenter.sh/discovery); AWS merges them.
+  #
+  # Provenance tags (4):
+  #   - platform_source / platform_version: fixed for every deployment of this
+  #     module — points at this repo + the VERSION file at the cloned ref.
+  #   - source / version: pass-through from the client, computed in the client
+  #     tfvars from CHANGELOG.md regex. Empty when not provided (filtered).
   caf_tags = {
     for k, v in {
       # Functional
@@ -87,6 +96,12 @@ locals {
       region     = var.region
       tier       = var.tag_tier
       managed-by = "terraform"
+      # Provenance — upstream platform module (always populated)
+      platform_source  = "https://github.com/Estabilis/estabilis-platform"
+      platform_version = local.module_version
+      # Provenance — client repo (passed through; filtered when empty)
+      source  = var.repo_url
+      version = var.client_version
       # Classification
       criticality     = var.tag_criticality
       confidentiality = var.tag_confidentiality

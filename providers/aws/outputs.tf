@@ -149,17 +149,17 @@ output "flow_logs_bucket_name" {
 
 output "external_secrets_role_arn" {
   description = "IAM role ARN for external-secrets ServiceAccount."
-  value       = module.external_secrets_irsa.iam_role_arn
+  value       = module.external_secrets_irsa.arn
 }
 
 output "external_dns_role_arn" {
   description = "IAM role ARN for external-dns ServiceAccount (empty when dns_provider != 'route53')."
-  value       = var.dns_provider == "route53" ? module.external_dns_irsa[0].iam_role_arn : ""
+  value       = var.dns_provider == "route53" ? module.external_dns_irsa[0].arn : ""
 }
 
 output "cert_manager_role_arn" {
   description = "IAM role ARN for cert-manager ServiceAccount (empty when dns_provider != 'route53')."
-  value       = var.dns_provider == "route53" ? module.cert_manager_irsa[0].iam_role_arn : ""
+  value       = var.dns_provider == "route53" ? module.cert_manager_irsa[0].arn : ""
 }
 
 output "loki_role_arn" {
@@ -174,7 +174,7 @@ output "mimir_role_arn" {
 
 output "velero_role_arn" {
   description = "IAM role ARN for Velero ServiceAccount."
-  value       = module.velero_irsa.iam_role_arn
+  value       = module.velero_irsa.arn
 }
 
 output "cnpg_role_arn" {
@@ -184,17 +184,17 @@ output "cnpg_role_arn" {
 
 output "ebs_csi_role_arn" {
   description = "IAM role ARN for EBS CSI Driver addon."
-  value       = module.ebs_csi_irsa.iam_role_arn
+  value       = module.ebs_csi_irsa.arn
 }
 
 output "alb_controller_role_arn" {
   description = "IAM role ARN for AWS Load Balancer Controller (empty when ingress_controller != 'alb')."
-  value       = var.ingress_controller == "alb" ? module.alb_controller_irsa[0].iam_role_arn : ""
+  value       = var.ingress_controller == "alb" ? module.alb_controller_irsa[0].arn : ""
 }
 
 output "cluster_autoscaler_role_arn" {
   description = "IAM role ARN for Cluster Autoscaler (empty when autoscaler != 'cluster_autoscaler')."
-  value       = var.autoscaler == "cluster_autoscaler" ? module.cluster_autoscaler_irsa[0].iam_role_arn : ""
+  value       = var.autoscaler == "cluster_autoscaler" ? module.cluster_autoscaler_irsa[0].arn : ""
 }
 
 output "workload_operator_role_arn" {
@@ -326,7 +326,7 @@ output "vault_kms_region" {
 
 output "vault_irsa_role_arn" {
   description = "IRSA role ARN for the vault ServiceAccount. Empty when vault_enabled=false."
-  value       = var.vault_enabled ? module.vault_irsa[0].iam_role_arn : ""
+  value       = var.vault_enabled ? module.vault_irsa[0].arn : ""
 }
 
 output "vault_backup_bucket_name" {
@@ -367,6 +367,26 @@ output "vault_exposures_json" {
 # ---------------------------------------------------------------------------
 # Storage
 # ---------------------------------------------------------------------------
+
+output "network_observability_enabled" {
+  description = "Whether Container Network Observability (NFM) is provisioned for this cluster."
+  value       = var.network_observability_enabled
+}
+
+output "network_observability_scope_arn" {
+  description = "ARN of the NFM Scope owned by this cluster. Empty when network_observability_enabled = false or when scope_mode = \"existing\". Use this from sibling clusters in the same account+region to share the Scope."
+  value       = local.network_observability_scope_create ? aws_networkflowmonitor_scope.this[0].scope_arn : ""
+}
+
+output "network_observability_monitor_arn" {
+  description = "ARN of the NFM Monitor scoped to this EKS cluster. Empty when network_observability_enabled = false."
+  value       = var.network_observability_enabled ? aws_networkflowmonitor_monitor.this[0].monitor_arn : ""
+}
+
+output "network_observability_agent_role_arn" {
+  description = "IAM role ARN attached to the NFM agent via Pod Identity. Empty when network_observability_enabled = false."
+  value       = var.network_observability_enabled ? aws_iam_role.network_flow_monitor_agent[0].arn : ""
+}
 
 output "default_storage_class_name" {
   description = "Name of the default StorageClass created by this module. Empty when create_default_storage_class is false. Downstream consumers can reference this to pin chart `storageClass` values without hardcoding."

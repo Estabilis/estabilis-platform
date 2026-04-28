@@ -13,7 +13,7 @@
 #   - Workload Identity client_id → IRSA role_arn
 # ---------------------------------------------------------------------------
 
-resource "kubernetes_namespace" "argocd" {
+resource "kubernetes_namespace_v1" "argocd" {
   count = var.platform_outputs_enabled ? 1 : 0
 
   metadata {
@@ -29,12 +29,12 @@ resource "kubernetes_namespace" "argocd" {
 # ConfigMap — non-sensitive platform infrastructure values
 # ---------------------------------------------------------------------------
 
-resource "kubernetes_config_map" "platform_infrastructure" {
+resource "kubernetes_config_map_v1" "platform_infrastructure" {
   count = var.platform_outputs_enabled ? 1 : 0
 
   metadata {
     name      = "platform-infrastructure"
-    namespace = kubernetes_namespace.argocd[0].metadata[0].name
+    namespace = kubernetes_namespace_v1.argocd[0].metadata[0].name
     labels = {
       "app.kubernetes.io/managed-by" = "terraform"
       "app.kubernetes.io/part-of"    = "estabilis-platform"
@@ -140,12 +140,12 @@ resource "kubernetes_config_map" "platform_infrastructure" {
 # Secret — sensitive platform infrastructure values
 # ---------------------------------------------------------------------------
 
-resource "kubernetes_secret" "platform_infrastructure" {
+resource "kubernetes_secret_v1" "platform_infrastructure" {
   count = var.platform_outputs_enabled ? 1 : 0
 
   metadata {
     name      = "platform-infrastructure-sensitive"
-    namespace = kubernetes_namespace.argocd[0].metadata[0].name
+    namespace = kubernetes_namespace_v1.argocd[0].metadata[0].name
     labels = {
       "app.kubernetes.io/managed-by" = "terraform"
       "app.kubernetes.io/part-of"    = "estabilis-platform"
@@ -162,14 +162,14 @@ resource "kubernetes_secret" "platform_infrastructure" {
 
     # IRSA role ARNs — consumed by ArgoCD Application parameters to annotate
     # each ServiceAccount with eks.amazonaws.com/role-arn.
-    "identity.certManager.roleArn"      = var.dns_provider == "route53" ? module.cert_manager_irsa[0].iam_role_arn : ""
-    "identity.externalDns.roleArn"      = var.dns_provider == "route53" ? module.external_dns_irsa[0].iam_role_arn : ""
-    "identity.externalSecrets.roleArn"  = module.external_secrets_irsa.iam_role_arn
+    "identity.certManager.roleArn"      = var.dns_provider == "route53" ? module.cert_manager_irsa[0].arn : ""
+    "identity.externalDns.roleArn"      = var.dns_provider == "route53" ? module.external_dns_irsa[0].arn : ""
+    "identity.externalSecrets.roleArn"  = module.external_secrets_irsa.arn
     "identity.loki.roleArn"             = aws_iam_role.loki.arn
     "identity.mimir.roleArn"            = aws_iam_role.mimir.arn
     "identity.cnpg.roleArn"             = aws_iam_role.cnpg.arn
-    "identity.velero.roleArn"           = module.velero_irsa.iam_role_arn
-    "identity.albController.roleArn"    = var.ingress_controller == "alb" ? module.alb_controller_irsa[0].iam_role_arn : ""
+    "identity.velero.roleArn"           = module.velero_irsa.arn
+    "identity.albController.roleArn"    = var.ingress_controller == "alb" ? module.alb_controller_irsa[0].arn : ""
     "identity.workloadOperator.roleArn" = var.shared_hub_secrets_enabled ? aws_iam_role.workload_operator[0].arn : ""
     "identity.opencost.roleArn"         = var.cost_export_enabled ? aws_iam_role.opencost[0].arn : ""
 
@@ -180,7 +180,7 @@ resource "kubernetes_secret" "platform_infrastructure" {
     # vault.exposuresJson moved to ConfigMap as global.vaultExposures (ADR 0014
     # convention; non-sensitive). The Secret keeps the identity + KMS key id
     # which ARE sensitive.
-    "identity.vault.roleArn" = var.vault_enabled ? module.vault_irsa[0].iam_role_arn : ""
+    "identity.vault.roleArn" = var.vault_enabled ? module.vault_irsa[0].arn : ""
     "vault.kmsKeyId"         = var.vault_enabled ? aws_kms_key.vault[0].key_id : ""
     "vault.kmsRegion"        = var.vault_enabled ? var.region : ""
     "vault.backupBucketName" = var.vault_enabled ? aws_s3_bucket.vault_backup[0].id : ""
@@ -195,12 +195,12 @@ resource "kubernetes_secret" "platform_infrastructure" {
 # that ApplicationSet-based addon templates consume via the `clusters`
 # generator. Bridge annotation registry maintained in ADR 0010.
 
-resource "kubernetes_secret" "hub_cluster" {
+resource "kubernetes_secret_v1" "hub_cluster" {
   count = var.platform_outputs_enabled ? 1 : 0
 
   metadata {
     name      = "hub-cluster"
-    namespace = kubernetes_namespace.argocd[0].metadata[0].name
+    namespace = kubernetes_namespace_v1.argocd[0].metadata[0].name
     labels = {
       "argocd.argoproj.io/secret-type" = "cluster"
       "estabilis.io/managed-by"        = "platform"

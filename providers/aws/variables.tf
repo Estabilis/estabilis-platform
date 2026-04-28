@@ -53,6 +53,31 @@ variable "platform_outputs_enabled" {
 }
 
 # ---------------------------------------------------------------------------
+# Provenance tags — applied to every AWS resource via provider default_tags.
+# Mirrors the cortex-postgres-aws-* pattern: every resource carries pointers
+# back to the source repo + version that produced it, surfacing in AWS
+# Cost Explorer, Resource Groups, and Tag Editor for forensics + chargeback.
+#
+# `platform_source` + `platform_version` are derived inside this module
+# (constant URL + VERSION file at the cloned ref). The client passes
+# `repo_url` + `client_version` so each cluster also tags its own repo +
+# semver. Both pairs filter empty values out — clients that don't pass
+# anything just don't get those two tags.
+# ---------------------------------------------------------------------------
+
+variable "repo_url" {
+  description = "Client repository URL (https://...). Tagged on every AWS resource as `source` for provenance. Should be a https:// URL — git@ won't render as clickable in the AWS console. Empty value (default) skips the tag."
+  type        = string
+  default     = ""
+}
+
+variable "client_version" {
+  description = "Client deployment semver (e.g. \"1.10.5\"). Computed in the client tfvars from CHANGELOG.md regex (see cortex-postgres-aws-* for canonical pattern). Tagged on every AWS resource as `version`. Empty value (default) skips the tag."
+  type        = string
+  default     = ""
+}
+
+# ---------------------------------------------------------------------------
 # Repository pointers
 # ---------------------------------------------------------------------------
 
@@ -1556,4 +1581,149 @@ variable "default_storage_class_iops" {
     condition     = var.default_storage_class_iops == null ? true : (var.default_storage_class_iops >= 3000 && var.default_storage_class_iops <= 16000)
     error_message = "gp3 IOPS must be between 3000 and 16000 when set."
   }
+}
+
+# ---------------------------------------------------------------------------
+# Container Network Observability — Amazon CloudWatch Network Flow Monitor
+# (NFM) wired to the EKS cluster. See network-observability.tf and AWS docs:
+# https://docs.aws.amazon.com/eks/latest/userguide/network-observability.html
+# ---------------------------------------------------------------------------
+
+variable "network_observability_enabled" {
+  description = <<-EOT
+    Enable the EKS Container Network Observability feature backed by Amazon
+    CloudWatch Network Flow Monitor (NFM). Provisions an NFM Scope (or reuses
+    an existing one), an NFM Monitor scoped to this EKS cluster, the
+    `aws-network-flow-monitoring-agent` EKS addon, and a Pod Identity
+    association binding the agent to a least-privilege IAM role.
+
+    NFM is a paid service — see CloudWatch pricing before enabling
+    cluster-wide. Disabled by default.
+  EOT
+  type        = bool
+  default     = false
+}
+
+variable "network_observability_scope_mode" {
+  description = <<-EOT
+    Scope provisioning strategy. NFM's `Scope` resource is account+region
+    singleton — operators with multiple clusters in the same AWS
+    account+region SHOULD set `existing` on the second/Nth cluster and pass
+    the existing Scope ARN via `network_observability_existing_scope_arn`.
+
+    Valid values:
+      - "create"   : provision a new Scope (default; safe for the first
+                     cluster in an account+region).
+      - "existing" : reuse a Scope already provisioned by a sibling
+                     cluster, paying only for one Scope per account+region.
+  EOT
+  type        = string
+  default     = "create"
+
+  validation {
+    condition     = contains(["create", "existing"], var.network_observability_scope_mode)
+    error_message = "network_observability_scope_mode must be one of: \"create\", \"existing\"."
+  }
+}
+
+variable "network_observability_existing_scope_arn" {
+  description = <<-EOT
+    ARN of an existing NFM Scope to reuse. Only consumed when
+    `network_observability_scope_mode = \"existing\"`. Read this from the
+    output `network_observability_scope_arn` of the cluster that owns the
+    Scope.
+  EOT
+  type        = string
+  default     = ""
+}
+
+variable "network_observability_monitor_name" {
+  description = <<-EOT
+    Override the NFM Monitor name. Leave empty to default to
+    `<cluster-name>-monitor`. NFM Monitor names are immutable post-creation;
+    set this if you need to align with an external naming convention before
+    the first apply.
+  EOT
+  type        = string
+  default     = ""
+}
+
+variable "network_observability_remote_resources" {
+  description = <<-EOT
+    NFM Monitor `remote_resource` blocks. Defaults to monitoring flows that
+    stay within the cluster's region (`AWS::EC2::Region` keyed on
+    `var.region`). Operators tracking cross-region or cross-VPC flows
+    override this list — same five resource types as `local_resource`:
+    AWS::EC2::VPC, AWS::EC2::Subnet, AWS::EC2::AvailabilityZone,
+    AWS::EC2::Region, AWS::EKS::Cluster.
+
+    Example:
+      network_observability_remote_resources = [
+        { type = "AWS::EC2::VPC",       identifier = "arn:aws:ec2:us-east-1:111122223333:vpc/vpc-abc" },
+        { type = "AWS::EC2::Region",    identifier = "us-west-2" },
+      ]
+  EOT
+  type = list(object({
+    type       = string
+    identifier = string
+  }))
+  default = []
+
+  validation {
+    condition = alltrue([
+      for r in var.network_observability_remote_resources :
+      contains(["AWS::EC2::VPC", "AWS::EC2::Subnet", "AWS::EC2::AvailabilityZone", "AWS::EC2::Region", "AWS::EKS::Cluster"], r.type)
+    ])
+    error_message = "Each remote_resource.type must be one of: AWS::EC2::VPC, AWS::EC2::Subnet, AWS::EC2::AvailabilityZone, AWS::EC2::Region, AWS::EKS::Cluster."
+  }
+}
+
+variable "network_observability_addon_version" {
+  description = <<-EOT
+    Pin the `aws-network-flow-monitoring-agent` EKS addon version (e.g.
+    `v1.1.0-eksbuild.1`). Leave null to track the most recent version
+    compatible with the cluster's Kubernetes minor — matches the
+    `most_recent = true` pattern used for the platform addons in eks.tf.
+  EOT
+  type        = string
+  default     = null
+}
+
+variable "network_observability_addon_config" {
+  description = <<-EOT
+    Override map merged into the NFM agent addon's
+    `configuration_values`. Operators expose Prometheus-style metrics from
+    the agent by setting `OPEN_METRICS`, `OPEN_METRICS_ADDRESS`,
+    `OPEN_METRICS_PORT`. Defaults follow AWS documentation:
+
+      OPEN_METRICS         = "off"
+      OPEN_METRICS_ADDRESS = "127.0.0.1"
+      OPEN_METRICS_PORT    = 80
+
+    Only override the keys you care about — the merge keeps the rest.
+  EOT
+  type        = map(any)
+  default     = {}
+}
+
+variable "network_observability_agent_namespace" {
+  description = <<-EOT
+    Kubernetes namespace where the NFM agent runs. The addon installs the
+    agent here on first apply; downstream operators referencing this name
+    via Pod Identity SHOULD leave the default unless they have a strong
+    reason to override.
+  EOT
+  type        = string
+  default     = "amazon-network-flow-monitor"
+}
+
+variable "network_observability_agent_service_account" {
+  description = <<-EOT
+    Kubernetes ServiceAccount name used by the NFM agent. The Pod Identity
+    association binds {namespace, service_account} to the IAM role; both
+    sides MUST agree, so override only if the upstream addon changes the
+    SA name.
+  EOT
+  type        = string
+  default     = "aws-network-flow-monitor-agent-service-account"
 }

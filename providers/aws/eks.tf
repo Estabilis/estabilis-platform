@@ -30,9 +30,18 @@ locals {
     }
     kube-proxy = {
       most_recent = true
+      # v21 EKS module added the `before_compute` flag (default false). Without
+      # `true` here, kube-proxy is created AFTER node groups, but EKS managed
+      # node groups in K8s 1.35+ no longer transition MNG → ACTIVE until nodes
+      # become Ready in K8s — and nodes can't become Ready without CNI/proxy.
+      # Result is a deadlock on first apply (observed on cortex 2026-04-28).
+      before_compute = true
     }
     vpc-cni = {
       most_recent = true
+      # See kube-proxy comment above. vpc-cni MUST be installed before nodes
+      # come up so kubelet can initialize the CNI plugin.
+      before_compute = true
       # No custom env tuning. Two prior attempts at pre-allocation tuning
       # both produced FailedCreatePodSandBox events:
       #   v0.29.1: WARM_PREFIX_TARGET=2 + MINIMUM_IP_TARGET=10
@@ -58,11 +67,14 @@ locals {
     }
     aws-ebs-csi-driver = {
       most_recent              = true
-      service_account_role_arn = module.ebs_csi_irsa.iam_role_arn
+      service_account_role_arn = module.ebs_csi_irsa.arn
     }
   }
 
-  effective_addons = length(keys(var.cluster_addons)) > 0 ? var.cluster_addons : local.default_addons
+  # Merge instead of substitute. Operators set var.cluster_addons to override
+  # individual addons (e.g. enable amazon-cloudwatch-observability) without
+  # losing the 5 platform defaults. User-provided keys win on collision.
+  effective_addons = merge(local.default_addons, var.cluster_addons)
 
   # Fargate profiles — kube-system is always included (addons land here),
   # karpenter namespace when autoscaler uses Karpenter ("karpenter" or
@@ -157,10 +169,15 @@ resource "terraform_data" "mng_size_guard" {
 # ---------------------------------------------------------------------------
 
 module "ebs_csi_irsa" {
-  source  = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
-  version = "~> 5.60"
+  source  = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts"
+  version = "~> 6.5"
 
-  role_name             = "${local.cluster_name}-ebs-csi"
+  # v6 default flipped use_name_prefix to true (was false in v5). With our
+  # CAF cluster names the resulting prefix `${name}-` blows past AWS IAM's
+  # 38-char name_prefix cap. Pin to false to use the full 64-char `name`
+  # budget. Mirrors module.eks's iam_role_use_name_prefix = false above.
+  use_name_prefix       = false
+  name                  = "${local.cluster_name}-ebs-csi"
   attach_ebs_csi_policy = true
 
   oidc_providers = {
@@ -177,32 +194,37 @@ module "ebs_csi_irsa" {
 
 module "eks" {
   source  = "terraform-aws-modules/eks/aws"
-  version = "~> 20.37"
+  version = "~> 21.19"
 
-  cluster_name    = local.cluster_name
-  cluster_version = var.kubernetes_version
+  # v21 stripped `cluster_` prefixes from cluster-level inputs to better
+  # align with the AWS API. Outputs (`module.eks.cluster_name`,
+  # `cluster_endpoint`, `cluster_certificate_authority_data`,
+  # `oidc_provider_arn`, `cluster_oidc_issuer_url`) are kept unchanged.
+  name               = local.cluster_name
+  kubernetes_version = var.kubernetes_version
 
   # --- Networking ----------------------------------------------------------
   vpc_id                   = local.vpc_id
   subnet_ids               = local.private_subnet_ids
   control_plane_subnet_ids = local.private_subnet_ids
 
-  cluster_additional_security_group_ids = var.security_groups_hardening_enabled ? [aws_security_group.cluster_additional[0].id] : []
+  additional_security_group_ids = var.security_groups_hardening_enabled ? [aws_security_group.cluster_additional[0].id] : []
 
   # --- Endpoint access -----------------------------------------------------
-  cluster_endpoint_public_access       = var.cluster_endpoint_public_access
-  cluster_endpoint_private_access      = var.cluster_endpoint_private_access
-  cluster_endpoint_public_access_cidrs = var.cluster_endpoint_public_access ? local.authorized_ips : null
+  endpoint_public_access       = var.cluster_endpoint_public_access
+  endpoint_private_access      = var.cluster_endpoint_private_access
+  endpoint_public_access_cidrs = var.cluster_endpoint_public_access ? local.authorized_ips : null
 
   # --- Control-plane logging ----------------------------------------------
-  cluster_enabled_log_types              = var.cluster_log_types
+  enabled_log_types                      = var.cluster_log_types
   cloudwatch_log_group_retention_in_days = var.cluster_log_retention_days
 
   # --- Secrets encryption (envelope) --------------------------------------
-  # Ternary must return matching types on both branches (Terraform 1.7+
-  # strict type check). `null` disables encryption cleanly without forcing
-  # the "false" branch to echo the full object shape.
-  cluster_encryption_config = var.cluster_secrets_encryption_enabled ? {
+  # In v21 secret encryption is always enabled at the cluster level; this
+  # block selects between AWS-managed keys (encryption_config = null) and a
+  # customer-managed KMS key. Ternary returns matching shapes on both
+  # branches per Terraform 1.7+ strict type checks.
+  encryption_config = var.cluster_secrets_encryption_enabled ? {
     resources        = ["secrets"]
     provider_key_arn = aws_kms_key.cluster_secrets.arn
   } : null
@@ -223,7 +245,7 @@ module "eks" {
   iam_role_use_name_prefix = false
 
   # --- Addons --------------------------------------------------------------
-  cluster_addons = local.effective_addons
+  addons = local.effective_addons
 
   # --- Fargate profiles ---------------------------------------------------
   fargate_profiles = local.fargate_profiles_default

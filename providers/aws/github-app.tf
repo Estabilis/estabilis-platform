@@ -43,7 +43,7 @@ module "github_app_credentials" {
   namespace                  = "argocd"
 
   depends_on = [
-    kubernetes_namespace.argocd,
+    kubernetes_namespace_v1.argocd,
   ]
 }
 
