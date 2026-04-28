@@ -326,7 +326,41 @@ module "eks" {
 # Subnet tag re-inforcement for existing-VPC mode. When the operator brings
 # their own subnets, we can only best-effort add the discovery tags — they
 # are required for ALB Controller + Karpenter to find the subnets.
+#
+# Tag scoping:
+#   - Karpenter discovery: keyed on `var.karpenter_discovery_tag_key`,
+#     unique per cluster by convention. Always managed.
+#   - kubernetes.io/role/{elb,internal-elb}: SHARED keys (no per-cluster
+#     suffix possible — ALB Controller hardcodes them). Cross-state
+#     ownership is the failure mode when N clusters share a VPC. Gated by
+#     `var.existing_subnet_role_tags_management` so the second/Nth cluster
+#     can opt out and let the first cluster own the tags.
+#   - kubernetes.io/cluster/<cluster-name>: cluster-scoped, always
+#     managed.
+#
+# State migration safety (v0.32.x → v0.33.0+):
+#   With the default `existing_subnet_role_tags_management = "create"` the
+#   for_each set is unchanged from prior versions, so existing state
+#   addresses persist with zero plan diff. Deployments that opt into
+#   "skip" will see one `aws_ec2_tag` per supplied subnet destroyed at
+#   plan time — this is a state-only release; AWS retains the tags
+#   because the FIRST cluster's TF state still owns them at the AWS API.
 # ---------------------------------------------------------------------------
+
+# Cross-variable guard: "skip" is only meaningful in vpc_mode = "existing".
+# In vpc_mode = "create" the module owns subnet creation and the role
+# tags must be managed by Terraform, so silently accepting "skip" would
+# be a footgun. Mirrors the mng_size_guard pattern above.
+resource "terraform_data" "existing_subnet_role_tags_guard" {
+  input = "${var.vpc_mode}:${var.existing_subnet_role_tags_management}"
+
+  lifecycle {
+    precondition {
+      condition     = var.vpc_mode == "existing" || var.existing_subnet_role_tags_management == "create"
+      error_message = "existing_subnet_role_tags_management = \"skip\" requires vpc_mode = \"existing\". When vpc_mode = \"create\" the module owns the subnets and their role tags; \"skip\" would be a silent no-op and is rejected to surface the misconfiguration."
+    }
+  }
+}
 
 resource "aws_ec2_tag" "existing_private_karpenter_discovery" {
   for_each = var.vpc_mode == "existing" && contains(["karpenter", "hybrid"], var.autoscaler) ? toset(var.private_subnet_ids) : []
@@ -337,7 +371,7 @@ resource "aws_ec2_tag" "existing_private_karpenter_discovery" {
 }
 
 resource "aws_ec2_tag" "existing_private_internal_elb" {
-  for_each = var.vpc_mode == "existing" ? toset(var.private_subnet_ids) : []
+  for_each = var.vpc_mode == "existing" && var.existing_subnet_role_tags_management == "create" ? toset(var.private_subnet_ids) : []
 
   resource_id = each.value
   key         = "kubernetes.io/role/internal-elb"
@@ -345,7 +379,7 @@ resource "aws_ec2_tag" "existing_private_internal_elb" {
 }
 
 resource "aws_ec2_tag" "existing_public_elb" {
-  for_each = var.vpc_mode == "existing" ? toset(var.public_subnet_ids) : []
+  for_each = var.vpc_mode == "existing" && var.existing_subnet_role_tags_management == "create" ? toset(var.public_subnet_ids) : []
 
   resource_id = each.value
   key         = "kubernetes.io/role/elb"

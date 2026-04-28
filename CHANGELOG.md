@@ -1,5 +1,80 @@
 # Changelog
 
+## [0.33.0] - 2026-04-28
+
+### Added — `existing_subnet_role_tags_management` opt-out for shared-VPC deployments (AWS provider)
+
+`vpc_mode = "existing"` deployments unconditionally created
+`aws_ec2_tag.existing_private_internal_elb` (`kubernetes.io/role/internal-elb=1`)
+and `aws_ec2_tag.existing_public_elb` (`kubernetes.io/role/elb=1`) on the
+operator-supplied subnets. ALB Controller requires these for subnet
+auto-discovery, but their KEYS are NOT cluster-scoped — the AWS Load
+Balancer Controller hardcodes them — so when N Estabilis deployments share
+the same VPC each TF state would own the same tag.
+
+The failure mode is asymmetric:
+
+- **`apply`-time**: AWS `CreateTags` is idempotent, so two clusters
+  applying the same `(subnet, key, value)` triple does not error in
+  practice — both states co-own the tag.
+- **`destroy`-time**: the FIRST cluster to destroy issues `DeleteTags`,
+  removing the tag from the shared subnets. The surviving cluster's
+  ALB Controller then loses subnet auto-discovery until the next
+  `terraform apply` re-asserts the tag.
+
+Karpenter discovery tags were already opt-out via the per-cluster
+`karpenter_discovery_tag_key`; the cluster-membership tag
+(`kubernetes.io/cluster/<name>=shared`) is cluster-scoped by name and never
+collides. Only the two role tags above are shared keys.
+
+Added `existing_subnet_role_tags_management` (string, default `"create"`):
+
+- `"create"` (default — preserves current behavior): TF creates and owns
+  the tags. Use for the FIRST cluster sharing a VPC, or any standalone
+  deployment.
+- `"skip"`: TF does NOT manage these tags. Use for the SECOND/Nth cluster
+  sharing a VPC where another deployment (or the operator) already owns
+  them. Eliminates cross-state ownership and makes `terraform destroy`
+  non-destructive to the surviving cluster's ALB subnet discovery.
+
+The variable name follows the codebase convention of prefixing
+`existing_`-only variables (`private_subnet_ids`, `public_subnet_ids`,
+`vpc_id`) so the `vpc_mode = "existing"` scoping is signalled at the
+call site without relying on the description. A precondition guard
+(`terraform_data.existing_subnet_role_tags_guard` in `eks.tf`) rejects
+the nonsensical combination `vpc_mode = "create" + "skip"` at plan
+time instead of silently no-op'ing.
+
+Backward compatible: existing deployments keep the current behavior on
+upgrade. No state migration required.
+
+### Migration playbook (multi-cluster shared VPC)
+
+When promoting a second Estabilis deployment into a VPC where another
+Estabilis cluster already runs:
+
+1. Bump the second deployment's module ref to `v0.33.0+`.
+2. Set `existing_subnet_role_tags_management = "skip"` in the second
+   deployment's `terraform.tfvars` BEFORE the first apply.
+3. Apply normally. Verify ALB ingress lifecycle on both clusters.
+
+When retrofitting an already-deployed second cluster:
+
+1. Bump module ref to `v0.33.0+`.
+2. Set `existing_subnet_role_tags_management = "skip"`.
+3. Run `terraform plan` — expect
+   `length(var.private_subnet_ids) + length(var.public_subnet_ids)`
+   `aws_ec2_tag` resources to be destroyed (one per private subnet for
+   `internal-elb`, one per public subnet for `elb`). For the typical
+   3-AZ deployment with 3 private + 3 public subnets that is 6
+   resources; counts vary with the actual subnet topology.
+4. Run `terraform apply` to release the state resources. The AWS tags
+   are NOT removed: the FIRST cluster's TF state still owns them at
+   the AWS API, so the surviving cluster's ALB Controller continues
+   subnet auto-discovery without interruption. This step only mutates
+   the second cluster's state file. Verify post-apply that ingress
+   reconciliation on both clusters remains healthy.
+
 ## [0.32.1] - 2026-04-27
 
 ### Fixed — `validation` null short-circuit on storage-class IOPS/throughput

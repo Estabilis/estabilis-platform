@@ -568,6 +568,48 @@ variable "public_subnet_ids" {
   default     = []
 }
 
+variable "existing_subnet_role_tags_management" {
+  description = <<-EOT
+    Only meaningful when vpc_mode = "existing". Controls whether Terraform
+    manages the shared `kubernetes.io/role/elb` and
+    `kubernetes.io/role/internal-elb` tags on the operator-supplied
+    subnets. Ignored (and validated against) when vpc_mode = "create",
+    where Terraform always owns the subnets and their tags.
+
+    These role tags are required by AWS Load Balancer Controller for
+    subnet auto-discovery, but their KEYS are NOT cluster-scoped — the
+    controller hardcodes them. When N Estabilis deployments share the
+    same VPC, each TF state would otherwise own the same tag, causing
+    `terraform destroy` of one cluster to remove tags relied upon by
+    the survivors.
+
+    Modes:
+      - "create" (default): Terraform creates and owns the role tags.
+        Use for the FIRST cluster sharing a VPC, or any standalone
+        deployment.
+      - "skip": Terraform does NOT manage the role tags. Use for the
+        SECOND/Nth cluster sharing a VPC where another deployment
+        (or the operator) already owns them. Eliminates cross-state
+        ownership and makes `terraform destroy` non-destructive to the
+        surviving cluster's ALB subnet discovery.
+
+    Naming follows the convention of `private_subnet_ids` /
+    `public_subnet_ids` / `vpc_id`: the `existing_` prefix signals that
+    the variable is only consumed in vpc_mode = "existing".
+
+    The cluster-membership tag (`kubernetes.io/cluster/<cluster-name>=shared`)
+    and the per-cluster Karpenter discovery tag are always managed — they
+    are cluster-scoped and never collide between deployments.
+  EOT
+  type        = string
+  default     = "create"
+
+  validation {
+    condition     = contains(["create", "skip"], var.existing_subnet_role_tags_management)
+    error_message = "existing_subnet_role_tags_management must be one of: create, skip."
+  }
+}
+
 variable "vpc_cidr" {
   description = "CIDR block for the VPC (create mode). Must not overlap with on-prem or peered networks."
   type        = string
