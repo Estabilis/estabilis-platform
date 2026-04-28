@@ -38,6 +38,16 @@ spec:
         parameters:
           - name: platformVersion
             value: {{ .Values.platformVersion | quote }}
+          {{- /*
+            Forward clientApps.autoSync from this chart's values into the
+            workload-bootstrap chart so the `client-apps` ApplicationSet
+            template uses the same gating as `hub-client-apps` (which
+            lives in this chart). Cortex's downstream override at
+            overrides/platform-root/values.yaml:clientApps.autoSync flips
+            both ApplicationSets at once.
+          */}}
+          - name: clientApps.autoSync
+            value: {{ .Values.clientApps.autoSync | quote }}
           {{- include "platform-root.provenanceParameters" $ | nindent 10 }}
         valueFiles:
           - values.yaml

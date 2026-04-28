@@ -66,9 +66,19 @@ spec:
         server: https://kubernetes.default.svc
         namespace: "{{ `{{ .path.basename }}` }}"
       syncPolicy:
+        {{- /*
+          Auto-sync is opt-out via .Values.clientApps.autoSync (default true).
+          When false, generated Applications stay OutOfSync until the
+          operator triggers `argocd app sync` manually. Useful for
+          production environments that gate every workload deploy and
+          for cold bootstraps where workload syncs would race with
+          platform components still coming up. See values.yaml comment.
+        */}}
+        {{- if .Values.clientApps.autoSync }}
         automated:
           prune: true
           selfHeal: true
+        {{- end }}
         retry:
           limit: 10
           backoff:

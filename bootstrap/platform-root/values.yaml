@@ -38,7 +38,7 @@ configRepoVersion: ""       # DEPRECATED: use configRepoRevision
 # See ADR 0001 (estabilis-platform-tools/docs/adr/0001-workload-bootstrap-strategy.md).
 # Default values below; downstream can override via overrides/platform-root/values.yaml.
 platformGitopsRepoUrl: "https://github.com/Estabilis/estabilis-platform-gitops.git"
-platformGitopsVersion: "v0.38.2"
+platformGitopsVersion: "v0.39.0"
 
 global:
   # Provenance — injected at runtime by the CLI (see block above).
@@ -237,6 +237,65 @@ deploymentId: ""
 # Operator-managed via overrides/platform-root/values.yaml in the
 # client's platform downstream — NOT client-mutable.
 clientHubAppNamespaces: []
+
+# ---------------------------------------------------------------------------
+# Extra sourceRepos for the `platform-apps` AppProject (ADR 0027).
+# ---------------------------------------------------------------------------
+# By default `platform-apps` accepts only `configRepoUrl` (the wrapper
+# repo) as a source. If a client business app needs to pull from an
+# upstream chart host, declare it here in the wrapper override:
+#
+#   platformAppsExtraSourceRepos:
+#     - "https://charts.bitnami.com/bitnami"
+#     - "oci://my-oci-registry/charts"
+#
+# No wildcards — every host must be explicit (so the AppProject
+# scope-creep is auditable in code review).
+platformAppsExtraSourceRepos: []
+
+# ---------------------------------------------------------------------------
+# Extra sourceRepos for the `workload-apps` AppProject (ADR 0027).
+# ---------------------------------------------------------------------------
+# Same mechanism as platformAppsExtraSourceRepos but scoped to
+# workload clusters. Default: clientGitopsRepoUrl + sharedAcrLoginServer
+# (when present). Add upstream chart hosts as needed:
+#
+#   workloadAppsExtraSourceRepos:
+#     - "https://charts.bitnami.com/bitnami"
+workloadAppsExtraSourceRepos: []
+
+# ---------------------------------------------------------------------------
+# Client-managed Applications — gating of auto-sync at bootstrap time.
+# ---------------------------------------------------------------------------
+# Two ApplicationSets generate workload Applications from the client's
+# gitops repo:
+#   • `client-apps` (in workload-bootstrap chart, hub-rendered) —
+#     `platforms/{deploymentId}/apps/*`
+#   • `hub-client-apps` (this chart, hub-rendered) —
+#     `platforms/{deploymentId}/hub-apps/*`
+#
+# Default is `false` (manual sync required) — flip to `true` to opt
+# back into pure GitOps continuous reconciliation.
+#
+# Why default manual:
+#   1. Cold-cluster bootstrap is race-free. Workload Apps stay
+#      OutOfSync until operator triggers sync, so they never thrash
+#      while ESO/ALB/CNPG/image-updater are still coming up.
+#   2. Production-safe by default. Every workload deploy goes through
+#      an explicit gate (operator, CI pipeline, or argocd-image-updater
+#      writeback). No accidental rollout if a gitops-repo merge slips
+#      through.
+#   3. Aligns with how workloads are typically deployed on Estabilis:
+#      a CI pipeline builds an image, writes back to gitops, and
+#      either triggers `argocd app sync` or relies on
+#      argocd-image-updater. Operator gating happens at the pipeline
+#      level, not at every reconcile loop.
+#
+# Set `clientApps.autoSync: true` per-cluster in the wrapper override
+# (overrides/platform-root/values.yaml) when the cluster runs purely
+# GitOps continuous reconciliation with no CI-driven deploy gating.
+clientApps:
+  autoSync: false
 
 # Additional cluster-scoped resource kinds authorized for the
 # `platform-client-infra` AppProject. Appended to the project's
