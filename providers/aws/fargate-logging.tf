@@ -27,9 +27,16 @@ locals {
   # `autoscaler = "none"` setups might remove it).
   fargate_logging_effective = var.fargate_logging_enabled && length(module.eks.fargate_profiles) > 0
 
-  fargate_log_group_name            = "/aws/eks/${local.cluster_name}/fargate"
-  fargate_log_retention_effective   = var.fargate_log_retention_days != null ? var.fargate_log_retention_days : var.cluster_log_retention_days
-  fargate_log_kms_key_arn_effective = var.fargate_log_kms_key_arn != "" ? var.fargate_log_kms_key_arn : aws_kms_key.s3_data.arn
+  fargate_log_group_name          = "/aws/eks/${local.cluster_name}/fargate"
+  fargate_log_retention_effective = var.fargate_log_retention_days != null ? var.fargate_log_retention_days : var.cluster_log_retention_days
+
+  # Default `null` = AWS-managed encryption (still encrypted at rest).
+  # Operators wanting customer-managed KMS must pass an ARN AND ensure
+  # the key policy grants `logs.<region>.amazonaws.com` Encrypt*+Decrypt*
+  # access. Defaulting to `aws_kms_key.s3_data` would CreateLogGroup-fail
+  # on first apply (its policy doesn't allow CW Logs as of v0.35.1).
+  # Mirrors legacy cortex-eks-prod (no KMS on Fargate log group).
+  fargate_log_kms_key_arn_effective = var.fargate_log_kms_key_arn != "" ? var.fargate_log_kms_key_arn : null
 }
 
 # ---------------------------------------------------------------------------
