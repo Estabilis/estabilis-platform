@@ -334,6 +334,31 @@ output "vault_backup_bucket_name" {
   value       = var.vault_enabled ? aws_s3_bucket.vault_backup[0].id : ""
 }
 
+output "vault_root_token_secret_id" {
+  description = "AWS Secrets Manager secret name holding the Vault root token. Bootstrap script reads via `aws secretsmanager get-secret-value --secret-id $(terraform output -raw vault_root_token_secret_id)`. Token itself is populated out-of-band post `vault operator init`. Empty when vault_enabled=false."
+  value       = var.vault_enabled ? aws_secretsmanager_secret.vault_root_token[0].name : ""
+}
+
+output "vault_root_token_secret_arn" {
+  description = "ARN of the Vault root token secret (for IAM policy authoring). Empty when vault_enabled=false."
+  value       = var.vault_enabled ? aws_secretsmanager_secret.vault_root_token[0].arn : ""
+}
+
+output "vault_github_org" {
+  description = "GitHub organization mapped onto Vault's github auth method. Consumed by the downstream vault-bootstrap.sh via `terraform output -raw vault_github_org`. Empty when vault_enabled=false or var unset."
+  value       = var.vault_enabled ? var.vault_github_org : ""
+}
+
+output "vault_github_admins" {
+  description = "Comma-separated GitHub usernames mapped to Vault `admin` policy. Consumed by downstream bootstrap script. Empty when vault_enabled=false."
+  value       = var.vault_enabled ? var.vault_github_admins : ""
+}
+
+output "vault_github_org_admins" {
+  description = "Comma-separated GitHub usernames mapped to Vault `org-admin` policy. Consumed by downstream bootstrap script. Empty when vault_enabled=false."
+  value       = var.vault_enabled ? var.vault_github_org_admins : ""
+}
+
 output "vault_exposures_json" {
   description = "JSON-encoded Vault exposures (resolved hosts)."
   value       = jsonencode({ for k, v in local.vault_exposures_resolved : k => v if v.enabled })

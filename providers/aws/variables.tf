@@ -1436,6 +1436,32 @@ variable "vault_kms_deletion_window_days" {
   }
 }
 
+# ---------------------------------------------------------------------------
+# Vault GitHub auth — config inputs for the downstream bootstrap script
+# (`vault auth enable github` + `vault write auth/github/config`). The
+# script reads these via `terraform output -raw`, so the values flow:
+# tfvars → variable → output → bootstrap script. No TF resources consume
+# them here.
+# ---------------------------------------------------------------------------
+
+variable "vault_github_org" {
+  description = "GitHub organization mapped onto Vault's github auth method (token_no_default_policy=true). Org membership grants the developer policy; explicit user maps grant admin / org-admin. Required when bootstrapping the github auth method downstream."
+  type        = string
+  default     = ""
+}
+
+variable "vault_github_admins" {
+  description = "Comma-separated GitHub usernames mapped to Vault `admin` policy (full root-equivalent access). Empty allowed but discouraged in real clusters."
+  type        = string
+  default     = ""
+}
+
+variable "vault_github_org_admins" {
+  description = "Comma-separated GitHub usernames mapped to Vault `org-admin` policy (read/write on all secrets, no Vault-internal config)."
+  type        = string
+  default     = ""
+}
+
 variable "vault_exposures" {
   description = "Vault UI ingress exposures (multi-network ingress per profile). Same shape as the other *_exposures vars. Typically internal — ops team accesses via VPN. When host is empty, it is auto-derived (app name: 'vault')."
   type = map(object({
