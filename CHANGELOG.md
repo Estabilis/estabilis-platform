@@ -1,5 +1,104 @@
 # Changelog
 
+## [0.35.1] - 2026-04-28
+
+### Fixed — Karpenter on Fargate broken in `autoscaler = "karpenter"` (and hybrid)
+
+v0.35.0 inherited the v21 EKS karpenter sub-module's default
+`create_pod_identity_association = true` and the trust policy
+hardcoded to `pods.eks.amazonaws.com` only (no IRSA). Pod Identity
+**REQUIRES** the `eks-pod-identity-agent` DaemonSet on the node, but
+Fargate does not run DaemonSets.
+
+Both `autoscaler = "karpenter"` (pure) and `autoscaler = "hybrid"`
+land Karpenter pods on the `karpenter` namespace Fargate profile
+(selectors take precedence over MNG nodes), so Pod Identity was
+non-functional for Karpenter in **all** our modes — the controller
+hung waiting for AWS APIs (`AWS_CONTAINER_CREDENTIALS_FULL_URI`
+endpoint `169.254.170.23` unreachable from Fargate without the
+agent), health probes timed out, pods stuck `0/1 Ready` forever.
+Observed on cortex-prd 2026-04-28 v0.35.0 bootstrap.
+
+#### Fix in `providers/aws/karpenter.tf`
+
+- `create_pod_identity_association = false` (was `true`)
+- New `data "aws_iam_policy_document" "karpenter_irsa_trust"` adding
+  IRSA federation (`AssumeRoleWithWebIdentity` from the cluster's
+  OIDC provider, scoped to `system:serviceaccount:karpenter:karpenter`)
+- Passed via `iam_role_source_assume_policy_documents` (additive merge
+  with the module's default `pods.eks.amazonaws.com` statement —
+  preserves Pod Identity for any future EC2-side use, but removes the
+  active association)
+
+The Karpenter helm chart already annotates the SA with
+`eks.amazonaws.com/role-arn` (via `platform-root` helm parameters in
+`bootstrap/platform-root/templates/karpenter.yaml`), so the AWS SDK
+uses `AssumeRoleWithWebIdentity` correctly. Mirrors the legacy
+`cortex-eks-prod` pattern that has been running in production with
+IRSA for over a year.
+
+> **Note on AWS SDK credential providers:** SDKs do NOT auto-fall-back
+> between credential providers. If the Pod Identity webhook injects
+> `AWS_CONTAINER_CREDENTIALS_FULL_URI`, the SDK locks to that path and
+> ignores IRSA env vars (`AWS_WEB_IDENTITY_TOKEN_FILE`). We therefore
+> DELETE the Pod Identity association entirely (not coexist with it).
+
+### Added — Fargate pod stdout/stderr → CloudWatch Logs (default-on)
+
+EKS Fargate has a Fluent Bit agent embedded in the runtime, but it
+only ships logs when the `aws-observability` namespace + `aws-logging`
+ConfigMap are present. Without these, Fargate pods (CoreDNS, Karpenter
+controller, ebs-csi-controller) silently drop stdout/stderr and emit
+`LoggingDisabled` warning events.
+
+Mirrors the legacy `cortex-eks-prod` pattern (`security.tf:43-105`)
+that has been running in production for over a year — was a known gap
+in v0.35.0 (mapped in the legacy comparison report).
+
+#### New file
+
+`providers/aws/fargate-logging.tf` — provisions, when
+`var.fargate_logging_enabled = true` (default) AND the cluster has
+at least one Fargate profile:
+
+- `aws_cloudwatch_log_group.fargate` — `/aws/eks/<cluster>/fargate`
+  with retention from `var.fargate_log_retention_days`
+  (falls back to `var.cluster_log_retention_days`) and KMS encryption
+  from `var.fargate_log_kms_key_arn` (falls back to `aws_kms_key.s3_data`).
+- `kubernetes_namespace_v1.aws_observability` with the required label
+  `aws-observability=enabled`.
+- `kubernetes_config_map_v1.aws_logging` with the Fluent Bit
+  `[OUTPUT]` config (cloudwatch_logs plugin, log group name,
+  log stream prefix). Operators append additional filters via
+  `var.fargate_log_filters` (raw Fluent Bit config snippet).
+- `aws_iam_role_policy.fargate_logging` — one per Fargate profile
+  pod execution role (CloudWatch Logs write).
+
+#### New variables
+
+  fargate_logging_enabled       bool   default true
+  fargate_log_retention_days    number default null  (falls back to cluster_log_retention_days)
+  fargate_log_kms_key_arn       string default ""    (falls back to aws_kms_key.s3_data)
+  fargate_log_filters           string default ""    (extra Fluent Bit config)
+
+#### New output
+
+  fargate_log_group_name        string  CloudWatch log group name (empty when disabled)
+
+### Migration from v0.35.0
+
+Cluster operators upgrading from v0.35.0 should:
+
+1. `terraform apply` — additive (creates 4 resources: log group +
+   namespace + ConfigMap + IAM policies; updates Karpenter trust
+   policy + drops Pod Identity association).
+2. Restart Karpenter pods so the SDK reads the new (IRSA-only) creds:
+   `kubectl rollout restart deployment/karpenter -n karpenter`
+3. Restart other Fargate pods to pick up the Fluent Bit config:
+   `kubectl rollout restart deployment/coredns -n kube-system`
+   `kubectl rollout restart deployment/ebs-csi-controller -n kube-system`
+4. Verify logs landing in `/aws/eks/<cluster>/fargate` log streams.
+
 ## [0.35.0] - 2026-04-28
 
 ### Added — Provenance tags on every AWS resource (`source` / `version`)
