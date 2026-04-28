@@ -1,5 +1,73 @@
 # Changelog
 
+## [0.34.0] - 2026-04-28
+
+### Added — Vault root-token Secrets Manager shell + github-auth variables
+
+Every cluster running with `vault_enabled = true` needs (a) a named AWS
+Secrets Manager secret to hold the root token that `vault operator init`
+produces post-deploy, and (b) three string inputs for the github auth
+wiring (`vault auth enable github` + `vault write auth/github/config`)
+the operator runs once after the chart is up. Until now both pieces
+were duplicated in every downstream client (e.g.
+`cortex-platform-aws-us-east-1-prd/providers/aws/vault-bootstrap.tf`).
+Pulled upstream so all clients consume the contract through
+`module.estabilis_platform.*` outputs.
+
+#### Resource
+
+`aws_secretsmanager_secret.vault_root_token` (count gated on
+`var.vault_enabled`):
+
+  - Name `${secrets_path_prefix}/platform-vault-root-token` (mirrors
+    the 8 existing `platform-*` secret naming).
+  - KMS-encrypted with `aws_kms_key.platform_secrets`.
+  - `recovery_window_in_days = var.secretsmanager_recovery_days`.
+  - Tagged `estabilis.io/{component=vault, purpose=bootstrap,
+    lifecycle=out-of-band}`.
+
+NO `aws_secretsmanager_secret_version` is declared — the token value
+is populated by the operator via `aws secretsmanager put-secret-value`
+post `vault operator init`. Storing the token in tfvars or a TF version
+resource would put a real secret in state files / plan output / git.
+
+#### Variables (all default `""`)
+
+  vault_github_org         GitHub org name for the github auth method.
+  vault_github_admins      Comma-separated usernames → `admin` policy.
+  vault_github_org_admins  Comma-separated usernames → `org-admin` policy.
+
+#### Outputs (5 new)
+
+  vault_root_token_secret_id    secret name (consumed by bootstrap script)
+  vault_root_token_secret_arn   secret ARN (for IAM policy authoring)
+  vault_github_org              org name (passed through)
+  vault_github_admins           admins list (passed through)
+  vault_github_org_admins       org-admins list (passed through)
+
+All five emit `""` when `vault_enabled = false`.
+
+#### Migration for existing downstreams
+
+Clients currently carrying their own `vault-bootstrap.tf` (a vestigial
+copy of these resources) should:
+
+  1. Bump the module ref to `v0.34.0`.
+  2. `terraform import 'module.estabilis_platform.aws_secretsmanager_secret.vault_root_token[0]' estabilis/<deployment_id>/platform-vault-root-token`
+     so the upstream-owned resource adopts the existing AWS secret in
+     place (no recreate, no token loss).
+  3. Delete the local `vault-bootstrap.tf`. References to
+     `aws_secretsmanager_secret.vault_root_token` flip to
+     `module.estabilis_platform.vault_root_token_secret_{id,arn}`
+     outputs.
+  4. Add the github-auth values directly to the client `terraform.tfvars`
+     under the upstream variable names (`vault_github_org`,
+     `vault_github_admins`, `vault_github_org_admins`) — they accept the
+     same string shapes the local `vault-bootstrap.tf` already used.
+
+The downstream bootstrap script (e.g. `scripts/vault-bootstrap.sh`)
+reads the same outputs, so nothing changes there.
+
 ## [0.33.0] - 2026-04-28
 
 ### Added — `existing_subnet_role_tags_management` opt-out for shared-VPC deployments (AWS provider)
