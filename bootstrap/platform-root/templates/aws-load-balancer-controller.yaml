@@ -100,5 +100,10 @@ spec:
     syncOptions:
       - CreateNamespace=true
       - ServerSideApply=true
+      {{- /* See external-secrets.yaml for full rationale. Without this the
+            ignoreDifferences block above only suppresses the UI diff — ArgoCD
+            still re-applies the empty caBundle / TLS Secret data on every
+            reconcile, fighting the chart's webhook self-signing init. */}}
+      - RespectIgnoreDifferences=true
 {{- end }}
 {{- end }}

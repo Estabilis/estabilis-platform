@@ -1,5 +1,45 @@
 # Changelog
 
+## [0.36.2] - 2026-04-29
+
+### Fixed — `RespectIgnoreDifferences=true` on external-secrets + aws-load-balancer-controller
+
+Two `platform-root` Application templates declared `ignoreDifferences`
+for webhook `caBundle` (and, for ALB, the TLS Secret data and
+`IngressClassParams` body) but never paired the block with the
+matching `RespectIgnoreDifferences=true` syncOption. Without that
+syncOption, `ignoreDifferences` only hides diffs in the UI — ArgoCD
+keeps re-applying the empty values from Git on every reconcile,
+fighting the chart's own cert-controller / webhook self-signing init
+(Server-Side Apply field-manager war).
+
+Visible symptom on first AWS deployment of the cortex platform
+cluster: `external-secrets` Application oscillating
+`OutOfSync → Synced → OutOfSync`, controller pod up but webhook never
+stabilizes, `ExternalSecret` / `ClusterSecretStore` CRs unable to
+admit, dependent Apps stuck.
+
+This is **not a regression** — the `ignoreDifferences` block was first
+introduced in v0.26.2 (commit 2b9dac5) without the syncOption pair, so
+both templates have shipped half-broken since then. Cortex is the
+first AWS deployment exercising the path that triggers the fight; the
+hub/HML Azure deployments stabilized through different timing and
+masked the gap.
+
+Files:
+- `bootstrap/platform-root/templates/external-secrets.yaml` — add `RespectIgnoreDifferences=true`
+- `bootstrap/platform-root/templates/aws-load-balancer-controller.yaml` — add `RespectIgnoreDifferences=true`
+
+Pattern now matches `argocd.yaml`, `kyverno.yaml`, `platform-secrets.yaml`,
+and `cert-manager.yaml` (Azure branch), all of which already had the
+pair shipped together.
+
+### Files
+
+- `VERSION` (→ v0.36.2)
+- `bootstrap/platform-root/templates/external-secrets.yaml`
+- `bootstrap/platform-root/templates/aws-load-balancer-controller.yaml`
+
 ## [0.36.1] - 2026-04-29
 
 ### Fixed — `custom-apps.yaml` AppProject migration to taxonomy v2
