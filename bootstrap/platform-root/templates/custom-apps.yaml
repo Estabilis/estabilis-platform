@@ -13,7 +13,7 @@ metadata:
     estabilis.io/managed-by: client
     estabilis.io/tier: application
 spec:
-  project: applications
+  project: platform-apps
   source:
     repoURL: {{ $.Values.configRepoUrl }}
     targetRevision: {{ include "platform-root.configRepoRef" $ }}
