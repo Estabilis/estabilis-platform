@@ -1,5 +1,66 @@
 # Changelog
 
+## [0.36.8] - 2026-04-30
+
+### Fixed — `grafana-llm-provisioning` ConfigMap rendered unconditionally
+
+`core/components/platform-secrets/templates/grafana.yaml` now renders
+the `grafana-llm-provisioning` ConfigMap on every deployment regardless
+of `openaiApiKeyEnabled`. Only the `grafana-llm-credentials`
+ExternalSecret remains gated.
+
+Why this matters. v0.36.4 (commit 758d88b, PR #137) introduced a single
+`{{- if .Values.openaiApiKeyEnabled }}` wrapping both the LLM
+ExternalSecret and the LLM provisioning ConfigMap. The motivating bug
+was real for the ExternalSecret — without the source secret in
+AWS SM / Azure KV (TF gate `count = var.openai_api_key != "" ? 1 : 0`),
+ESO reconciles forever with "Secret does not exist" errors. But the
+gate was applied symmetrically to a resource that didn't have the same
+dependency: the ConfigMap is just static plugin provisioning YAML, no
+external dependency.
+
+That over-gate broke deployments without an OpenAI key. The Grafana
+pod template (`core/components/grafana-stack/grafana-values.yaml`)
+declares the ConfigMap mount unconditionally:
+
+```yaml
+extraConfigmapMounts:
+  - name: llm-provisioning
+    configMap: grafana-llm-provisioning   # no `optional: true`
+```
+
+When `openaiApiKeyEnabled=false` rendered no ConfigMap, the volume
+mount referenced a non-existent object → pod failed to start. Cortex
+PRD postmortem 2026-04-30: an out-of-band ConfigMap was created
+manually with `disabled: true`, which then triggered Grafana 12.3.1's
+`grafana-llm-app v1.0.8` refusal — the plugin has `auto_enabled: true`
+in its `plugin.json` and rejects `disabled: true` in provisioning,
+crashing the boot with `app provisioning error: plugin is auto enabled
+and cannot be disabled: grafana-llm-app`. The hot-fix was to flip the
+ConfigMap to `disabled: false` and accept that the plugin starts idle
+without an API key.
+
+Why the fix is asymmetric (CM unconditional, ES gated). The
+ExternalSecret has an external dependency (source secret in
+SM / KV) that's only created when `var.openai_api_key != ""`. Rendering
+it without that source guarantees a perpetual ESO reconcile error. The
+ConfigMap has no such dependency: it always points at
+`${OPENAI_API_KEY}`, an env var that resolves through
+`envFromSecrets[grafana-llm-credentials].optional: true`. Missing
+secret → empty env → plugin auto-enables and runs idle (no UI feature,
+no log spam, no crash). Cost: ~5s extra plugin install on boot,
+~12 MB on disk.
+
+Files. `core/components/platform-secrets/templates/grafana.yaml`,
+`VERSION`, `CHANGELOG.md`.
+
+To pick up after release. Cortex PRD downstream bumps `platform_version`
+to v0.36.8 in `providers/aws/terraform.tfvars` + `main.tf` ref, then
+`estabilis promote cortex -d platform-aws-us-east-1-prd --force-refresh`.
+The out-of-band `estabilis.io/temporary: "true"` annotation on the
+existing CM is replaced by the chart's metadata via SSA — no manual
+cleanup.
+
 ## [0.36.6] - 2026-04-30
 
 ### Fixed — `argocd-secret` data immune to spurious reconciliation
