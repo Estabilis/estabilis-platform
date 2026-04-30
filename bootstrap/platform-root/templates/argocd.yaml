@@ -40,6 +40,23 @@ spec:
       kind: ValidatingWebhookConfiguration
       jqPathExpressions:
         - .webhooks[]?.clientConfig.caBundle
+    {{- /* argocd-secret data is owned by argocd-server (admin password,
+          server.secretkey, admin.passwordMtime). The argo-cd 9.5.6 chart
+          renders the Secret WITHOUT a `data:` block when no optional
+          (argocdServerAdminPassword, extra, webhook secrets...) is set —
+          so SSA preserves data fine in steady state. The risk is during
+          rolling restarts of argocd-server: if the informer cache is
+          briefly empty, `InitializeSettings` (util/settings/settings.go)
+          regenerates server.secretkey, invalidating every live JWT.
+          Pinning data via ignoreDifferences makes the field fully owned
+          by argocd-server and immune to spurious reconciliation. Observed
+          incident: cortex prd 2026-04-30, "server.secretkey is missing"
+          on UI after self-managed sync rotated the Deployment template. */}}
+    - group: ""
+      kind: Secret
+      name: argocd-secret
+      jqPathExpressions:
+        - .data
   syncPolicy:
     {{- include "platform-root.managedNamespaceMetadataExcluded" . | nindent 4 }}
     retry:
