@@ -1,5 +1,38 @@
 # Changelog
 
+## [0.36.5] - 2026-04-30
+
+### Added — Pass `vault.enabled` to `cluster-secret-store` chart
+
+`bootstrap/platform-root/templates/cluster-secret-store.yaml` now
+forwards the `components.vault` toggle as the `vault.enabled` helm
+parameter to the gitops `cluster-secret-store` chart (>= v0.39.3),
+which renders an additional Vault-backed ClusterSecretStore named
+`app-secret-store` when activated.
+
+Default off (`components.vault: false` in platform-root values). When
+a downstream client opts in (`components.vault: true`), the same
+toggle that activates the Vault StatefulSet now also wires the
+`app-secret-store` so apps relying on the cortex `common-app`
+convention (`externalSecrets.storeName: app-secret-store`) start
+syncing immediately. No second toggle to forget.
+
+Cortex prd 2026-04-30 postmortem: 19 ExternalSecrets in `app-*`
+namespaces stuck on `SecretSyncedError` because the chart had only
+AWS / Azure branches; this release closes the loop.
+
+### Changed — Bump `platformGitopsVersion` default to v0.39.3
+
+Pulls in the new `cluster-secret-store-vault.yaml` template from
+[estabilis-platform-gitops v0.39.3](https://github.com/Estabilis/estabilis-platform-gitops/releases/tag/v0.39.3).
+
+### Files
+
+- `VERSION` (→ v0.36.5)
+- `bootstrap/platform-root/templates/cluster-secret-store.yaml` (+ `vault.enabled` parameter)
+- `bootstrap/platform-root/values.yaml` (`platformGitopsVersion` → v0.39.3)
+- `CHANGELOG.md` (this entry)
+
 ## [0.36.4] - 2026-04-30
 
 ### Fixed — gate `grafana-llm-credentials` ExternalSecret on `openai_api_key`
