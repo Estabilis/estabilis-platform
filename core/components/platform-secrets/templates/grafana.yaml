@@ -41,16 +41,43 @@ spec:
     - secretKey: password
       remoteRef:
         key: {{ .Values.kvSecrets.grafanaAdminPassword | quote }}
-{{- /* grafana-llm-credentials + grafana-llm-provisioning render only when
-      the operator populated `var.openai_api_key` in TF (which is what
-      writes the source secret to AWS Secrets Manager / Azure Key Vault).
-      Without this gate, deployments that don't use Grafana LLM see
-      continuous "Secret does not exist" reconcile errors because the
-      ExternalSecret points at a path that was never created (TF gate
-      `count = var.openai_api_key != "" ? 1 : 0`). The flag is
-      computed by providers/{aws,azure}/platform-outputs.tf and flows
-      through the platform-infrastructure ConfigMap → platform-root →
-      this chart's helm parameters. */}}
+---
+{{- /* grafana-llm-provisioning ConfigMap is rendered unconditionally.
+      The Grafana pod's `extraConfigmapMounts` in
+      core/components/grafana-stack/grafana-values.yaml declares this CM
+      with no `optional: true` flag, so a missing CM breaks the volume
+      mount and the pod fails to start. The plugin auto-enables
+      (`auto_enabled: true` in grafana-llm-app's plugin.json) and runs
+      idle when no OPENAI_API_KEY env var is injected — handled
+      gracefully because the matching `envFromSecrets` entry has
+      `optional: true`.
+
+      grafana-llm-credentials ExternalSecret below stays gated on
+      `openaiApiKeyEnabled` because its source secret in AWS SM /
+      Azure KV is created only when var.openai_api_key != "" (TF count
+      gate). Without that gate, ESO reconciles forever with "Secret
+      does not exist". The flag is computed by
+      providers/{aws,azure}/platform-outputs.tf and flows through the
+      platform-infrastructure ConfigMap → platform-root → this chart's
+      helm parameters. */}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-llm-provisioning
+  namespace: grafana
+  {{- include "estabilis.metadata" . | nindent 2 }}
+data:
+  llm.yaml: |
+    apiVersion: 1
+    apps:
+      - type: grafana-llm-app
+        disabled: false
+        jsonData:
+          openAI:
+            provider: openai
+            url: https://api.openai.com
+        secureJsonData:
+          openAIKey: ${OPENAI_API_KEY}
 {{- if .Values.openaiApiKeyEnabled }}
 ---
 # grafana-llm-credentials — OpenAI API key for Grafana LLM plugin
@@ -72,24 +99,4 @@ spec:
     - secretKey: OPENAI_API_KEY
       remoteRef:
         key: {{ .Values.kvSecrets.openaiApiKey | quote }}
----
-# ConfigMap for Grafana LLM plugin provisioning
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: grafana-llm-provisioning
-  namespace: grafana
-  {{- include "estabilis.metadata" . | nindent 2 }}
-data:
-  llm.yaml: |
-    apiVersion: 1
-    apps:
-      - type: grafana-llm-app
-        disabled: false
-        jsonData:
-          openAI:
-            provider: openai
-            url: https://api.openai.com
-        secureJsonData:
-          openAIKey: ${OPENAI_API_KEY}
 {{- end }}
