@@ -25,6 +25,14 @@ opencostEnabled: true
 # holds a placeholder.
 githubAppEnabled: false
 
+# OpenAI API key — gates grafana-llm-credentials ExternalSecret +
+# grafana-llm-provisioning ConfigMap. Default false because most deployments
+# don't enable Grafana LLM. The platform-root template flips this to true
+# when providers/{aws,azure}/platform-outputs.tf detects var.openai_api_key
+# is non-empty (which is also the gate for creating the source secret in
+# AWS Secrets Manager / Azure Key Vault).
+openaiApiKeyEnabled: false
+
 # Key Vault secret names — must exist in Key Vault before platform deploy
 kvSecrets:
   configRepoToken: "platform-config-repo-token"

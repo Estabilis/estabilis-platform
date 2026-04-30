@@ -93,6 +93,14 @@ resource "kubernetes_config_map" "platform_infrastructure" {
     "global.acrLoginServer"       = var.acr_enabled ? azurerm_container_registry.platform[0].login_server : ""
     "global.sharedAcrLoginServer" = var.shared_acr_login_server
 
+    # Optional integrations — boolean flags only (never the secret value).
+    # platform-secrets chart uses these to gate ExternalSecrets that
+    # point at Key Vault entries only created when the operator
+    # populates the source variable. Without the gate the chart renders
+    # an ExternalSecret expecting a Secret that never exists, producing
+    # continuous "Secret does not exist" reconcile errors.
+    "global.openaiApiKeyEnabled" = tostring(var.openai_api_key != "")
+
     # Cost
     "global.azureOfferId" = local.azure_offer_id
 
