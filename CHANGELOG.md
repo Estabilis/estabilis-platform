@@ -1,5 +1,58 @@
 # Changelog
 
+## [0.36.10] - 2026-04-30
+
+### Fixed — alloy KSM namespace label rewrite destroyed pod namespace info
+
+`core/components/grafana-stack/alloy-values.yaml` removes the
+`prometheus.relabel "kube_state_metrics"` rule that overrode
+`namespace = "kube-state-metrics"` on every metric scraped from KSM.
+
+The rule was introduced in commit d4eed7a (2026-03-13, "feat: add
+kube-state-metrics and OpenCost/KSM scrape jobs in Alloy") alongside
+an analogous rule for OpenCost. The OpenCost rule remains untouched
+because the OpenCost pod's metrics ARE about itself
+(`namespace="opencost"` is correct). KSM is different: it reports
+about OTHER pods — each metric carries the real pod's namespace
+natively, and overwriting it destroys the information.
+
+Effect on every cluster running this chart pre-v0.36.10:
+
+  count by (namespace) (kube_pod_container_resource_requests)
+  → only one bucket: namespace="kube-state-metrics"
+
+Real namespace values (`kube-system`, `app-*`, `cnpg-system`, ...)
+were absent from the namespace label of every `kube_*` metric.
+
+Tools silently broken:
+  - KRR / Goldilocks / VPA-style sizing — KRR's cluster-summary
+    query `sum(kube_pod_container_resource_requests{namespace=
+    "kube-system",...})` returned zero results, KRR aborted.
+  - Grafana dashboards filtering `kube_*` by namespace mixed all
+    namespaces into one bucket.
+  - Cost-allocation dashboards (opencost / kubecost) using KSM
+    attributed all costs to `kube-state-metrics` namespace.
+  - Mimir alerts on `kube_pod_*{namespace="X"}` had silent miss.
+
+Discovered 2026-04-30 when KRR ran against cortex prd:
+
+  [WARNING] Error: Expected exactly one result from Prometheus query
+  but instead got 0. sum(kube_pod_container_resource_requests
+  {namespace="kube-system", resource="memory"})
+  [CRITICAL] No objects available to scan.
+
+Direct Mimir confirmation showed all 288 `kube_pod_container_resource_
+requests` series carrying `namespace="kube-state-metrics"`.
+
+Verified at runtime on cortex prd via the local override workaround
+in [Cortex-Innovation/cortex-platform-aws-us-east-1-prd#46](https://github.com/Cortex-Innovation/cortex-platform-aws-us-east-1-prd/pull/46):
+after the same one-rule deletion, Mimir returned 36 distinct
+namespaces. Cortex prd's local override should be dropped once the
+cluster bumps `platform_version` to v0.36.10+.
+
+Inline comment added in alloy-values.yaml warning future operators
+not to re-add the rule.
+
 ## [0.36.9] - 2026-04-30
 
 ### Fixed — argocd controller worker tunables actually reach the running pod

@@ -433,10 +433,14 @@ alloy:
           target_label = "job"
           replacement  = "kube-state-metrics"
         }
-        rule {
-          target_label = "namespace"
-          replacement  = "kube-state-metrics"
-        }
+        // NOTE: do NOT add a `target_label = "namespace"` rewrite here.
+        // KSM emits metrics ABOUT OTHER PODS — each carries the real
+        // namespace of the reported pod (e.g. namespace="app-foo").
+        // Overwriting the namespace label destroys that information,
+        // breaking KRR / Goldilocks / Grafana dashboards filtering by
+        // namespace / Mimir alerts on `kube_*{namespace="X"}` / cost-
+        // allocation tooling. Originating bug: commit d4eed7a
+        // (2026-03-13). Fixed: 2026-04-30.
         rule {
           action = "labeldrop"
           regex  = "instance"
