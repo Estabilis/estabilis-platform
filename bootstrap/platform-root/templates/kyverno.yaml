@@ -107,6 +107,9 @@ spec:
     # ADR 0005 L1 provenance annotations (built-at, build-id, etc.)
     # are handled globally via argocd-cm resource.customizations.ignoreDifferences.all
   syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
     retry:
       limit: 10
       backoff:

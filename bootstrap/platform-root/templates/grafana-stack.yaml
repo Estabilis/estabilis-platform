@@ -413,6 +413,9 @@ spec:
     server: https://kubernetes.default.svc
     namespace: grafana
   syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
     retry:
       limit: 10
       backoff:
