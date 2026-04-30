@@ -98,6 +98,14 @@ resource "kubernetes_config_map_v1" "platform_infrastructure" {
     "global.traefikInternal"   = tostring(var.traefik_internal_enabled)
     "global.acmCertificateArn" = var.acm_enabled ? aws_acm_certificate.wildcard[0].arn : ""
 
+    # Optional integrations — boolean flags only (never the secret value).
+    # platform-secrets chart uses these to gate ExternalSecrets that point
+    # at AWS Secrets Manager paths only created when the operator
+    # populates the source variable. Without the gate the chart renders
+    # an ExternalSecret expecting a Secret that never exists, producing
+    # continuous "Secret does not exist" reconcile errors.
+    "global.openaiApiKeyEnabled" = tostring(var.openai_api_key != "")
+
     # ADR 0014 — App exposures as JSON-encoded map(object), filtered to
     # only enabled profiles.
     "global.lokiExposures"     = jsonencode({ for k, v in local.loki_exposures_resolved : k => v if v.enabled })

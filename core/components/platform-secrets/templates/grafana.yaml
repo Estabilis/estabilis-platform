@@ -41,6 +41,17 @@ spec:
     - secretKey: password
       remoteRef:
         key: {{ .Values.kvSecrets.grafanaAdminPassword | quote }}
+{{- /* grafana-llm-credentials + grafana-llm-provisioning render only when
+      the operator populated `var.openai_api_key` in TF (which is what
+      writes the source secret to AWS Secrets Manager / Azure Key Vault).
+      Without this gate, deployments that don't use Grafana LLM see
+      continuous "Secret does not exist" reconcile errors because the
+      ExternalSecret points at a path that was never created (TF gate
+      `count = var.openai_api_key != "" ? 1 : 0`). The flag is
+      computed by providers/{aws,azure}/platform-outputs.tf and flows
+      through the platform-infrastructure ConfigMap → platform-root →
+      this chart's helm parameters. */}}
+{{- if .Values.openaiApiKeyEnabled }}
 ---
 # grafana-llm-credentials — OpenAI API key for Grafana LLM plugin
 apiVersion: external-secrets.io/v1
@@ -81,3 +92,4 @@ data:
             url: https://api.openai.com
         secureJsonData:
           openAIKey: ${OPENAI_API_KEY}
+{{- end }}

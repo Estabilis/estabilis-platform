@@ -1,5 +1,56 @@
 # Changelog
 
+## [0.36.4] - 2026-04-30
+
+### Fixed — gate `grafana-llm-credentials` ExternalSecret on `openai_api_key`
+
+`core/components/platform-secrets/templates/grafana.yaml` was rendering
+the `grafana-llm-credentials` ExternalSecret + `grafana-llm-provisioning`
+ConfigMap unconditionally, while the matching source secret in AWS
+Secrets Manager / Azure Key Vault is only created when
+`var.openai_api_key != ""` (TF gate
+`count = var.openai_api_key != "" ? 1 : 0`).
+
+Result on deployments that didn't populate the OpenAI key (the default —
+cortex prd 2026-04-30 case): ESO reconciled the ExternalSecret
+forever, producing continuous `error processing spec.data[0] (key:
+estabilis/<deployment>/platform-openai-api-key), err: Secret does not
+exist` events in the `grafana` namespace.
+
+Fix flows a boolean flag through the existing GitOps Bridge pipeline
+already used for `githubAppEnabled` / `opencostEnabled`:
+
+1. `providers/{aws,azure}/platform-outputs.tf`: write
+   `"global.openaiApiKeyEnabled" = tostring(var.openai_api_key != "")`
+   to the `platform-infrastructure` ConfigMap.
+2. CLI's `params.py` reads the ConfigMap and the value flows into the
+   platform-root Application as `.Values.global.openaiApiKeyEnabled`
+   (no CLI change — generic `params.items()` loop already handles new
+   keys).
+3. `bootstrap/platform-root/templates/platform-secrets.yaml`: passes
+   the flag as the `openaiApiKeyEnabled` helm parameter.
+4. `core/components/platform-secrets/templates/grafana.yaml`: wraps
+   the two LLM resources in `{{- if .Values.openaiApiKeyEnabled }}`.
+
+The actual API key is **never** flowed through the ConfigMap (which is
+plaintext k8s data) — only the boolean. The key remains in
+`secrets.auto.tfvars` (sensitive) and AWS Secrets Manager / Azure Key
+Vault on the source side.
+
+To enable Grafana LLM after this release: set `openai_api_key = "sk-..."`
+in `secrets.auto.tfvars`, run `terraform apply`. Both the source secret
+AND the ExternalSecret + ConfigMap come up together.
+
+### Files
+
+- `VERSION` (→ v0.36.4)
+- `providers/aws/platform-outputs.tf` (+ `global.openaiApiKeyEnabled`)
+- `providers/azure/platform-outputs.tf` (+ `global.openaiApiKeyEnabled`)
+- `bootstrap/platform-root/templates/platform-secrets.yaml` (+ helm parameter)
+- `core/components/platform-secrets/templates/grafana.yaml` (gate `if`)
+- `core/components/platform-secrets/values.yaml` (default `openaiApiKeyEnabled: false`)
+- `CHANGELOG.md` (this entry)
+
 ## [0.36.3] - 2026-04-30
 
 ### Fixed — `external-secrets` webhook field-manager fight (cert-manager mode)
