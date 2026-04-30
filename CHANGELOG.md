@@ -1,5 +1,47 @@
 # Changelog
 
+## [0.36.6] - 2026-04-30
+
+### Fixed — `argocd-secret` data immune to spurious reconciliation
+
+`bootstrap/platform-root/templates/argocd.yaml` now declares
+`ignoreDifferences` for `Secret/argocd-secret`'s `.data` jqPath,
+matching the existing pattern used for AKS `admissionsenforcer` webhook
+drift on Mutating/Validating WebhookConfigurations.
+
+The field is owned by `argocd-server` (it auto-populates
+`server.secretkey`, `admin.password`, `admin.passwordMtime` on first
+start). The chart `argo-cd 9.5.6` deliberately renders the Secret
+WITHOUT a `data:` block when no optional (argocdServerAdminPassword,
+extra, webhook secrets...) is set — so SSA preserves data in steady
+state.
+
+The hidden risk is during rolling restarts of argocd-server. Cortex prd
+postmortem 2026-04-30: a self-managed sync changed the Deployment
+template (tolerations + podAntiAffinity dropped after Azure→AWS
+provider transition), rolled new pods. New pod's
+`util/settings/settings.go:InitializeSettings` checks
+`cdSettings.ServerSignature == nil`. If `argoCDSecret.Data` is empty in
+the informer cache during the brief startup window, the function
+regenerates `server.secretkey` from scratch — invalidating every JWT
+in flight. Symptom on UI: `server.secretkey is missing` /
+`invalid session: token signature is invalid` floods.
+
+Pinning `.data` via `ignoreDifferences` makes the field fully owned by
+argocd-server and immune to ArgoCD ever attempting to reconcile it.
+Even if a future operator deletes the Secret manually, argocd-server
+regenerates exactly once on the next pod startup and ArgoCD does not
+fight that regeneration with a stale render.
+
+This is hardening only — no observable change on a steady-state
+cluster. Effect kicks in on the next argocd-server rolling restart.
+
+### Files
+
+- `VERSION` (→ v0.36.6)
+- `bootstrap/platform-root/templates/argocd.yaml` (+ ignoreDifferences for argocd-secret data)
+- `CHANGELOG.md` (this entry)
+
 ## [0.36.5] - 2026-04-30
 
 ### Added — Pass `vault.enabled` to `cluster-secret-store` chart
