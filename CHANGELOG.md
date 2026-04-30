@@ -1,5 +1,56 @@
 # Changelog
 
+## [0.36.3] - 2026-04-30
+
+### Fixed — `external-secrets` webhook field-manager fight (cert-manager mode)
+
+`bootstrap/platform-root/templates/external-secrets.yaml`: adds three
+helm parameters that flip the chart from its bundled cert-controller
+to **cert-manager mode**:
+
+- `webhook.certManager.enabled=true`
+- `webhook.certManager.cert.issuerRef.kind=ClusterIssuer`
+- `webhook.certManager.cert.issuerRef.name=selfsigned`
+
+The bundled cert-controller writes the webhook `caBundle` via `Update`
+(full PUT). ArgoCD reconciles the same ValidatingWebhookConfiguration
+via `ServerSideApply`. The two operations race on `resourceVersion`,
+producing a continuous stream of HTTP 409 conflicts and 50+ rv
+increments/second on the cluster-scoped webhook configurations
+(observed on cortex prd 2026-04-30).
+
+`v0.36.2` only mitigated the **display** of the diff via
+`ignoreDifferences[caBundle]` + `RespectIgnoreDifferences=true` — the
+underlying race continued. This release eliminates the race at the
+source by stopping the bundled cert-controller entirely; cainjector
+populates `caBundle` via `Apply` (SSA), coexisting cleanly with
+ArgoCD's reconciliation.
+
+The chart creates a `Certificate` resource referencing the issuer; the
+Issuer itself ships in `cert-manager-config` v0.39.2 (universal
+`selfsigned` ClusterIssuer, applies to both Azure and AWS).
+
+The previous `ignoreDifferences[caBundle]` + `RespectIgnoreDifferences=true`
+in `external-secrets.yaml` is **kept** as belt-and-suspenders defense
+in case the chart ever falls back to bundled cert-controller via
+upstream config drift.
+
+### Changed — Bump `platformGitopsVersion` default to v0.39.2
+
+`bootstrap/platform-root/values.yaml`: `platformGitopsVersion:
+"v0.39.1"` → `"v0.39.2"`. Pulls in the universal `selfsigned`
+ClusterIssuer from gitops `cert-manager-config` referenced by the new
+helm parameters above.
+
+See [estabilis-platform-gitops v0.39.2 release notes](https://github.com/Estabilis/estabilis-platform-gitops/releases/tag/v0.39.2).
+
+### Files
+
+- `VERSION` (→ v0.36.3)
+- `bootstrap/platform-root/templates/external-secrets.yaml`
+- `bootstrap/platform-root/values.yaml` (`platformGitopsVersion` → v0.39.2)
+- `CHANGELOG.md` (this entry)
+
 ## [0.36.2] - 2026-04-29
 
 ### Fixed — `RespectIgnoreDifferences=true` on external-secrets + aws-load-balancer-controller
