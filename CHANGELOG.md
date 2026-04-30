@@ -1,5 +1,48 @@
 # Changelog
 
+## [0.36.9] - 2026-04-30
+
+### Fixed — argocd controller worker tunables actually reach the running pod
+
+`core/components/argocd/values.yaml` now sets `controller.extraArgs`
+instead of `controller.args`. The argocd helm chart (9.5.x
+`statefulset.yaml`) only renders `extraArgs` — `args` is silently
+dropped at template time. The intended `--status-processors=50` and
+`--operation-processors=25` sizing introduced in commit 6c217ff
+(2026-04-25, "feat(argocd): bump resources to fit ~40-App platform
+deployment") has never reached any client cluster running this
+chart since that commit. Every bootstrap fell back to the
+argocd-application-controller binary defaults:
+
+- `--status-processors=20`
+- `--operation-processors=10`
+
+Symptom: when ApplicationSet emits 30+ children simultaneously
+during cluster bootstrap, the operation processing queue stalls for
+minutes. Sync requests pile up; argocd-server times out waiting for
+controller responses; UI loads indefinitely; users perceive the
+control plane as dead. Verified on cortex prd 2026-04-30 — peak
+controller-1 memory hit 87% of the 2Gi limit during a 20-app sync
+wave (incremental, not full bootstrap), and the actual bootstrap
+the day before exhibited the symptom that motivated this fix.
+
+Confirmed via `helm template` against chart 9.5.6:
+
+  controller.extraArgs:[--status-processors=50,...]  → rendered ✓
+  controller.args:[--status-processors=50,...]       → ignored ✗
+
+And via `kubectl get sts argocd-application-controller -o jsonpath
+='{.spec.template.spec.containers[0].args}'` on the running cluster
+before/after the fix.
+
+Downstream propagation: clients pinned to v0.36.7/v0.36.8 should
+either bump `platform_version` to v0.36.9 OR add `controller.extraArgs`
+in their per-cluster `overrides/argocd/values.yaml` as an immediate
+hotfix (cortex prd already applied the override on 2026-04-30 in
+[Cortex-Innovation/cortex-platform-aws-us-east-1-prd#44](https://github.com/Cortex-Innovation/cortex-platform-aws-us-east-1-prd/pull/44);
+that override should be dropped once cortex prd is bumped to
+v0.36.9+).
+
 ## [0.36.8] - 2026-04-30
 
 ### Fixed — `grafana-llm-provisioning` ConfigMap rendered unconditionally

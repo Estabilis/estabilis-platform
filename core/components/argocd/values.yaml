@@ -148,7 +148,15 @@ server:
 
 controller:
   replicas: 1
-  args:
+  # The argocd helm chart (9.5.x statefulset.yaml) only renders
+  # `controller.extraArgs`, NOT `controller.args` — the latter is a
+  # silent no-op. The platform set `args:` since 6c217ff (2026-04-25)
+  # but the intended 50/25 worker sizing has never reached any client
+  # cluster running this chart, so every bootstrap fell back to the
+  # binary defaults `--status-processors=20` and `--operation-processors=10`.
+  # Result: operation queue stalls during 30+ App reconcile waves
+  # (sync travando + UI argocd-server loading sem fim).
+  extraArgs:
     - --status-processors=50
     - --operation-processors=25
   resources:
