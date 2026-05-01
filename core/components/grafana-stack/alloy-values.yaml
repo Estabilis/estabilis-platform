@@ -243,6 +243,44 @@ alloy:
         forward_to = [prometheus.remote_write.mimir.receiver]
       }
 
+      // ApplicationSet Controller — metrics on port 8080
+      discovery.relabel "argocd_applicationset" {
+        targets = discovery.kubernetes.argocd.targets
+
+        rule {
+          source_labels = ["__meta_kubernetes_pod_label_app_kubernetes_io_component"]
+          action        = "keep"
+          regex         = "applicationset-controller"
+        }
+
+        rule {
+          source_labels = ["__meta_kubernetes_pod_ip"]
+          target_label  = "__address__"
+          replacement   = "$1:8080"
+        }
+
+        rule {
+          source_labels = ["__meta_kubernetes_namespace"]
+          target_label  = "namespace"
+        }
+      }
+
+      prometheus.scrape "argocd_applicationset" {
+        targets    = discovery.relabel.argocd_applicationset.output
+        forward_to = [prometheus.relabel.argocd_applicationset.receiver]
+        clustering {
+          enabled = true
+        }
+      }
+
+      prometheus.relabel "argocd_applicationset" {
+        rule {
+          target_label = "job"
+          replacement  = "argocd-applicationset-controller"
+        }
+        forward_to = [prometheus.remote_write.mimir.receiver]
+      }
+
       // --- cert-manager ---
       prometheus.scrape "cert_manager" {
         targets = [{
@@ -449,10 +487,40 @@ alloy:
       }
 
       // --- External Secrets Operator ---
+      // The svc `external-secrets-metrics` referenced previously does NOT
+      // exist on this chart version — only `external-secrets-webhook` is
+      // shipped. Switched to pod-discovery so we scrape the controller
+      // pod (which exposes /metrics on container port 8080) directly.
+      discovery.kubernetes "external_secrets" {
+        role = "pod"
+        namespaces {
+          names = ["external-secrets"]
+        }
+      }
+
+      discovery.relabel "external_secrets" {
+        targets = discovery.kubernetes.external_secrets.targets
+
+        rule {
+          source_labels = ["__meta_kubernetes_pod_label_app_kubernetes_io_name"]
+          action        = "keep"
+          regex         = "external-secrets"
+        }
+
+        rule {
+          source_labels = ["__meta_kubernetes_pod_ip"]
+          target_label  = "__address__"
+          replacement   = "$1:8080"
+        }
+
+        rule {
+          source_labels = ["__meta_kubernetes_namespace"]
+          target_label  = "namespace"
+        }
+      }
+
       prometheus.scrape "external_secrets" {
-        targets = [{
-          __address__ = "external-secrets-metrics.external-secrets.svc.cluster.local:8080",
-        }]
+        targets    = discovery.relabel.external_secrets.output
         forward_to = [prometheus.relabel.external_secrets.receiver]
         clustering {
           enabled = true
@@ -462,10 +530,6 @@ alloy:
       prometheus.relabel "external_secrets" {
         rule {
           target_label = "job"
-          replacement  = "external-secrets"
-        }
-        rule {
-          target_label = "namespace"
           replacement  = "external-secrets"
         }
         forward_to = [prometheus.remote_write.mimir.receiver]
@@ -715,6 +779,316 @@ alloy:
         rule {
           target_label = "namespace"
           replacement  = "trivy-system"
+        }
+        forward_to = [prometheus.remote_write.mimir.receiver]
+      }
+
+      // --- Trivy Server (vulnerability DB ClientServer) ---
+      prometheus.scrape "trivy_server" {
+        targets = [{
+          __address__ = "trivy-service.trivy-system.svc.cluster.local:4954",
+        }]
+        forward_to = [prometheus.relabel.trivy_server.receiver]
+        clustering {
+          enabled = true
+        }
+      }
+
+      prometheus.relabel "trivy_server" {
+        rule {
+          target_label = "job"
+          replacement  = "trivy-server"
+        }
+        rule {
+          target_label = "namespace"
+          replacement  = "trivy-system"
+        }
+        forward_to = [prometheus.remote_write.mimir.receiver]
+      }
+
+      // --- Vault (HashiCorp) ---
+      // Requires `unauthenticated_metrics_access = true` in the vault
+      // listener telemetry block — set in the vault helm values upstream.
+      // Without it the /v1/sys/metrics endpoint returns 403.
+      // Targets the active-leader service (only the leader serves real
+      // metrics on the standalone path; HA standbys forward request to
+      // leader which then 403s on the auth check).
+      prometheus.scrape "vault" {
+        targets = [{
+          __address__   = "vault-active.vault.svc.cluster.local:8200",
+          __metrics_path__ = "/v1/sys/metrics",
+        }]
+        params      = { format = ["prometheus"] }
+        forward_to  = [prometheus.relabel.vault.receiver]
+        clustering {
+          enabled = true
+        }
+      }
+
+      prometheus.relabel "vault" {
+        rule {
+          target_label = "job"
+          replacement  = "vault"
+        }
+        rule {
+          target_label = "namespace"
+          replacement  = "vault"
+        }
+        forward_to = [prometheus.remote_write.mimir.receiver]
+      }
+
+      // =====================================================================
+      // Self-monitoring — grafana stack scrapes itself
+      // =====================================================================
+      // Each component in the stack exposes its own /metrics. Without
+      // self-scrape we have no visibility into mimir ingestion errors,
+      // alloy WAL backlog, loki query latency, etc. Self-monitoring is
+      // the standard pattern; see grafana-agent-mixin / mimir-mixin
+      // upstream dashboards which require these targets.
+
+      // --- Mimir self ---
+      // mimir-distributed exposes /metrics on container port 8080 across
+      // every component (distributor/ingester/querier/etc.). Pod
+      // discovery + label-based filter keeps the scrape generic; new
+      // components added by chart upgrades are picked up automatically.
+      discovery.kubernetes "grafana_ns" {
+        role = "pod"
+        namespaces {
+          names = ["grafana"]
+        }
+      }
+
+      discovery.relabel "mimir_self" {
+        targets = discovery.kubernetes.grafana_ns.targets
+
+        rule {
+          source_labels = ["__meta_kubernetes_pod_label_app_kubernetes_io_name"]
+          action        = "keep"
+          regex         = "mimir"
+        }
+
+        rule {
+          source_labels = ["__meta_kubernetes_pod_ip"]
+          target_label  = "__address__"
+          replacement   = "$1:8080"
+        }
+
+        rule {
+          source_labels = ["__meta_kubernetes_namespace"]
+          target_label  = "namespace"
+        }
+
+        rule {
+          source_labels = ["__meta_kubernetes_pod_label_app_kubernetes_io_component"]
+          target_label  = "component"
+        }
+      }
+
+      prometheus.scrape "mimir_self" {
+        targets    = discovery.relabel.mimir_self.output
+        forward_to = [prometheus.relabel.mimir_self.receiver]
+        clustering {
+          enabled = true
+        }
+      }
+
+      prometheus.relabel "mimir_self" {
+        rule {
+          target_label = "job"
+          replacement  = "mimir"
+        }
+        forward_to = [prometheus.remote_write.mimir.receiver]
+      }
+
+      // --- Loki self ---
+      discovery.relabel "loki_self" {
+        targets = discovery.kubernetes.grafana_ns.targets
+
+        rule {
+          source_labels = ["__meta_kubernetes_pod_label_app_kubernetes_io_name"]
+          action        = "keep"
+          regex         = "loki"
+        }
+
+        rule {
+          source_labels = ["__meta_kubernetes_pod_ip"]
+          target_label  = "__address__"
+          replacement   = "$1:3100"
+        }
+
+        rule {
+          source_labels = ["__meta_kubernetes_namespace"]
+          target_label  = "namespace"
+        }
+      }
+
+      prometheus.scrape "loki_self" {
+        targets    = discovery.relabel.loki_self.output
+        forward_to = [prometheus.relabel.loki_self.receiver]
+        clustering {
+          enabled = true
+        }
+      }
+
+      prometheus.relabel "loki_self" {
+        rule {
+          target_label = "job"
+          replacement  = "loki"
+        }
+        forward_to = [prometheus.remote_write.mimir.receiver]
+      }
+
+      // --- Grafana self ---
+      // Grafana metrics are on port 3000 path /metrics. Restricted to
+      // pods labeled `app.kubernetes.io/name=grafana` to avoid scraping
+      // sidecars (sc-dashboard, sc-datasources).
+      discovery.relabel "grafana_self" {
+        targets = discovery.kubernetes.grafana_ns.targets
+
+        rule {
+          source_labels = ["__meta_kubernetes_pod_label_app_kubernetes_io_name"]
+          action        = "keep"
+          regex         = "grafana"
+        }
+
+        rule {
+          source_labels = ["__meta_kubernetes_pod_ip"]
+          target_label  = "__address__"
+          replacement   = "$1:3000"
+        }
+
+        rule {
+          source_labels = ["__meta_kubernetes_namespace"]
+          target_label  = "namespace"
+        }
+      }
+
+      prometheus.scrape "grafana_self" {
+        targets    = discovery.relabel.grafana_self.output
+        forward_to = [prometheus.relabel.grafana_self.receiver]
+        clustering {
+          enabled = true
+        }
+      }
+
+      prometheus.relabel "grafana_self" {
+        rule {
+          target_label = "job"
+          replacement  = "grafana"
+        }
+        forward_to = [prometheus.remote_write.mimir.receiver]
+      }
+
+      // --- Tempo self ---
+      discovery.relabel "tempo_self" {
+        targets = discovery.kubernetes.grafana_ns.targets
+
+        rule {
+          source_labels = ["__meta_kubernetes_pod_label_app_kubernetes_io_name"]
+          action        = "keep"
+          regex         = "tempo"
+        }
+
+        rule {
+          source_labels = ["__meta_kubernetes_pod_ip"]
+          target_label  = "__address__"
+          replacement   = "$1:3100"
+        }
+
+        rule {
+          source_labels = ["__meta_kubernetes_namespace"]
+          target_label  = "namespace"
+        }
+      }
+
+      prometheus.scrape "tempo_self" {
+        targets    = discovery.relabel.tempo_self.output
+        forward_to = [prometheus.relabel.tempo_self.receiver]
+        clustering {
+          enabled = true
+        }
+      }
+
+      prometheus.relabel "tempo_self" {
+        rule {
+          target_label = "job"
+          replacement  = "tempo"
+        }
+        forward_to = [prometheus.remote_write.mimir.receiver]
+      }
+
+      // --- Pyroscope self ---
+      discovery.relabel "pyroscope_self" {
+        targets = discovery.kubernetes.grafana_ns.targets
+
+        rule {
+          source_labels = ["__meta_kubernetes_pod_label_app_kubernetes_io_name"]
+          action        = "keep"
+          regex         = "pyroscope"
+        }
+
+        rule {
+          source_labels = ["__meta_kubernetes_pod_ip"]
+          target_label  = "__address__"
+          replacement   = "$1:4040"
+        }
+
+        rule {
+          source_labels = ["__meta_kubernetes_namespace"]
+          target_label  = "namespace"
+        }
+      }
+
+      prometheus.scrape "pyroscope_self" {
+        targets    = discovery.relabel.pyroscope_self.output
+        forward_to = [prometheus.relabel.pyroscope_self.receiver]
+        clustering {
+          enabled = true
+        }
+      }
+
+      prometheus.relabel "pyroscope_self" {
+        rule {
+          target_label = "job"
+          replacement  = "pyroscope"
+        }
+        forward_to = [prometheus.remote_write.mimir.receiver]
+      }
+
+      // --- Alloy self ---
+      // Each alloy pod scrapes itself (clustering NOT enabled here so
+      // every replica reports its own state — for fleet-wide alloy
+      // diagnostics we WANT all replicas' samples in Mimir).
+      discovery.relabel "alloy_self" {
+        targets = discovery.kubernetes.grafana_ns.targets
+
+        rule {
+          source_labels = ["__meta_kubernetes_pod_label_app_kubernetes_io_name"]
+          action        = "keep"
+          regex         = "alloy"
+        }
+
+        rule {
+          source_labels = ["__meta_kubernetes_pod_ip"]
+          target_label  = "__address__"
+          replacement   = "$1:12345"
+        }
+
+        rule {
+          source_labels = ["__meta_kubernetes_namespace"]
+          target_label  = "namespace"
+        }
+      }
+
+      prometheus.scrape "alloy_self" {
+        targets    = discovery.relabel.alloy_self.output
+        forward_to = [prometheus.relabel.alloy_self.receiver]
+      }
+
+      prometheus.relabel "alloy_self" {
+        rule {
+          target_label = "job"
+          replacement  = "alloy"
         }
         forward_to = [prometheus.remote_write.mimir.receiver]
       }

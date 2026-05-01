@@ -67,6 +67,14 @@ spec:
                 tls_disable     = 1
                 address         = "[::]:8200"
                 cluster_address = "[::]:8201"
+                telemetry {
+                  # Allow unauthenticated /v1/sys/metrics scrape from
+                  # in-cluster alloy. Without this flag the endpoint
+                  # returns 403 and the vault job in Mimir reads up=0.
+                  # Network is restricted to grafana ns by NetworkPolicy
+                  # `allow-vault` (port 8200 from grafana only).
+                  unauthenticated_metrics_access = true
+                }
               }
 
               storage "raft" {
@@ -113,6 +121,14 @@ spec:
                 tls_disable     = 1
                 address         = "[::]:8200"
                 cluster_address = "[::]:8201"
+                telemetry {
+                  # Allow unauthenticated /v1/sys/metrics scrape from
+                  # in-cluster alloy. Without this flag the endpoint
+                  # returns 403 and the vault job in Mimir reads up=0.
+                  # Network is restricted to grafana ns by NetworkPolicy
+                  # `allow-vault` (port 8200 from grafana only).
+                  unauthenticated_metrics_access = true
+                }
               }
 
               storage "raft" {
