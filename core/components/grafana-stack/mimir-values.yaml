@@ -44,6 +44,20 @@ mimir:
     limits:
       compactor_blocks_retention_period: "2160h"  # 90 days
       max_label_names_per_series: 60              # AKS nodes carry ~47 labels via kube_node_labels
+      # Per-tenant active series cap. Default 150,000 was too low for a
+      # cluster with KSM + kyverno + cnpg + alloy + 6-component grafana
+      # self-monitoring — alloy logs on cortex prd 2026-04-30 showed:
+      #   "non-recoverable error ... err='per-user series limit of
+      #    150000 exceeded (err-mimir-max-series-per-user)' ... 2000
+      #    samples failed"
+      # New series (kyverno_*, cnpg_*) were silently dropped; old indexed
+      # labels stayed visible in /api/v1/label/__name__/values but
+      # `count({__name__=~\"kyverno_.*\"})` returned 0 instances.
+      # Bumped to 500k — covers KSM (~50k) + kyverno (~30k) + cnpg
+      # (~10k) + alloy/mimir/loki self-monitoring (~80k) + cortex apps
+      # (~20k) with 4× headroom for high-cardinality metrics like
+      # alloy's per-target histograms.
+      max_global_series_per_user: 500000
 
 # Disable embedded minio (we use cloud storage)
 minio:

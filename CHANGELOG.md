@@ -1,5 +1,75 @@
 # Changelog
 
+## [0.37.0] - 2026-04-30
+
+### Added — observability stack completeness sweep
+
+Audit on cortex prd 2026-04-30 found 10 distinct visibility gaps in
+the alloy → Mimir pipeline. None blocked anything functionally — they
+just meant the corresponding Grafana dashboards had no data. This
+release closes them all + raises the Mimir tenant series limit so the
+extra scrapes don't get dropped.
+
+#### alloy — new scrape jobs
+
+  argocd-applicationset-controller    pod discovery, port 8080
+  trivy-server                         svc trivy-service:4954
+  vault                                svc vault-active:8200/v1/sys/metrics
+  mimir-self                           pod discovery (label name=mimir, port 8080)
+  loki-self                            pod discovery (label name=loki, port 3100)
+  grafana-self                         pod discovery (label name=grafana, port 3000)
+  tempo-self                           pod discovery (label name=tempo, port 3100)
+  pyroscope-self                       pod discovery (label name=pyroscope, port 4040)
+  alloy-self                           pod discovery (label name=alloy, port 12345; clustering disabled — every replica reports its own state)
+
+#### alloy — fixed external-secrets target
+
+The previous scrape target `external-secrets-metrics.external-secrets.svc.cluster.local:8080`
+referenced a Service that does NOT exist in the chart. The actual
+controller pod listens on container port 8080. Switched to pod-discovery
+(role=pod, namespace=external-secrets, label app.kubernetes.io/name=
+external-secrets) which targets the controller pod's IP directly.
+
+#### vault — `unauthenticated_metrics_access`
+
+Vault's `/v1/sys/metrics` endpoint returns 403 by default. Without
+authentication, alloy can't scrape — and threading a Vault token
+through alloy adds a TTL/rotation problem we don't need for an
+in-cluster scrape that's already restricted by NetworkPolicy
+(`allow-vault` already pinned port 8200 to grafana ns only).
+
+Adds the `telemetry { unauthenticated_metrics_access = true }` block
+inside the `listener "tcp"` HCL stanza, in BOTH the AWS and Azure
+provider branches of `bootstrap/platform-root/templates/vault.yaml`.
+
+Reference: HashiCorp docs note that the metrics endpoint exposes
+operational counters/gauges only — no secrets.
+
+#### mimir — `max_global_series_per_user` 150k → 500k
+
+The Mimir default per-tenant active-series cap of 150,000 was too low
+for a cluster with KSM + kyverno + cnpg + alloy + 6-component grafana
+self-monitoring. Direct evidence from cortex prd 2026-04-30 alloy
+logs:
+
+    "non-recoverable error ... err='per-user series limit of 150000
+     exceeded (err-mimir-max-series-per-user)' ... 2000 samples failed"
+
+Existing scrape pipelines (kyverno_*, cnpg_*) had samples silently
+dropped — the metrics appeared in `/api/v1/label/__name__/values`
+(stale index) but `count({__name__=~"kyverno_.*"})` returned 0 series.
+
+Bumped to 500,000 — covers KSM (~50k) + kyverno (~30k) + cnpg (~10k)
++ alloy/mimir/loki self-monitoring (~80k) + cortex apps (~20k) with
+4× headroom for high-cardinality histograms.
+
+#### Downstream propagation
+
+NetworkPolicy fixes for cert-manager / cnpg-system / trivy-system
+ship in `Estabilis/estabilis-platform-gitops` v0.39.7 (PR #38).
+Bumping `platform_version` to v0.37.0 + `platformGitopsVersion` to
+v0.39.7 in a client repo unlocks the full visibility sweep.
+
 ## [0.36.10] - 2026-04-30
 
 ### Fixed — alloy KSM namespace label rewrite destroyed pod namespace info
