@@ -1,0 +1,25 @@
+{{- /*
+ConfigMap holding the Alertmanager YAML *template* — webhook URLs are
+placeholders (__SLACK_WEBHOOK_*__) substituted at runtime by the
+upload-job.yaml initContainer using values pulled from the K8s Secret
+produced by external-secret.yaml in this chart.
+
+We render the template via Helm `tpl` so per-channel settings
+(channelName, color, repeatInterval, etc.) and the routing tree are
+materialised at chart-sync time; only the secret values are deferred.
+
+Gated on slack.enabled — without Slack receivers there's no point
+shipping the AM config (Mimir AM keeps its in-pod fallback YAML, which
+on AWS is unused but on Azure remains the active config).
+*/ -}}
+{{- if .Values.slack.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alertmanager-config-template
+  namespace: {{ .Release.Namespace }}
+  {{- include "estabilis.metadata" . | nindent 2 }}
+data:
+  alertmanager.yaml.tpl: |
+{{ tpl (.Files.Get "files/alertmanager.yaml.tpl") . | indent 4 }}
+{{- end }}

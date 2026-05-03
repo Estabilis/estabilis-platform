@@ -429,3 +429,73 @@ spec:
         maxDuration: 3m
 {{- end }}
 {{- end }}
+
+---
+{{- /* observability: Mimir Alertmanager tenant config + Grafana NGAlert
+       routing setup. Downstream can disable via
+       components.mimir-alertmanager-config: false. Both this and
+       grafana-mimir gate the Application because the chart's Job
+       depends on the Mimir gateway being deployed. */ -}}
+{{- if ne (index .Values.components "mimir-alertmanager-config") false }}
+{{- if ne (index .Values.components "mimir") false }}
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: mimir-alertmanager-config
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "8"
+spec:
+  project: platform
+  sources:
+    - repoURL: {{ .Values.platformRepoUrl }}
+      targetRevision: {{ .Values.platformVersion }}
+      path: core/components/mimir-alertmanager-config
+      helm:
+        valueFiles:
+          - $values/core/components/mimir-alertmanager-config/values.yaml
+          # Provider-specific overlay (currently empty placeholders for
+          # both providers — provider-specific behaviour is driven by
+          # parameters below). Mirrors the mimir-rules pattern.
+          - $values/core/components/mimir-alertmanager-config/values-{{ .Values.global.provider }}.yaml
+          {{- include "platform-root.overrideValueFile" (dict "component" "mimir-alertmanager-config" "root" $) | nindent 10 }}
+        {{- include "platform-root.ignoreMissingValueFiles" $ | nindent 8 }}
+        {{- include "platform-root.provenanceParametersBlock" $ | nindent 8 }}
+        parameters:
+          {{- /* slack.enabled gate — same openai pattern. AWS gets the
+                value computed by providers/aws/platform-outputs.tf
+                (`global.slackAlertingEnabled` = tostring(var.slack_alerting_enabled));
+                Azure stays false unless a downstream override flips it. */}}
+          - name: slack.enabled
+            value: "{{ default false .Values.global.slackAlertingEnabled }}"
+          {{- if eq .Values.global.provider "aws" }}
+          {{- /* AWS Secrets Manager secrets live under
+                estabilis/<deploymentId>/* (the IRSA scope for external-secrets).
+                ExternalSecret remoteRef.key must be the full SM secret name.
+                Pattern matches core/components/platform-secrets templates. */}}
+          - name: kvSecrets.slackWebhookCritical
+            value: "{{ .Values.global.secretsPathPrefix }}/platform-alertmanager-slack-critical"
+          - name: kvSecrets.slackWebhookWarnings
+            value: "{{ .Values.global.secretsPathPrefix }}/platform-alertmanager-slack-warnings"
+          - name: kvSecrets.slackWebhookInfo
+            value: "{{ .Values.global.secretsPathPrefix }}/platform-alertmanager-slack-info"
+          {{- end }}
+    - repoURL: {{ .Values.platformRepoUrl }}
+      targetRevision: {{ .Values.platformVersion }}
+      ref: values
+    {{- include "platform-root.overrideSource" . | nindent 4 }}
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: grafana
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    retry:
+      limit: 10
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 3m
+{{- end }}
+{{- end }}

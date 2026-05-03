@@ -14,16 +14,47 @@ datasources:
         jsonData:
           timeInterval: 30s
           httpHeaderName1: X-Scope-OrgID
+          # Surface mimir-rules groups under Alerting -> Alert rules
+          # natively (no datasource view toggle needed in the UI).
+          manageAlerts: true
+          manageAlertingRules: true
+          # Tell Grafana this Prometheus is Mimir-flavored so it uses
+          # the Mimir Ruler config API path (/config/v1/rules/<ns>)
+          # instead of vanilla Prometheus paths. Validated 2026-05-03 via
+          # /api/datasources/uid/mimir/health -> features.rulerApiEnabled=true.
+          # Lets the Alerting -> Alert rules UI create/edit "Data source-
+          # managed" rules directly in Mimir Ruler (S3-backed on AWS,
+          # filesystem on Azure).
+          # CAVEAT: editing one of the platform rules shipped via the
+          # mimir-rules ConfigMap from the UI creates drift between git
+          # (ConfigMap) and the Ruler backend. Convention: rules that
+          # should live in git stay in the ConfigMap; ad-hoc/experimental
+          # rules are created via UI.
+          prometheusType: Mimir
+          prometheusVersion: "3.0.1"
         secureJsonData:
           httpHeaderValue1: anonymous
       - name: Mimir Alertmanager
         uid: mimir-alertmanager
         type: alertmanager
         access: proxy
-        url: http://grafana-mimir-gateway.grafana.svc.cluster.local/alertmanager
+        # NOTE: URL is the gateway ROOT, not /alertmanager. The Grafana
+        # proxy calls `<url>/api/v1/alerts` for tenant config; with the
+        # /alertmanager suffix the call hit the deprecated AM v1 API and
+        # got HTTP 410 (validated 2026-05-03 in cortex prd). Root URL
+        # routes correctly to Mimir's multitenant config endpoint.
+        url: http://grafana-mimir-gateway.grafana.svc.cluster.local
         jsonData:
           implementation: mimir
           httpHeaderName1: X-Scope-OrgID
+          # Allow Grafana UI to surface this AM's contact points + routing
+          # tree, and accept Grafana-managed alert routing through this AM
+          # (mimir-alertmanager-config chart's grafana-ngalert-external-am
+          # Job sets alertmanagersChoice=external + external_alertmanager_uid
+          # = mimir-alertmanager so Grafana auto-discovers this datasource
+          # as the dispatch target).
+          manageAlerts: true
+          handleGrafanaManagedAlerts: true
         secureJsonData:
           httpHeaderValue1: anonymous
       - name: Loki

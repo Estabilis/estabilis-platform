@@ -1,0 +1,156 @@
+# Mimir tenant Alertmanager configuration + Grafana NGAlert routing setup.
+#
+# Two pieces under one chart:
+#
+#   1. Slack alerting pipeline (gated on `slack.enabled`):
+#      - ConfigMap with the Alertmanager YAML config TEMPLATE
+#      - ExternalSecret pulling 3 webhook URLs from AWS Secrets Manager
+#      - PostSync Job that substitutes __SLACK_WEBHOOK_*__ placeholders
+#        and uploads the rendered config to Mimir Alertmanager via
+#        `mimirtool alertmanager load`.
+#
+#   2. Grafana NGAlert "external Alertmanager" mode (gated on
+#      `grafanaExternalAm.enabled`, default true):
+#      - PostSync Job that POSTs `alertmanagersChoice=external` to
+#        Grafana's /api/v1/ngalert/admin_config endpoint, so any
+#        Grafana-managed alert rule routes through the Mimir Alertmanager
+#        (discovered via the Mimir Alertmanager datasource that has
+#        `handleGrafanaManagedAlerts: true` set in grafana-stack/grafana-values.yaml).
+#
+# Why one chart instead of two: both pieces are about "Mimir AM is the
+# single source of truth for alert routing on this platform". Splitting
+# them adds two ArgoCD Applications and a sync ordering concern with
+# zero benefit — they have no overlapping resource names and gate
+# independently.
+#
+# Provider behaviour:
+#   - Azure: keeps mimir.alertmanager_storage.backend = filesystem
+#     (mimir-values.yaml). The Slack pipeline can still be opted into,
+#     but its primary motivation (S3-backed multitenant config that
+#     ignores the in-pod fallback) is AWS-specific.
+#   - AWS: mimir-values-aws.yaml flips alertmanager_storage to s3, which
+#     makes the in-pod fallbackConfig file unused — the Slack pipeline
+#     uploads via API as the only path that lands per-tenant config.
+
+# -----------------------------------------------------------------------
+# Slack alerting pipeline (opt-in)
+# -----------------------------------------------------------------------
+slack:
+  # Master flag for the Slack pipeline. On AWS this is overridden via
+  # platform-root helm.parameters from `global.slackAlertingEnabled`
+  # (which `providers/aws/platform-outputs.tf` computes from
+  # `var.slack_alerting_enabled`). Stays false on Azure unless the
+  # downstream override flips it.
+  enabled: false
+
+  channels:
+    critical:
+      enabled: true
+      channelName: "#platform-critical"
+      tier: "1"
+      groupWait: 0s              # critical: no batching delay
+      repeatInterval: 1h         # remind hourly while firing
+      color: danger
+    warnings:
+      enabled: true
+      channelName: "#platform-warnings"
+      tier: "2"
+      groupWait: 30s
+      repeatInterval: 4h
+      color: warning
+    info:
+      enabled: true
+      channelName: "#platform-info"
+      tier: "3"
+      groupWait: 30s
+      repeatInterval: 12h
+      color: "#3b82f6"
+      sendResolved: false        # info volume is high enough that
+                                 # resolved spam is undesirable
+
+  defaults:
+    groupBy: [alertname, cluster, namespace, severity]
+    groupWait: 30s
+    groupInterval: 5m
+    repeatInterval: 4h
+    sendResolved: true
+
+  # When true, a tier=1 alert is also forwarded to slack-warnings
+  # (so people watching only -warnings still see escalations).
+  criticalContinue: true
+
+# -----------------------------------------------------------------------
+# Grafana NGAlert external Alertmanager mode
+# -----------------------------------------------------------------------
+grafanaExternalAm:
+  # Always-on by default — the platform standard is "Mimir AM is the
+  # single source of truth for routing", regardless of whether Slack is
+  # configured today. With this true, any Grafana-managed alert rule
+  # (none today, but possible) routes via the Mimir AM the operator has
+  # configured as datasource.
+  enabled: true
+
+  # UID of the Mimir Alertmanager datasource (set in
+  # grafana-stack/grafana-values.yaml). Used to fill the
+  # `external_alertmanager_uid` field of /api/v1/ngalert/admin_config —
+  # enables Grafana UI <-> Mimir AM contact-points/notification-policies
+  # config sync.
+  alertmanagerDatasourceUid: mimir-alertmanager
+
+# -----------------------------------------------------------------------
+# Mimir gateway address (in-cluster, fixed by the chart)
+# -----------------------------------------------------------------------
+mimir:
+  gatewayUrl: http://grafana-mimir-gateway.grafana.svc.cluster.local
+  # Tenant ID. Matches the tenant Alloy writes metrics to (gateway nginx
+  # injects `anonymous` when no X-Scope-OrgID header is sent).
+  tenantId: anonymous
+
+# -----------------------------------------------------------------------
+# Job images (pin deliberately, bump in CHANGELOG when changing)
+# -----------------------------------------------------------------------
+images:
+  # Mimir's CLI for uploading tenant AM config + reading rules. Match
+  # the Mimir 3.0.x server line so API protocol stays consistent.
+  mimirtool: grafana/mimirtool:3.0.6
+  # Shell + sed for substituting __SLACK_WEBHOOK_*__ placeholders in the
+  # template before mimirtool reads it. busybox is the minimum (sh + sed).
+  shell: busybox:1.36
+  # curl + sh for posting to Grafana NGAlert admin_config API. Alpine-
+  # based, has the shell idioms the Job relies on.
+  curl: curlimages/curl:8.10.1
+
+# -----------------------------------------------------------------------
+# Resources (small — these are short-lived Jobs)
+# -----------------------------------------------------------------------
+resources:
+  init:
+    requests: { cpu: 10m, memory: 16Mi }
+    limits:   { cpu: 50m, memory: 32Mi }
+  mimirtool:
+    requests: { cpu: 25m, memory: 32Mi }
+    limits:   { cpu: 200m, memory: 128Mi }
+  curl:
+    requests: { cpu: 10m, memory: 16Mi }
+    limits:   { cpu: 50m, memory: 32Mi }
+
+# -----------------------------------------------------------------------
+# AWS Secrets Manager source secret names for the 3 webhooks.
+#
+# Defaults are SHORT names; the bootstrap/platform-root template
+# overrides each entry with the full `estabilis/<deploymentId>/*`
+# prefixed path when provider=aws (same pattern used by
+# core/components/platform-secrets — see comment on its `kvSecrets`
+# block in bootstrap/platform-root/templates/platform-secrets.yaml).
+# -----------------------------------------------------------------------
+kvSecrets:
+  slackWebhookCritical: "platform-alertmanager-slack-critical"
+  slackWebhookWarnings: "platform-alertmanager-slack-warnings"
+  slackWebhookInfo:     "platform-alertmanager-slack-info"
+
+# -----------------------------------------------------------------------
+# Provenance — populated via global.provenance.* helm parameters
+# (ADR 0005 Phase 2b).
+# -----------------------------------------------------------------------
+global:
+  provenance: {}

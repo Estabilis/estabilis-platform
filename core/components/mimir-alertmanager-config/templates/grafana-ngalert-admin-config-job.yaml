@@ -1,0 +1,112 @@
+{{- /*
+Set Grafana NGAlert `alertmanagersChoice = external` so any rule created
+via Grafana UI ("Grafana-managed" rules) routes through the Mimir
+Alertmanager instead of Grafana's built-in (empty) AM. Combined with
+`handleGrafanaManagedAlerts: true` on the Mimir AM datasource (set in
+core/components/grafana-stack/grafana-values.yaml), Grafana auto-
+discovers Mimir AM and dispatches there.
+
+Why a Job instead of a config file:
+  alertmanagersChoice lives in Grafana's `ngalert_configuration` table
+  (per-org row). There is NO grafana.ini key and NO file-based
+  provisioning hook for it — confirmed by inspecting Grafana 12.x source
+  (pkg/services/ngalert/store/admin_configuration.go). The only way to
+  set it as code is to call the admin_config API after Grafana is up.
+
+Idempotence: POST /api/v1/ngalert/admin_config overwrites the row.
+
+Survivability: persists in CNPG (Postgres). A pod restart or chart
+resync doesn't lose the setting. This Job exists to recover from a
+CNPG-recreate-without-restore scenario, AND to make the platform
+reproducible on a fresh cluster (zero-touch from operator).
+
+Always renders when chart is installed (gated only by chart presence
+via components.mimir-alertmanager-config in platform-root). Independent
+of slack.enabled — the standard "Mimir AM is the source of truth for
+routing" applies whether or not Slack receivers are configured.
+*/ -}}
+{{- if .Values.grafanaExternalAm.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: grafana-ngalert-external-am
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation,HookSucceeded
+    argocd.argoproj.io/sync-wave: "2"
+    {{- include "estabilis.annotations" . | nindent 4 }}
+  labels:
+    {{- include "estabilis.labels" . | nindent 4 }}
+spec:
+  backoffLimit: 5
+  ttlSecondsAfterFinished: 600
+  template:
+    metadata:
+      labels:
+        {{- include "estabilis.labels" . | nindent 8 }}
+    spec:
+      restartPolicy: OnFailure
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: set-external-am
+          image: {{ .Values.images.curl | quote }}
+          imagePullPolicy: IfNotPresent
+          command: ['/bin/sh', '-c']
+          args:
+            - |
+              set -eu
+              GRAFANA_URL="http://grafana.{{ .Release.Namespace }}.svc.cluster.local"
+              # Wait until grafana /api/health returns OK (db: ok). Up to ~2 min.
+              echo "waiting for Grafana to be reachable at ${GRAFANA_URL}/api/health..."
+              for i in $(seq 1 60); do
+                if curl -sS --fail --max-time 3 "${GRAFANA_URL}/api/health" >/dev/null 2>&1; then
+                  echo "  grafana reachable on attempt ${i}"
+                  break
+                fi
+                sleep 2
+              done
+              echo "current admin_config:"
+              curl -sS -u "admin:${ADMIN_PASSWORD}" "${GRAFANA_URL}/api/v1/ngalert/admin_config" || true
+              echo
+              # Set alertmanagersChoice = external. external_alertmanager_uid
+              # enables Grafana UI <-> Mimir AM contact-points/notification-policies
+              # config sync via the named datasource.
+              echo "POST /api/v1/ngalert/admin_config (alertmanagersChoice=external, external_alertmanager_uid={{ .Values.grafanaExternalAm.alertmanagerDatasourceUid }})..."
+              HTTP=$(curl -sS -o /tmp/resp.json -w '%{http_code}' \
+                -u "admin:${ADMIN_PASSWORD}" \
+                -H 'Content-Type: application/json' \
+                -X POST \
+                "${GRAFANA_URL}/api/v1/ngalert/admin_config" \
+                -d '{"alertmanagersChoice":"external","external_alertmanager_uid":"{{ .Values.grafanaExternalAm.alertmanagerDatasourceUid }}"}')
+              echo "HTTP ${HTTP}"
+              cat /tmp/resp.json
+              echo
+              if [ "${HTTP}" != "201" ] && [ "${HTTP}" != "200" ]; then
+                echo "ERROR: unexpected HTTP ${HTTP}"
+                exit 1
+              fi
+              echo "post-update admin_config:"
+              curl -sS -u "admin:${ADMIN_PASSWORD}" "${GRAFANA_URL}/api/v1/ngalert/admin_config"
+              echo
+              echo "done"
+          env:
+            - name: ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: grafana-admin-credentials
+                  key: admin-password
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
+            capabilities:
+              drop: [ALL]
+          resources:
+            {{- toYaml .Values.resources.curl | nindent 12 }}
+{{- end }}
