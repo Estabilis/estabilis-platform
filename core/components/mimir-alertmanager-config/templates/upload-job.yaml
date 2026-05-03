@@ -1,0 +1,129 @@
+{{- /*
+PostSync Job that uploads the rendered Alertmanager configuration to the
+Mimir Alertmanager API for tenant `anonymous`.
+
+Two-container pipeline:
+  - initContainer (busybox): substitutes __SLACK_WEBHOOK_*__ placeholders
+    in the YAML template (mounted from ConfigMap) with values pulled
+    from the alertmanager-slack-webhooks Secret. Writes rendered config
+    to a shared emptyDir.
+  - main container (mimirtool): calls
+    `mimirtool alertmanager load /shared/alertmanager.yaml` against the
+    Mimir gateway. mimirtool is distroless — that's why the substitution
+    happens in a separate container that has a shell.
+
+Why not env-var expansion in fallbackConfig:
+  Mimir's `-config.expand-env=true` flag interpolates env vars in the
+  *global* Mimir process config (mimir.yaml) only — NOT in the
+  Alertmanager fallback config file. Confirmed reading
+  pkg/alertmanager/multitenant.go on grafana/mimir main: fallback file
+  is loaded with `os.ReadFile()` raw, no expansion. So secrets must be
+  inlined at upload time.
+
+Idempotence: `mimirtool alertmanager load` overwrites the tenant config
+in place; re-running this Job is safe. hook-delete-policy
+`BeforeHookCreation,HookSucceeded` cleans up successful runs and only
+retains failed ones for triage.
+
+Gated on slack.enabled.
+*/ -}}
+{{- if .Values.slack.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: mimir-alertmanager-config-upload
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation,HookSucceeded
+    argocd.argoproj.io/sync-wave: "1"
+    {{- include "estabilis.annotations" . | nindent 4 }}
+  labels:
+    {{- include "estabilis.labels" . | nindent 4 }}
+spec:
+  backoffLimit: 5
+  ttlSecondsAfterFinished: 600
+  template:
+    metadata:
+      labels:
+        {{- include "estabilis.labels" . | nindent 8 }}
+    spec:
+      restartPolicy: OnFailure
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      initContainers:
+        - name: render-config
+          image: {{ .Values.images.shell | quote }}
+          imagePullPolicy: IfNotPresent
+          command: ['/bin/sh', '-c']
+          args:
+            - |
+              set -eu
+              # Substitute __SLACK_WEBHOOK_*__ placeholders. Using `|`
+              # delimiter because URLs contain `/` but never `|`.
+              sed \
+                -e "s|__SLACK_WEBHOOK_CRITICAL__|${SLACK_WEBHOOK_CRITICAL:-}|g" \
+                -e "s|__SLACK_WEBHOOK_WARNINGS__|${SLACK_WEBHOOK_WARNINGS:-}|g" \
+                -e "s|__SLACK_WEBHOOK_INFO__|${SLACK_WEBHOOK_INFO:-}|g" \
+                /etc/am-template/alertmanager.yaml.tpl > /shared/alertmanager.yaml
+              # Sanity log (no URLs printed — just a webhook count to confirm substitution worked).
+              echo "rendered $(wc -l < /shared/alertmanager.yaml) lines, $(grep -c hooks.slack.com /shared/alertmanager.yaml) webhook URLs substituted"
+          env:
+            {{- if .Values.slack.channels.critical.enabled }}
+            - name: SLACK_WEBHOOK_CRITICAL
+              valueFrom: { secretKeyRef: { name: alertmanager-slack-webhooks, key: critical } }
+            {{- end }}
+            {{- if .Values.slack.channels.warnings.enabled }}
+            - name: SLACK_WEBHOOK_WARNINGS
+              valueFrom: { secretKeyRef: { name: alertmanager-slack-webhooks, key: warnings } }
+            {{- end }}
+            {{- if .Values.slack.channels.info.enabled }}
+            - name: SLACK_WEBHOOK_INFO
+              valueFrom: { secretKeyRef: { name: alertmanager-slack-webhooks, key: info } }
+            {{- end }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          volumeMounts:
+            - name: am-template
+              mountPath: /etc/am-template
+              readOnly: true
+            - name: shared
+              mountPath: /shared
+          resources:
+            {{- toYaml .Values.resources.init | nindent 12 }}
+      containers:
+        - name: mimirtool
+          image: {{ .Values.images.mimirtool | quote }}
+          imagePullPolicy: IfNotPresent
+          args:
+            - alertmanager
+            - load
+            - --address={{ .Values.mimir.gatewayUrl }}
+            - --id={{ .Values.mimir.tenantId }}
+            - /shared/alertmanager.yaml
+          volumeMounts:
+            - name: shared
+              mountPath: /shared
+              readOnly: true
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          resources:
+            {{- toYaml .Values.resources.mimirtool | nindent 12 }}
+      volumes:
+        - name: am-template
+          configMap:
+            name: alertmanager-config-template
+        - name: shared
+          emptyDir: {}
+{{- end }}

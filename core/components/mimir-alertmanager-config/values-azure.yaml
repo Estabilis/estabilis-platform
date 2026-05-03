@@ -1,0 +1,15 @@
+# Azure-specific overlay for mimir-alertmanager-config.
+# Loaded after values.yaml when provider=azure.
+#
+# Intentionally empty: on Azure the Mimir Alertmanager keeps the upstream
+# `alertmanager_storage.backend: filesystem` default (mimir-values.yaml).
+# The Slack pipeline stays opt-in via the downstream override; the
+# Grafana NGAlert admin-config Job runs unconditionally (chart-level)
+# to set alertmanagersChoice=external — same standard regardless of
+# provider.
+#
+# This file exists to satisfy the unconditional valueFiles entry in
+# bootstrap/platform-root/templates/grafana-stack.yaml; deleting it
+# would fail ArgoCD sync on clusters without an overrides repo (where
+# the platform-root.ignoreMissingValueFiles helper isn't emitted).
+{}

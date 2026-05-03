@@ -1246,6 +1246,51 @@ variable "openai_api_key" {
 }
 
 # ---------------------------------------------------------------------------
+# Mimir Alertmanager — Slack alerting pipeline.
+#
+# Master toggle (slack_alerting_enabled, non-sensitive — lives in
+# terraform.tfvars alongside vault_enabled etc) gates:
+#   - 3 aws_secretsmanager_secret resources in secrets-manager.tf
+#   - the `slack.enabled` parameter passed to the
+#     mimir-alertmanager-config chart from platform-root (which gates
+#     ConfigMap + ExternalSecret + upload-job rendering — same openai
+#     pattern: chart skips the resources entirely when disabled, no
+#     SecretSyncError noise).
+#
+# Three webhook URL variables (slack_webhook_alertmanager_*, sensitive)
+# carry the actual Slack Incoming Webhook URLs. Each non-empty value
+# becomes the `secret_string` of the corresponding SM secret. Routing
+# tier-based (1/2/3) defined in the chart values.
+# ---------------------------------------------------------------------------
+
+variable "slack_alerting_enabled" {
+  description = "Master toggle for the Mimir Alertmanager Slack alerting pipeline. When true, terraform creates 3 SM secrets and the platform-root chart enables the mimir-alertmanager-config Slack templates. Requires all 3 slack_webhook_alertmanager_* variables non-empty."
+  type        = bool
+  default     = false
+}
+
+variable "slack_webhook_alertmanager_critical" {
+  description = "Slack Incoming Webhook URL for tier 1 (critical) alerts. Required when slack_alerting_enabled = true. Pass via secrets.auto.tfvars or TF_VAR_slack_webhook_alertmanager_critical."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "slack_webhook_alertmanager_warnings" {
+  description = "Slack Incoming Webhook URL for tier 2 (warning) alerts. Required when slack_alerting_enabled = true. Pass via secrets.auto.tfvars or TF_VAR_slack_webhook_alertmanager_warnings."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "slack_webhook_alertmanager_info" {
+  description = "Slack Incoming Webhook URL for tier 3 (info) alerts. Required when slack_alerting_enabled = true. Pass via secrets.auto.tfvars or TF_VAR_slack_webhook_alertmanager_info."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+# ---------------------------------------------------------------------------
 # Shared Hub Secrets (cross-deployment secret sharing, analog of the shared
 # Azure Key Vault). Published via Secrets Manager under a shared path that
 # workload clusters read.

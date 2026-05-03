@@ -127,6 +127,54 @@ resource "aws_secretsmanager_secret_version" "openai_api_key" {
 }
 
 # ---------------------------------------------------------------------------
+# Mimir Alertmanager Slack webhooks — one secret per channel (tier 1/2/3).
+# Consumed by the mimir-alertmanager-config chart's ExternalSecret (which
+# pulls into K8s Secret `alertmanager-slack-webhooks` in the grafana ns).
+# Gated by slack_alerting_enabled + per-URL non-empty (matching openai
+# pattern: empty value = no SM resource = chart's ExternalSecret also
+# skipped via slack.enabled gate, so no SecretSyncError noise).
+# ---------------------------------------------------------------------------
+
+resource "aws_secretsmanager_secret" "alertmanager_slack_critical" {
+  count                   = var.slack_alerting_enabled && var.slack_webhook_alertmanager_critical != "" ? 1 : 0
+  name                    = "${local.secrets_path_prefix}/platform-alertmanager-slack-critical"
+  kms_key_id              = aws_kms_key.platform_secrets.arn
+  recovery_window_in_days = var.secretsmanager_recovery_days
+}
+
+resource "aws_secretsmanager_secret_version" "alertmanager_slack_critical" {
+  count         = var.slack_alerting_enabled && var.slack_webhook_alertmanager_critical != "" ? 1 : 0
+  secret_id     = aws_secretsmanager_secret.alertmanager_slack_critical[0].id
+  secret_string = var.slack_webhook_alertmanager_critical
+}
+
+resource "aws_secretsmanager_secret" "alertmanager_slack_warnings" {
+  count                   = var.slack_alerting_enabled && var.slack_webhook_alertmanager_warnings != "" ? 1 : 0
+  name                    = "${local.secrets_path_prefix}/platform-alertmanager-slack-warnings"
+  kms_key_id              = aws_kms_key.platform_secrets.arn
+  recovery_window_in_days = var.secretsmanager_recovery_days
+}
+
+resource "aws_secretsmanager_secret_version" "alertmanager_slack_warnings" {
+  count         = var.slack_alerting_enabled && var.slack_webhook_alertmanager_warnings != "" ? 1 : 0
+  secret_id     = aws_secretsmanager_secret.alertmanager_slack_warnings[0].id
+  secret_string = var.slack_webhook_alertmanager_warnings
+}
+
+resource "aws_secretsmanager_secret" "alertmanager_slack_info" {
+  count                   = var.slack_alerting_enabled && var.slack_webhook_alertmanager_info != "" ? 1 : 0
+  name                    = "${local.secrets_path_prefix}/platform-alertmanager-slack-info"
+  kms_key_id              = aws_kms_key.platform_secrets.arn
+  recovery_window_in_days = var.secretsmanager_recovery_days
+}
+
+resource "aws_secretsmanager_secret_version" "alertmanager_slack_info" {
+  count         = var.slack_alerting_enabled && var.slack_webhook_alertmanager_info != "" ? 1 : 0
+  secret_id     = aws_secretsmanager_secret.alertmanager_slack_info[0].id
+  secret_string = var.slack_webhook_alertmanager_info
+}
+
+# ---------------------------------------------------------------------------
 # Resource policies — defense-in-depth on top of IAM identity policies.
 #
 # Only the Terraform principal (for apply/destroy) and the external-secrets
@@ -192,6 +240,27 @@ resource "aws_secretsmanager_secret_policy" "grafana_admin" {
 resource "aws_secretsmanager_secret_policy" "grafana_db" {
   count               = var.secretsmanager_resource_policy_enabled ? 1 : 0
   secret_arn          = aws_secretsmanager_secret.grafana_db.arn
+  policy              = data.aws_iam_policy_document.platform_secret_policy[0].json
+  block_public_policy = true
+}
+
+resource "aws_secretsmanager_secret_policy" "alertmanager_slack_critical" {
+  count               = var.slack_alerting_enabled && var.slack_webhook_alertmanager_critical != "" && var.secretsmanager_resource_policy_enabled ? 1 : 0
+  secret_arn          = aws_secretsmanager_secret.alertmanager_slack_critical[0].arn
+  policy              = data.aws_iam_policy_document.platform_secret_policy[0].json
+  block_public_policy = true
+}
+
+resource "aws_secretsmanager_secret_policy" "alertmanager_slack_warnings" {
+  count               = var.slack_alerting_enabled && var.slack_webhook_alertmanager_warnings != "" && var.secretsmanager_resource_policy_enabled ? 1 : 0
+  secret_arn          = aws_secretsmanager_secret.alertmanager_slack_warnings[0].arn
+  policy              = data.aws_iam_policy_document.platform_secret_policy[0].json
+  block_public_policy = true
+}
+
+resource "aws_secretsmanager_secret_policy" "alertmanager_slack_info" {
+  count               = var.slack_alerting_enabled && var.slack_webhook_alertmanager_info != "" && var.secretsmanager_resource_policy_enabled ? 1 : 0
+  secret_arn          = aws_secretsmanager_secret.alertmanager_slack_info[0].arn
   policy              = data.aws_iam_policy_document.platform_secret_policy[0].json
   block_public_policy = true
 }

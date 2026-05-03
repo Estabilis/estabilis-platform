@@ -106,6 +106,14 @@ resource "kubernetes_config_map_v1" "platform_infrastructure" {
     # continuous "Secret does not exist" reconcile errors.
     "global.openaiApiKeyEnabled" = tostring(var.openai_api_key != "")
 
+    # Mimir Alertmanager Slack pipeline — flag flows into the
+    # mimir-alertmanager-config chart's `slack.enabled` value via
+    # platform-root helm.parameters. With this gate, the chart's
+    # ExternalSecret + ConfigMap + upload Job render only when the
+    # operator opted in (var.slack_alerting_enabled = true) — same
+    # openai pattern.
+    "global.slackAlertingEnabled" = tostring(var.slack_alerting_enabled)
+
     # ADR 0014 — App exposures as JSON-encoded map(object), filtered to
     # only enabled profiles.
     "global.lokiExposures"     = jsonencode({ for k, v in local.loki_exposures_resolved : k => v if v.enabled })

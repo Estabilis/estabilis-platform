@@ -1,0 +1,10 @@
+# AWS-specific overlay for mimir-alertmanager-config.
+# Loaded after values.yaml when provider=aws via
+# bootstrap/platform-root/templates/grafana-stack.yaml.
+#
+# Intentionally empty: the AWS-specific behaviour (slack.enabled flipping
+# based on operator's tfvars) is driven by helm.parameters from the
+# platform-root template (`slack.enabled` from `global.slackAlertingEnabled`
+# + `kvSecrets.*` paths with the full SM prefix). No static value diffs
+# from the chart default are needed here.
+{}

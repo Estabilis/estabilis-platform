@@ -1,0 +1,5 @@
+apiVersion: v2
+name: mimir-alertmanager-config
+description: Tenant Alertmanager configuration uploader for the platform's Mimir deployment, plus Grafana NGAlert routing setup
+type: application
+version: 0.1.0
