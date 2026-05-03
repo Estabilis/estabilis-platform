@@ -1,5 +1,75 @@
 # Changelog
 
+## [0.38.0] - 2026-05-03
+
+### Fixed — Mimir alerting rules never reached the Ruler on AWS
+
+`core/components/mimir-rules` previously relied on the Ruler pod
+mounting the `mimir-alerting-rules` ConfigMap directly at
+`/data/rules/anonymous/` (extraVolumeMounts in
+`core/components/grafana-stack/mimir-values.yaml`). That mount only
+takes effect while the Ruler is configured with
+`ruler_storage.backend = local` — the default kept by the Azure
+overlay. The AWS overlay
+(`core/components/grafana-stack/mimir-values-aws.yaml`) flips the
+backend to `s3` because the Mimir chart validator rejects sharing a
+bucket between blocks/ruler/alertmanager without distinct
+`storage_prefix` per class. Once the Ruler is backed by S3 the local
+mount is dead weight: nothing reads `/data/rules`, the bucket prefix
+stays empty, and `GET /prometheus/api/v1/rules` returns
+`groups: []` for every tenant. Symptom on the first AWS prd cluster:
+0 of 33 platform alerting rules loaded vs the same 33 on Azure HML.
+
+#### `core/components/mimir-rules`
+
+- Reintroduce a PostSync `Job` that uses `grafana/mimirtool:3.0.6`
+  to call `rules sync` against the in-cluster gateway and persist
+  rule groups into whichever backend the Ruler is configured for.
+  Image matches the Mimir 3.0.x server line so the protocol/API
+  stays consistent.
+- Job is gated by `uploadJob.enabled` (default `false`) so Azure
+  clusters keep using the cheaper mount-based path untouched. The
+  arg list mirrors the `ruleGroups`/`customRuleGroups` keys so
+  disabling a tier removes both the ConfigMap key and the Job arg.
+- Bump `Chart.yaml` 0.1.0 → 0.2.0 (new templated resource).
+
+#### `core/components/mimir-rules/values-aws.yaml` (new)
+
+- Flips `uploadJob.enabled` to `true`. The header comment references
+  the Mimir chart `storage_prefix` constraint that drove the S3
+  switch, so a future reader doesn't try to "simplify" the AWS
+  overlay back to local-filesystem.
+
+#### `core/components/mimir-rules/values-azure.yaml` (new)
+
+- Empty placeholder (`{}`). Required because
+  `bootstrap/platform-root/templates/grafana-stack.yaml` now loads
+  `values-{provider}.yaml` unconditionally, and on clusters without
+  an overrides repo the `platform-root.ignoreMissingValueFiles`
+  helper isn't emitted (it only fires when overrides are enabled).
+  A missing `values-azure.yaml` would then break ArgoCD sync. The
+  file is opt-in for the same reason `mimir-values-azure.yaml`
+  exists alongside `mimir-values-aws.yaml` in `grafana-stack`.
+
+#### `bootstrap/platform-root/templates/grafana-stack.yaml`
+
+- Add `$values/core/components/mimir-rules/values-{provider}.yaml`
+  to the `mimir-rules` Application's `valueFiles`, mirroring the
+  pattern already used for `mimir-values-{provider}.yaml` in the
+  `grafana-mimir` Application.
+
+#### Validation captured before merge
+
+Patch was applied directly to the AWS prd cluster (auto-sync briefly
+disabled on the `mimir-rules` Application, restored after). Job pod
+completed in ~5s, exit 0; `mimirtool` log showed `Sync Summary: 3
+Groups Created, 0 Updated, 0 Deleted`. Ruler API for tenant
+`anonymous` then returned 3 rule groups / 33 rules (13 + 14 + 6),
+matching Azure HML. S3 prefix `ruler/rules/anonymous/` was populated
+with the three base64-encoded namespace/group objects. A second run
+with the same image was idempotent (`0 Created, 0 Updated, 0
+Deleted`), confirming repeated PostSync triggers won't churn rules.
+
 ## [0.37.0] - 2026-04-30
 
 ### Added — observability stack completeness sweep
