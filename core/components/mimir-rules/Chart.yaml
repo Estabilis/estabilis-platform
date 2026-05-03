@@ -2,4 +2,4 @@ apiVersion: v2
 name: mimir-rules
 description: Alerting rules for the Estabilis Platform — uploaded to Mimir Ruler via API
 type: application
-version: 0.1.0
+version: 0.2.0

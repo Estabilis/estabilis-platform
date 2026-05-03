@@ -1,0 +1,19 @@
+# AWS-specific mimir-rules values
+# Loaded in addition to values.yaml when provider=aws (selected by
+# bootstrap/platform-root/templates/grafana-stack.yaml).
+#
+# Why this file exists:
+#   core/components/grafana-stack/mimir-values-aws.yaml flips
+#   ruler_storage.backend and alertmanager_storage.backend from the
+#   local/filesystem defaults to s3, because the Mimir chart validator
+#   rejects sharing a bucket across storage classes without distinct
+#   storage_prefix values. Once the Ruler is reading from S3, the
+#   ConfigMap mount at /data/rules/anonymous/ (which works on Azure)
+#   becomes a no-op — nothing on the filesystem is ever read.
+#
+#   Flipping uploadJob.enabled = true here triggers the PostSync Job
+#   defined in templates/upload-job.yaml, which uses `mimirtool rules
+#   sync` to push each tier file via HTTP into the Mimir Ruler API.
+#   The Ruler then persists the rules into S3 itself.
+uploadJob:
+  enabled: true

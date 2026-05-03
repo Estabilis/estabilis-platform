@@ -21,3 +21,37 @@ ruleGroups:
 #           annotations:
 #             summary: "My app is down"
 customRuleGroups: {}
+
+# Upload mechanism for rules — defaults to OFF.
+#
+# When enabled=false (default, used on Azure):
+#   The ConfigMap `mimir-alerting-rules` is mounted directly into the
+#   Mimir Ruler pod at /data/rules/anonymous/ (via extraVolumeMounts in
+#   core/components/grafana-stack/mimir-values.yaml). The Ruler reads
+#   rules from local filesystem because Azure overlay leaves
+#   ruler_storage.backend = local (the upstream default).
+#
+# When enabled=true (used on AWS — see values-aws.yaml):
+#   The mount above is a no-op because mimir-values-aws.yaml flips
+#   ruler_storage.backend to s3 (chart validator requires distinct
+#   bucket+prefix per storage class — see comment in mimir-values-aws.yaml).
+#   This Job runs as a PostSync hook and uses `mimirtool rules sync` to
+#   upload each rule file to the Mimir Ruler API, which then persists
+#   them to S3 under `<bucket>/ruler/<tenant>/`.
+uploadJob:
+  enabled: false
+  # mimirtool image. Pin a known-good tag; bump deliberately.
+  image: grafana/mimirtool:3.0.6
+  # Address of the Mimir gateway (or ruler) inside the cluster.
+  # Gateway is preferred — nginx routes /api/v1/rules/* to the ruler.
+  mimirAddress: http://grafana-mimir-gateway.grafana.svc.cluster.local
+  # Tenant ID used for X-Scope-OrgID. Matches the tenant Alloy writes
+  # to (gateway nginx injects `anonymous` when no header is sent).
+  tenantId: anonymous
+  resources:
+    requests:
+      cpu: 25m
+      memory: 32Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi

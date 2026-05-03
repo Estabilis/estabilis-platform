@@ -1,0 +1,16 @@
+# Azure-specific mimir-rules values
+# Loaded in addition to values.yaml when provider=azure (selected by
+# bootstrap/platform-root/templates/grafana-stack.yaml).
+#
+# Intentionally empty: on Azure the Mimir Ruler runs with the upstream
+# `ruler_storage.backend: local` default (mimir-values.yaml), and the
+# ConfigMap `mimir-alerting-rules` is mounted directly at
+# /data/rules/anonymous/ via extraVolumeMounts in
+# core/components/grafana-stack/mimir-values.yaml. No HTTP upload Job
+# is needed.
+#
+# This file exists only to satisfy the unconditional valueFiles entry
+# in platform-root/templates/grafana-stack.yaml; deleting it would
+# fail ArgoCD sync on clusters without an overrides repo (where
+# ignoreMissingValueFiles is not emitted).
+{}

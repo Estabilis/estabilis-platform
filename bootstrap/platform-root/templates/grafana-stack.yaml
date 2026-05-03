@@ -402,6 +402,11 @@ spec:
       helm:
         valueFiles:
           - $values/core/components/mimir-rules/values.yaml
+          # Provider-specific values (e.g. values-aws.yaml flips uploadJob.enabled
+          # because mimir-values-aws.yaml forces ruler_storage to S3, which makes
+          # the ConfigMap mount in the Ruler pod a no-op). ignoreMissingValueFiles
+          # below allows providers without an overlay (e.g. azure today) to skip.
+          - $values/core/components/mimir-rules/values-{{ .Values.global.provider }}.yaml
           {{- include "platform-root.overrideValueFile" (dict "component" "mimir-rules" "root" $) | nindent 10 }}
         {{- include "platform-root.ignoreMissingValueFiles" $ | nindent 8 }}
         {{- include "platform-root.provenanceParametersBlock" $ | nindent 8 }}

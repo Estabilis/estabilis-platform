@@ -1,3 +1,84 @@
-# Removed: PostSync Job replaced by ruler.extraVolumeMounts in mimir-values.yaml
-# The ConfigMap mimir-alerting-rules is now mounted directly in the ruler pod
-# at /data/rules/anonymous/ — no HTTP upload needed.
+{{- /*
+PostSync Job that uploads alerting rules to the Mimir Ruler API.
+
+Background — why this Job exists despite the ConfigMap mount in
+core/components/grafana-stack/mimir-values.yaml:
+
+  The mount at /data/rules/anonymous/ works only when the Ruler is
+  configured with `ruler_storage.backend: local` (Azure default,
+  inherited from upstream mimir-values.yaml). On AWS the overlay
+  mimir-values-aws.yaml flips the backend to `s3` because the Mimir
+  chart validator rejects sharing one bucket across storage classes
+  without distinct `storage_prefix` per class. Once the Ruler is
+  reading from S3, the local mount is dead weight — nothing reads it.
+
+  This Job restores the original "upload via API" approach but only
+  when explicitly enabled (uploadJob.enabled), so Azure clusters keep
+  using the cheaper mount-based approach untouched.
+*/ -}}
+{{- if .Values.uploadJob.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: mimir-rules-upload
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation,HookSucceeded
+    argocd.argoproj.io/sync-wave: "1"
+    {{- include "estabilis.annotations" . | nindent 4 }}
+  labels:
+    {{- include "estabilis.labels" . | nindent 4 }}
+spec:
+  backoffLimit: 5
+  ttlSecondsAfterFinished: 600
+  template:
+    metadata:
+      labels:
+        {{- include "estabilis.labels" . | nindent 8 }}
+    spec:
+      restartPolicy: OnFailure
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: mimirtool
+          image: {{ .Values.uploadJob.image | quote }}
+          imagePullPolicy: IfNotPresent
+          args:
+            - rules
+            - sync
+            - --address={{ .Values.uploadJob.mimirAddress }}
+            - --id={{ .Values.uploadJob.tenantId }}
+            {{- if .Values.ruleGroups.platformDown.enabled }}
+            - /etc/rules/tier1-platform-down.yaml
+            {{- end }}
+            {{- if .Values.ruleGroups.platformDegradation.enabled }}
+            - /etc/rules/tier2-degradation.yaml
+            {{- end }}
+            {{- if .Values.ruleGroups.platformOperational.enabled }}
+            - /etc/rules/tier3-operational.yaml
+            {{- end }}
+            {{- range $name, $_ := .Values.customRuleGroups }}
+            - /etc/rules/custom-{{ $name }}.yaml
+            {{- end }}
+          volumeMounts:
+            - name: rules
+              mountPath: /etc/rules
+              readOnly: true
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          resources:
+            {{- toYaml .Values.uploadJob.resources | nindent 12 }}
+      volumes:
+        - name: rules
+          configMap:
+            name: mimir-alerting-rules
+{{- end }}
