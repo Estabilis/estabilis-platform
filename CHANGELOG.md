@@ -1,5 +1,187 @@
 # Changelog
 
+## [0.39.0] - 2026-05-03
+
+### Added — Mimir Alertmanager tenant config + Grafana NGAlert routing standard
+
+Defines and ships the platform standard for alert routing: Mimir
+Alertmanager is the single source of truth for both Mimir-Ruler-managed
+and Grafana-managed alert rules. Validated end-to-end on the first AWS
+prd deployment ahead of this release (synthetic alerts at tier 1/2/3
+delivered to Slack via the new pipeline; Grafana-managed alerts route
+through Mimir AM via the NGAlert external mode).
+
+The pipeline mirrors the openai_api_key gating pattern: when the
+operator opts in (`slack_alerting_enabled = true` in tfvars), terraform
+creates 3 SM secrets and the new chart renders the K8s side; when off,
+zero resources are rendered and zero SecretSyncError noise appears in
+the cluster.
+
+#### `core/components/mimir-alertmanager-config` (new chart, v0.1.0)
+
+Two pieces under one chart, each independently gated:
+
+  1. Slack alerting pipeline (`slack.enabled`, default false; flipped
+     to true on AWS via the `global.slackAlertingEnabled` flag from
+     `providers/aws/platform-outputs.tf`):
+     - ConfigMap with the Alertmanager YAML config TEMPLATE — channel
+       names, tier-based routing tree, `inhibit_rules` (a critical
+       alert silences related warning/info on same alertname+namespace),
+       receivers with title/text Slack templates.
+     - ExternalSecret pulling 3 webhook URLs from the platform secret
+       store into K8s Secret `alertmanager-slack-webhooks` (one key per
+       channel: critical/warnings/info).
+     - PostSync Job pipeline (busybox initContainer for placeholder
+       substitution → `grafana/mimirtool:3.0.6` main container for
+       `alertmanager load`). Idempotent.
+
+  2. Grafana NGAlert "external Alertmanager" mode
+     (`grafanaExternalAm.enabled`, default true — chart-level standard,
+     applies regardless of Slack config):
+     - PostSync Job that POSTs `alertmanagersChoice=external` +
+       `external_alertmanager_uid=mimir-alertmanager` to Grafana's
+       `/api/v1/ngalert/admin_config` endpoint. Survives a CNPG
+       recreate (the setting persists in DB normally; the Job recovers
+       it on a fresh cluster bootstrap).
+
+Why one chart instead of two: both configure the SAME architectural
+decision ("Mimir AM is the single source of truth for alert routing");
+splitting them adds an ArgoCD Application + sync ordering concerns
+without isolating any independent failure mode.
+
+Default routing tier-based (matches `mimir-rules` chart labels):
+  - tier 1 → slack-critical (group_wait 0s, repeat 1h, continue:true)
+  - tier 2 → slack-warnings (group_wait 30s, repeat 4h)
+  - tier 3 → slack-info (group_wait 30s, repeat 12h, send_resolved:false)
+
+Template gotcha (documented inline in `files/alertmanager.yaml.tpl`):
+Alertmanager runtime template engine does NOT include Sprig's `default`
+function. Use `or` (text/template builtin) for missing-label fallbacks
+— validated 2026-05-03 by `function "default" not defined` notify
+error on the first deployment.
+
+Fallback config bypass (documented inline in `templates/upload-job.yaml`):
+Mimir's `-config.expand-env=true` flag interpolates env vars in the
+*global* mimir.yaml ONLY — NOT in the Alertmanager fallback config
+file. Confirmed by reading `pkg/alertmanager/multitenant.go` on
+grafana/mimir main: `os.ReadFile()` is raw, no expansion. So the
+"override fallbackConfig + extraEnvFrom" approach doesn't work and
+secrets must be inlined at upload time via the Job.
+
+#### `core/components/grafana-stack/grafana-values.yaml`
+
+Two datasource updates that surface Mimir alerting in the Grafana UI
+natively, without the user toggling datasource view or selecting a
+non-default Alertmanager from the dropdown:
+
+  - **Mimir** (prometheus type):
+    - `manageAlerts: true` + `manageAlertingRules: true` — Alert rules
+      tab natively shows the mimir-rules groups
+    - `prometheusType: Mimir` + `prometheusVersion: "3.0.1"` — tells
+      Grafana this Prometheus is Mimir-flavored so it uses the Mimir
+      Ruler config API (`/config/v1/rules/<ns>`) for write operations.
+      Validated via `/api/datasources/uid/mimir/health` reporting
+      `features.rulerApiEnabled: true`. Lets users create/edit "Data
+      source-managed" rules directly in the UI.
+
+  - **Mimir Alertmanager** (alertmanager type):
+    - URL changed from `.../alertmanager` to gateway ROOT
+      `http://grafana-mimir-gateway.grafana.svc.cluster.local`. The
+      Grafana proxy calls `<url>/api/v1/alerts` for tenant config; with
+      the `/alertmanager` suffix the call hit Mimir's deprecated AM v1
+      API and returned HTTP 410. Root URL routes correctly to the
+      multitenant config endpoint. POTENTIALLY BREAKING for any
+      operator who hardcoded the old URL elsewhere.
+    - `manageAlerts: true` + `handleGrafanaManagedAlerts: true` — Contact
+      points / Notification policies UI tabs surface Mimir AM's
+      receivers and routing tree (combined with the new chart's
+      `mimir-alertmanager-config-upload` Job that loads the tenant
+      config), and Grafana NGAlert auto-discovers this datasource as
+      the dispatch target for Grafana-managed alerts.
+
+#### `providers/aws/variables.tf`
+
+Four new variables (one toggle + 3 sensitive URLs) declared exactly
+the same shape as `openai_api_key`:
+
+  - `slack_alerting_enabled` (bool, default false) — non-sensitive,
+    operator sets in `terraform.tfvars` alongside `vault_enabled`.
+  - `slack_webhook_alertmanager_critical|warnings|info` (string,
+    sensitive, default "") — operator sets in `secrets.auto.tfvars`.
+
+#### `providers/aws/secrets-manager.tf`
+
+Three `aws_secretsmanager_secret` + `_secret_version` +
+`_secret_policy` resources at
+`estabilis/<deployment_id>/platform-alertmanager-slack-{critical,warnings,info}`,
+each gated by
+`var.slack_alerting_enabled && var.slack_webhook_alertmanager_X != ""`.
+ESO IRSA already authorises GetSecretValue on the path prefix — no IAM
+update required.
+
+#### `providers/aws/platform-outputs.tf`
+
+Adds `global.slackAlertingEnabled = tostring(var.slack_alerting_enabled)`
+to the platform-infrastructure ConfigMap, the bridge that flows the
+boolean from terraform into the platform-root chart's helm.parameters
+and from there into the new chart's `slack.enabled` value.
+
+#### `providers/aws/secrets.auto.tfvars.example`
+
+Three placeholder lines for the webhook URLs with comment pointing the
+operator to set the toggle in `terraform.tfvars` (knob ≠ secret).
+
+#### `bootstrap/platform-root/templates/grafana-stack.yaml`
+
+New Application `mimir-alertmanager-config` (sync-wave 8, project
+`platform`, destination `grafana` ns), gated by
+`components.mimir-alertmanager-config: false` for downstream opt-out.
+Helm parameters injected from platform-root values:
+  - Always: `slack.enabled` from `global.slackAlertingEnabled`
+  - AWS only: `kvSecrets.slackWebhook{Critical,Warnings,Info}` with
+    full `estabilis/<deploymentId>/...` path prefix (mirrors the
+    `kvSecrets` pattern in core/components/platform-secrets).
+
+#### Validation done on the first AWS prd deployment
+
+Before this release, the live cluster had:
+  - All chart files applied via `kubectl apply -f` from a hub-app dir
+    in the client gitops repo (raw YAML).
+  - 3 SM secrets created via a standalone `alertmanager-slack.tf` in
+    the client repo (downstream-only).
+  - Grafana datasource flags patched in-cluster via `kubectl patch`.
+  - `alertmanagersChoice=external` set via Grafana UI manually.
+
+Each piece validated separately end-to-end:
+  - `mimirtool alertmanager load` Job: 77 lines rendered, 3 webhook
+    URLs substituted, exit 0.
+  - 3 synthetic alerts (one per tier) delivered to Slack with correct
+    color/format. `cortex_alertmanager_notifications_failed_total{slack}`
+    stayed at 3 (historical pre-fix failures); 4 new successes after.
+  - Grafana datasource `/api/datasources/uid/mimir/health`:
+    `features.rulerApiEnabled: true`.
+  - Grafana datasource `/api/datasources/proxy/uid/mimir-alertmanager/api/v2/status`:
+    receivers visible (slack-critical, slack-warnings, slack-info, null).
+  - Grafana NGAlert `/api/v1/ngalert/admin_config`:
+    `{"alertmanagersChoice":"external"}`.
+
+After this release, the downstream client repo can drop the standalone
+`alertmanager-slack.tf`, the hub-app manifests dir, and the
+in-overrides datasource block — the upstream module + chart provide
+identical behaviour from a single platform bump.
+
+#### Caveat — `Mimir Alertmanager` datasource URL change
+
+Existing AWS deployments on v0.38.0 and earlier had the URL as
+`http://grafana-mimir-gateway.grafana.svc.cluster.local/alertmanager`.
+v0.39.0 changes it to the gateway root. ArgoCD will rewrite the
+ConfigMap on the next sync of the `grafana` Application. No manual
+migration needed — the URL change only affects the Grafana proxy path
+for the AM config endpoint, which was returning HTTP 410 before
+anyway. Runtime AM endpoints (alerts, silences, status) are still
+served correctly because Grafana with `implementation: mimir` knows to
+prefix `/alertmanager/api/v2/*` for those.
+
 ## [0.38.0] - 2026-05-03
 
 ### Fixed — Mimir alerting rules never reached the Ruler on AWS
