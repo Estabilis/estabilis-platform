@@ -73,8 +73,13 @@ metadata:
   annotations:
     grafana_folder: ArgoCD
 data:
+  # __ARGOCD_URL__ placeholders inside this dashboard get substituted with
+  # the per-cluster ArgoCD UI URL (.Values.argocdUrl, sourced from
+  # global.argocdUrl in platform-outputs.tf). Empty value leaves the
+  # placeholders intact — data links land on "/applications/..." with
+  # no scheme/host, broken but dashboard still renders.
   argocd-application.json: |
-{{ .Files.Get "files/argocd-application.json" | indent 4 }}
+{{ .Files.Get "files/argocd-application.json" | replace "__ARGOCD_URL__" .Values.argocdUrl | indent 4 }}
 ---
 apiVersion: v1
 kind: ConfigMap

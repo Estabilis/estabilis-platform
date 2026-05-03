@@ -1,0 +1,14 @@
+# Per-cluster ArgoCD UI URL (e.g. https://argocd.<cluster>.<domain>).
+# Substituted into the argocd-application dashboard JSON in place of the
+# `__ARGOCD_URL__` placeholder, so data-link clicks on the table panels
+# (Application / Application Namespace / Project columns) land on the
+# correct ArgoCD UI for the running cluster.
+#
+# Empty by default. AWS / Azure providers compute it from
+# `local.argocd_exposures_resolved.external` (when enabled) and emit
+# `global.argocdUrl` in the platform-infrastructure ConfigMap; the
+# platform-root template forwards it to this chart via helm.parameters.
+# When the external profile of argocd_exposures is disabled, the value
+# stays empty — the dashboard still renders but the data links remain
+# broken (acceptable opt-in degradation).
+argocdUrl: ""
