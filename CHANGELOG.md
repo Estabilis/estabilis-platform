@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.39.1] - 2026-05-03
+
+### Fixed — drop unused `null` receiver from Alertmanager config template
+
+`core/components/mimir-alertmanager-config/files/alertmanager.yaml.tpl`
+shipped a placeholder `- name: 'null'` receiver under the assumption
+the Alertmanager config validator required every defined receiver to
+be present even when not referenced by any route. That assumption was
+wrong: the validator only checks the inverse direction (every receiver
+referenced in a route must be defined). An unused receiver is allowed
+but creates a confusing UX in the Grafana Alerting UI — operators see
+4 contact points (slack-critical/warnings/info + null) under the
+Mimir Alertmanager dropdown instead of the 3 actual destinations.
+
+Validated 2026-05-03 on the first AWS prd deployment by re-uploading
+the template without the null block via `mimirtool alertmanager load`
+and confirming the AM API returns only the 3 Slack receivers. Chart
+bumps `0.1.0` → `0.1.1`.
+
 ## [0.39.0] - 2026-05-03
 
 ### Added — Mimir Alertmanager tenant config + Grafana NGAlert routing standard
