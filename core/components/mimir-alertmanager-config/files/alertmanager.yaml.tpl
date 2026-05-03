@@ -111,7 +111,3 @@ receivers:
           {{`  • {{ .Annotations.summary }}`}}
           {{`{{ end }}`}}
 {{- end }}
-  # `null` receiver is mandatory in Alertmanager configs even when nothing
-  # routes there — the Mimir AM config validator complains about
-  # unreachable receivers but accepts a placeholder.
-  - name: 'null'
