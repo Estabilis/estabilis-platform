@@ -62,11 +62,23 @@ alloy:
           action        = "keep"
         }
 
+        // Build __address__ as <pod_ip>:<annotation_port>. The previous
+        // form ("${1}:$0" with only the port annotation as source label)
+        // resolved to "<port>:<port>" because both backrefs pointed at
+        // the same captured value, leaving the address unreachable.
         rule {
-          source_labels = ["__meta_kubernetes_pod_annotation_prometheus_io_port"]
+          source_labels = ["__address__", "__meta_kubernetes_pod_annotation_prometheus_io_port"]
+          regex         = "([^:]+)(?::\\d+)?;(\\d+)"
+          replacement   = "$1:$2"
           target_label  = "__address__"
+          action        = "replace"
+        }
+
+        // Honor prometheus.io/path annotation when present.
+        rule {
+          source_labels = ["__meta_kubernetes_pod_annotation_prometheus_io_path"]
           regex         = "(.+)"
-          replacement   = "${1}:$0"
+          target_label  = "__metrics_path__"
           action        = "replace"
         }
       }
@@ -1094,10 +1106,13 @@ alloy:
       }
 
       // =====================================================================
-      // Trace collection (OTLP → Tempo)
+      // OTLP collection — traces → Tempo, metrics → Mimir, logs → Loki
       // =====================================================================
+      // The receiver previously routed traces only; metrics and logs were
+      // dropped silently. Workloads emitting OTLP metrics (e.g. Beyla,
+      // OpenTelemetry-instrumented apps) now reach Mimir, and OTLP logs
+      // reach Loki.
 
-      // Receive traces via OTLP (gRPC :4317 and HTTP :4318)
       otelcol.receiver.otlp "default" {
         grpc {
           endpoint = "0.0.0.0:4317"
@@ -1106,12 +1121,14 @@ alloy:
           endpoint = "0.0.0.0:4318"
         }
         output {
-          traces = [otelcol.processor.batch.default.input]
+          traces  = [otelcol.processor.batch.traces.input]
+          metrics = [otelcol.processor.batch.metrics.input]
+          logs    = [otelcol.processor.batch.logs.input]
         }
       }
 
-      // Batch traces before sending to Tempo
-      otelcol.processor.batch "default" {
+      // --- Traces → Tempo ---
+      otelcol.processor.batch "traces" {
         timeout         = "5s"
         send_batch_size = 1024
         output {
@@ -1119,7 +1136,6 @@ alloy:
         }
       }
 
-      // Export traces to Tempo
       otelcol.exporter.otlp "tempo" {
         client {
           endpoint = "grafana-tempo.grafana.svc.cluster.local:4317"
@@ -1128,6 +1144,32 @@ alloy:
             insecure_skip_verify = true
           }
         }
+      }
+
+      // --- Metrics → Mimir (via existing prometheus.remote_write "mimir") ---
+      otelcol.processor.batch "metrics" {
+        timeout         = "5s"
+        send_batch_size = 1024
+        output {
+          metrics = [otelcol.exporter.prometheus.mimir.input]
+        }
+      }
+
+      otelcol.exporter.prometheus "mimir" {
+        forward_to = [prometheus.remote_write.mimir.receiver]
+      }
+
+      // --- Logs → Loki (via existing loki.write "default") ---
+      otelcol.processor.batch "logs" {
+        timeout         = "5s"
+        send_batch_size = 1024
+        output {
+          logs = [otelcol.exporter.loki.default.input]
+        }
+      }
+
+      otelcol.exporter.loki "default" {
+        forward_to = [loki.write.default.receiver]
       }
 
       // =====================================================================
