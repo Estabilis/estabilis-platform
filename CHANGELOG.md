@@ -1,5 +1,128 @@
 # Changelog
 
+## [0.39.2] - 2026-05-03
+
+Five bundled fixes around the Grafana stack, all triggered by the
+2026-05-03 audit on the first AWS prd cluster. Each was validated
+end-to-end live before commit; the cluster has been carrying the
+matching live patches under disabled auto-sync since then.
+
+### Fixed — `ArgoCD / Application / Overview` table data links
+
+Four table panels (Unhealthy Applications, Out Of Sync Applications,
+Applications That Failed to Sync, Applications With Auto Sync Disabled)
+shipped with a global "Go To Application" link pointing at
+https://github.com/adinhodovic/argo-cd-mixin?tab=readme-ov-file#argocd-badges.
+Replaced with per-column data links (Application / Application
+Namespace / Project) using a `__ARGOCD_URL__` placeholder that the
+chart substitutes at render time.
+
+#### `core/components/grafana-dashboards`
+
+- `files/argocd-application.json`: 12 placeholders inserted (4 panels × 3
+  columns), each producing the right ArgoCD UI URL via Grafana variable
+  interpolation.
+- `templates/dashboards.yaml`: `replace .Values.argocdUrl` substitutes
+  placeholders before mounting.
+- `values.yaml` (new): documents the value with empty default + opt-in
+  degradation note.
+- `Chart.yaml`: 0.1.0 → 0.2.0.
+
+#### `bootstrap/platform-root/templates/grafana-dashboards.yaml`
+
+Passes `argocdUrl` from `global.argocdUrl` via helm.parameters.
+
+#### `providers/{aws,azure}/platform-outputs.tf`
+
+Emits `global.argocdUrl` flat string, computed from
+`local.argocd_exposures_resolved.external` (when enabled). Empty
+otherwise — same opt-in pattern as `global.openaiApiKeyEnabled`.
+
+### Fixed — `Application Sync Result by Application` empty panel
+
+Same dashboard, panel #13. Used `increase(argocd_app_sync_total[$__rate_interval])`
+which Grafana resolves to ~5 min for typical 6h time range. Platform
+clusters with selfHeal-only sync activity virtually never have a sync
+in a 5-minute window, so the panel sat empty even when the underlying
+counter clearly had values. Replaced `[$__rate_interval]` with `[1h]`
+hardcoded — captures sparse activity without losing temporal precision
+when activity is high.
+
+### Fixed — Sync/Health status colours per ArgoCD UI semantics
+
+Same dashboard, panels #12 and #11.
+
+- `Application Sync Status by Application`: Synced → green, OutOfSync →
+  yellow (matched ArgoCD UI conventions; defaults were Grafana's
+  auto-assigned palette).
+- `Application Health Status by Application`: Progressing →
+  rgb(13, 173, 234) blue (operator-supplied to match ArgoCD UI's
+  progressing blue). Other states keep auto-assigned colours — only
+  Progressing was explicitly requested.
+
+`byRegexp` matcher with the `$` anchor avoids matching false positives
+where application names happen to contain the status words.
+
+### Fixed — Mimir `query_frontend` OOMKill loop
+
+`core/components/grafana-stack/mimir-values.yaml`. Live incident on the
+first AWS prd cluster: both query_frontend pods OOMKilled in a loop
+(5 restarts in 24 h, exit 137). Symptom on Grafana side was HTTP 502
+Bad Gateway from the mimir gateway nginx whenever a moderate-cardinality
+panel was viewed (e.g. `gRPC Requests Handled` on `ArgoCD / Operational
+/ Overview`). Diagnosis chain: gateway nginx logged
+`upstream prematurely closed connection` while reading from
+`http://<query-frontend-svc>:8080/prometheus/api/v1/query_range`, and
+the querier in turn logged
+`error notifying frontend ... connection refused` because the frontend
+pod went away mid-response.
+
+Live data behind the failing query: 3817 `grpc_server_handled_total`
+series, ~1411 effective combinations per timestamp (17 grpc_service x
+83 grpc_method x 17 grpc_code), 360 timestamps for a 6h step=60 query.
+Parsing/aggregation buffer in query-frontend peaked above 128Mi.
+
+#### Bumps
+
+- `query_frontend.resources.requests.memory`: 64Mi → 128Mi (matches
+  realistic working-set so Karpenter reserves accurately).
+- `query_frontend.resources.limits.memory`: 128Mi → 384Mi (3× former,
+  ~14× idle, leaves headroom for moderate-cardinality queries).
+
+After the live patch with the same values, the failing query returned
+HTTP 200 with 20 series / 1118 non-zero data points in 4 s; the new
+pods came up clean (0 restarts) at idle ~27Mi (request 128Mi reserved).
+
+### Added — `docs/research/grafana-official-dashboards.md`
+
+New file documenting the audit of which Grafana products are running in
+the platform stack and which official self-monitoring dashboards exist
+for each (46 installable across the 6 products: Mimir, Loki, Tempo,
+Pyroscope, Alloy, Grafana itself). Validates the mixin compile
+toolchain end-to-end (jsonnet + jb + mixtool from `go install`),
+confirms all 38 generated JSONs parse as valid Grafana dashboards.
+Surfaces 6 caveats and 5 deferred decisions (install scope, build
+pipeline, schemaVersion modernisation, datasource pre-substitution,
+folder taxonomy) so a future operator picking this back up has a
+complete starting point.
+
+No installation done in this release — the doc explicitly defers the
+work. Lives under `docs/research/` (new directory) — appropriate
+location for work that's product-agnostic but cluster-realistic and
+needs a human decision before becoming chart code.
+
+### Potentially breaking — Mimir Alertmanager datasource URL changed
+
+The `Mimir Alertmanager` datasource URL in `grafana-values.yaml` was
+already changed from `…/alertmanager` to gateway root in v0.39.0 (the
+data-links commit on this PR re-affirmed it). With the `/alertmanager`
+suffix the Grafana proxy hit Mimir's deprecated AM v1 API and returned
+HTTP 410. Existing operators viewing the Contact Points UI under the
+Mimir Alertmanager dropdown would have seen empty content; now they
+see real data. ArgoCD rewrites the ConfigMap on the next sync of the
+`grafana` Application; Grafana picks up the new URL on the next pod
+restart. No user action required.
+
 ## [0.39.1] - 2026-05-03
 
 ### Fixed — drop unused `null` receiver from Alertmanager config template
