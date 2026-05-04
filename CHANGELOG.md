@@ -1,5 +1,82 @@
 # Changelog
 
+## [0.40.0] - 2026-05-04
+
+Two changes shipped together — one bug fix and one new opt-in
+component. Bundled to keep the release surface small ahead of the
+Beyla pilot rollout.
+
+### Fixed — Grafana Alloy `metric_pods` relabel + OTLP receiver routes
+
+`core/components/grafana-stack/alloy-values.yaml`. Two pre-existing
+bugs that silently dropped data on the hub Alloy:
+
+- **`metric_pods` relabel** wrote `__address__="<port>:<port>"` because
+  both backrefs in `replacement = "${1}:$0"` resolved to the same
+  captured port value. Any pod relying on the `prometheus.io/scrape`
+  annotation never had its `/metrics` endpoint reached. Replaced with
+  the canonical Prometheus pattern that combines `__address__` (pod
+  IP from discovery) with the annotation port. Also added a companion
+  rule honoring `prometheus.io/path` when present.
+- **OTLP receiver** routed only traces. Metrics and logs sent to
+  `grafana-alloy:4317` were dropped at the receiver output. Added two
+  batch processors (`metrics`, `logs`) plus two new exporters —
+  `otelcol.exporter.prometheus` → existing `prometheus.remote_write.mimir`,
+  `otelcol.exporter.loki` → existing `loki.write.default`. Trace path
+  renamed `default` → `traces` for symmetry; trace endpoint unchanged.
+
+Discovered while running an eBPF auto-instrumentation PoC. Beyla's
+`/metrics` was healthy locally but never reached Mimir because of the
+two issues. Validation: `helm template` clean, `alloy fmt` exit 0,
+`alloy run` resolves all OTel + relabel components.
+
+Refs estabilis-platform-tools#206 / PR #148.
+
+### Added — Beyla platform component (eBPF auto-instrumentation)
+
+`core/components/beyla/values.yaml` and
+`bootstrap/platform-root/templates/beyla.yaml`. New opt-in component
+deploying Grafana Beyla v3.9.7 (chart 1.16.5) for HTTP RED metrics +
+traces without code changes in apps.
+
+Default `components.beyla: false`; flip to `true` per cluster. Apps
+opt in per-pod via the label
+`estabilis.io/instrument-with-beyla: "true"`. Apps without the label
+are never instrumented, even though the DaemonSet runs on every
+non-Fargate node.
+
+Design highlights (ADR 0031 in estabilis-platform-tools):
+
+- Deploys to existing `grafana` namespace (already PSS=privileged via
+  `inject-pss-privileged`, ResourceQuota headroom, AppProject
+  destination — zero platform-side policy / quota / project changes).
+- Image pinned by digest
+  `sha256:d978d84eff1d54e1a185c6f4efe515b546e6754517c1834361ef57559e5628ed`.
+- Explicit `resources.limits.memory: 1Gi` overrides the platform
+  LimitRange default (128Mi). Without it, BPF map allocation OOMs at
+  startup with `cannot allocate memory` from `cilium/ebpf` before any
+  tracer attaches.
+- `BEYLA_KUBE_CLUSTER_NAME` env passed via helm.parameters from
+  `global.clusterName`. Chart RBAC excludes `kube-system/aws-auth` so
+  EKS auto-detection fails; setting it explicitly is the supported
+  path.
+- `/sys/fs/bpf` hostPath bind mount for `log_enricher` and
+  `profile_correlation` features.
+- `nodeAffinity` excludes Fargate (no eBPF) and requires `amd64` (no
+  validated arm64 path in v3.9.x).
+- OTLP push for both metrics and traces to in-cluster Alloy `:4317` —
+  depends on the Alloy fix above.
+- Sync-wave 9, after `grafana-stack` (wave 8).
+
+Refs estabilis-platform-tools#207 / PR #149,
+estabilis-platform-tools#208 / PR #209 (ADR 0031).
+
+### Added — `components.beyla: false` default
+
+`bootstrap/platform-root/values.yaml` adds `beyla: false` to the
+observability section. Existing clusters are unaffected; the
+component activates only when explicitly flipped to `true`.
+
 ## [0.39.2] - 2026-05-03
 
 Five bundled fixes around the Grafana stack, all triggered by the
