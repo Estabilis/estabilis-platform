@@ -1,5 +1,53 @@
 # Changelog
 
+## [0.41.0] - 2026-05-04
+
+### Added — TraceQL metrics support (Grafana Drilldown/Traces)
+
+Tempo single-binary chart bumped `1.10.3 → 1.24.4` (Tempo `2.5.0 →
+2.9.0`) to enable the `local-blocks` processor on the metrics-generator,
+required by Grafana's Drilldown/Traces app for TraceQL metrics
+queries (`{ } | rate()` style).
+
+The previous `extraConfig.overrides.defaults.metrics_generator.processors`
+block on chart 1.10 was a no-op because the template hard-coded the
+processor list when `metricsGenerator.enabled=true`. Chart >=1.16
+templatizes both `tempo.metricsGenerator.processor` and
+`tempo.overrides.defaults`, so the local-blocks wiring is now actually
+applied.
+
+Three files touched:
+
+- `bootstrap/platform-root/templates/grafana-stack.yaml` — bump chart
+  pin to `1.24.4`.
+- `core/components/grafana-stack/tempo-values.yaml` — drop dead
+  `extraConfig` block, add `tempo.metricsGenerator.processor.local_blocks.flush_to_storage=true`,
+  add `tempo.overrides.defaults.metrics_generator.processors` with
+  `[service-graphs, span-metrics, local-blocks]`. Resources bumped
+  `128Mi/512Mi → 1Gi/3Gi` requests/limits — `local-blocks` ingests live
+  traces in memory before flushing, and Tempo 2.9 with all three
+  processors OOM-killed on 512Mi during validation.
+- `core/components/grafana-stack/grafana-values.yaml` — Tempo
+  datasource URL `:3100 → :3200` (chart 1.20+ default
+  `tempo.server.http_listen_port`).
+
+Validated live in cortex prd cluster before commit:
+`grafana-tempo-0` Ready/0-restarts on `tempo:2.9.0`, CM contains
+`local-blocks` in the processors list and `processor.local_blocks.flush_to_storage:
+true`, datasource health=OK, Drilldown/Traces no longer raises
+"localblocks processor not found", `rate()` TraceQL metric returns
+`series` with `samples` structure.
+
+### Compatibility
+
+- **Tempo URL `:3100 → :3200`**: only the in-cluster Grafana datasource
+  references this URL. Alloy/Beyla push traces via OTLP gRPC `:4317`
+  (unchanged). Downstreams that reference Tempo by URL outside this
+  chart need to update.
+- **Memory bump**: clients that overrode `tempo.resources` to a tighter
+  limit (e.g. cortex AWS prd at 100Mi/512Mi) will OOM after this bump
+  unless the override is widened or removed.
+
 ## [0.40.0] - 2026-05-04
 
 Two changes shipped together — one bug fix and one new opt-in
