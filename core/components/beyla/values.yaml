@@ -1,0 +1,143 @@
+# Grafana Beyla — eBPF auto-instrumentation (HTTP RED metrics + traces).
+#
+# Deploys a privileged DaemonSet in the `grafana` namespace alongside
+# the rest of the observability stack (Mimir/Loki/Alloy/Pyroscope/Grafana).
+# No dedicated namespace is needed — the `grafana` ns already has
+# PSS=privileged via inject-pss-labels and an AppProject `platform`
+# destination. The chart wraps `grafana/beyla` v3 (chart 1.16.5).
+#
+# Discovery is opt-in per pod via the label
+# `estabilis.io/instrument-with-beyla: "true"`. Apps without the label
+# are never traced, never produce series — zero impact.
+#
+# Lessons from PoC (2026-05-04):
+# - LimitRange override mandatory: chart `resources: {}` inherits the
+#   platform 128Mi default, BPF map allocation OOMs at startup. Explicit
+#   1Gi limit avoids `cannot allocate memory` from cilium/ebpf.
+# - `BEYLA_KUBE_CLUSTER_NAME` env var required: chart RBAC does not
+#   include `kube-system/configmaps/aws-auth`, so EKS auto-detection
+#   fails. Cluster name is wired via Helm parameter from platform-root.
+# - `/sys/fs/bpf` hostPath bind mount needed for `log_enricher` and
+#   `profile_correlation` features (Beyla writes pinned BPF maps under
+#   /sys/fs/bpf/otel; without the mount it warns and disables those
+#   correlations).
+# - Fargate excluded via nodeAffinity: no eBPF support there; Beyla
+#   would CrashLoop on those nodes. Workload pods on Fargate fall out
+#   of Beyla coverage and that's acceptable for the rollout.
+# - Architecture restricted to amd64: workload Beyla images don't have
+#   tested arm64 paths in v3.9.x; revisit when arm64 nodes enter the
+#   pool.
+
+commonLabels:
+  estabilis.io/component: beyla
+
+# --- Image pinning (require-image-digest policy) ---
+# Multi-arch index digest for grafana/beyla:3.9.7 (released 2026-05-03).
+# Tag is set via the chart's `image.tag` field; digest is appended
+# automatically by the chart so the pull resolves to a specific
+# manifest list across linux/amd64 and linux/arm64.
+image:
+  tag: "3.9.7"
+  digest: "sha256:d978d84eff1d54e1a185c6f4efe515b546e6754517c1834361ef57559e5628ed"
+
+# --- Beyla container runtime ---
+# Defaults from chart 1.16.5 are: privileged: true, hostPID: true.
+# We keep both — required for eBPF + /proc visibility into other pods.
+# The `grafana` ns has PSS=privileged so this passes admission.
+
+# Override LimitRange default (128Mi → 1Gi). PoC validated this is the
+# minimum that works for ~60 process tracers per node. Tune downward
+# only after long-running cardinality + memory observation.
+resources:
+  requests:
+    cpu: 100m
+    memory: 512Mi
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+
+# Annotation for the Alloy `metric_pods` discovery (after the relabel
+# fix from PR #148 lands). Lets Alloy scrape Beyla's internal_metrics
+# without manual scrape config. Application metrics flow via OTLP
+# (otel_metrics_export below), not via Prometheus scrape.
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "8080"
+  prometheus.io/path: "/internal/metrics"
+
+# Required environment — cluster name (chart cannot auto-detect on EKS
+# due to missing aws-auth read permission). Chart 1.16.5 reads `env`
+# as a map (key:value), not a list of name/value objects. The cluster
+# name value is overridden at runtime by the bootstrap template via
+# helm.parameters (see bootstrap/platform-root/templates/beyla.yaml).
+env:
+  BEYLA_KUBE_METADATA_ENABLE: "true"
+  BEYLA_KUBE_CLUSTER_NAME: "estabilis"
+
+# /sys/fs/bpf mount — required for log enricher + profile correlation.
+# Chart fields are `volumes` / `volumeMounts` (k8s-native list shape).
+volumes:
+  - name: bpffs
+    hostPath:
+      path: /sys/fs/bpf
+      type: DirectoryOrCreate
+volumeMounts:
+  - name: bpffs
+    mountPath: /sys/fs/bpf
+    mountPropagation: Bidirectional
+
+# Exclude Fargate (no eBPF) and require amd64 (no validated arm64 path).
+affinity:
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: eks.amazonaws.com/compute-type
+              operator: NotIn
+              values: [fargate]
+            - key: kubernetes.io/arch
+              operator: In
+              values: [amd64]
+
+# --- Beyla configuration (River) ---
+# Discovery filter is by pod LABEL (not namespace) — apps opt in by
+# adding `estabilis.io/instrument-with-beyla: "true"` to their pod
+# labels. Excludes the `grafana` namespace itself so Beyla doesn't
+# instrument the observability stack and create a feedback loop.
+config:
+  create: true
+  data:
+    log_level: INFO
+    discovery:
+      instrument:
+        - k8s_pod_labels:
+            estabilis.io/instrument-with-beyla: "true"
+      exclude_instrument:
+        - k8s_namespace: grafana
+    routes:
+      unmatched: heuristic
+    # OTLP push for metrics + traces (Alloy receives both; the receiver
+    # routes them to Mimir/Tempo respectively after PR #148 fix).
+    otel_metrics_export:
+      endpoint: http://grafana-alloy.grafana.svc.cluster.local:4317
+      protocol: grpc
+      insecure: true
+    otel_traces_export:
+      endpoint: http://grafana-alloy.grafana.svc.cluster.local:4317
+      protocol: grpc
+      insecure: true
+    # Internal metrics — Beyla self-monitoring (BPF map sizes, ringbuf
+    # drops, instrumentation counts). Scraped via the Prometheus
+    # annotation discovery in Alloy (post-PR #148).
+    internal_metrics:
+      prometheus:
+        port: 8080
+        path: /internal/metrics
+
+# --- Cleanup of chart defaults that conflict with PSS=privileged ns ---
+# Chart sets controller.podSecurityContext: {} which is fine; we don't
+# override containerSecurityContext because the chart already sets
+# privileged: true at the right level.
+
+controller:
+  type: daemonset

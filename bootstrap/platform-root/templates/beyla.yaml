@@ -1,0 +1,63 @@
+{{- if (index .Values.components "beyla") }}
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: beyla
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "9"
+spec:
+  project: platform
+  sources:
+    - repoURL: https://grafana.github.io/helm-charts
+      chart: beyla
+      targetRevision: "1.16.5"
+      helm:
+        releaseName: beyla
+        valueFiles:
+          - $values/core/components/beyla/values.yaml
+          - $values/core/components/beyla/values-{{ .Values.global.provider }}.yaml
+          {{- include "platform-root.overrideValueFile" (dict "component" "beyla" "root" $) | nindent 10 }}
+          {{- include "platform-root.gitopsValueFile" (dict "component" "beyla" "root" $) | nindent 10 }}
+        {{- include "platform-root.ignoreMissingValueFiles" $ | nindent 8 }}
+        valuesObject:
+          {{- /* Scheduling (ADR 0012 — issue #97). Beyla chart 1.16.5
+                puts tolerations / affinity at the top level (not under
+                a controller key like Alloy). */}}
+          {{- include "platform-root.schedulingValuesTopLevel" (dict
+                "mode" (default "auto" (index .Values.scheduling "beyla"))
+                "provider" .Values.global.provider
+             ) | nindent 10 }}
+        parameters:
+          {{- /* Cluster name passed dynamically — Beyla cannot
+                auto-detect on EKS without aws-auth ConfigMap read
+                permission. Chart 1.16.5 reads `env` as a map; the
+                ArgoCD parameter address dot-escapes the env var name. */}}
+          - name: env.BEYLA_KUBE_CLUSTER_NAME
+            value: {{ .Values.global.clusterName | default "estabilis" | quote }}
+    - repoURL: {{ .Values.platformRepoUrl }}
+      targetRevision: {{ .Values.platformVersion }}
+      ref: values
+    {{- include "platform-root.overrideSource" . | nindent 4 }}
+    {{- include "platform-root.gitopsSource" . | nindent 4 }}
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: grafana
+  syncPolicy:
+    {{- /* `grafana` ns is platform-managed PSS=privileged; use the
+          privileged variant of the metadata helper to keep label
+          consistency with the rest of the observability stack. */}}
+    {{- include "platform-root.managedNamespaceMetadataExcludedPrivileged" . | nindent 4 }}
+    automated:
+      prune: true
+      selfHeal: false
+    retry:
+      limit: 10
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 3m
+    syncOptions:
+      - ServerSideApply=true
+      - RespectIgnoreDifferences=true
+{{- end }}

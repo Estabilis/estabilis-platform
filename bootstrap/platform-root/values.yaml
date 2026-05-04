@@ -183,6 +183,7 @@ components:
   alloy: true                # observability: telemetry collector (DaemonSet)
   tempo: true                # observability: distributed tracing
   pyroscope: true            # observability: continuous profiling
+  beyla: false               # observability: eBPF auto-instrumentation. Opt-in per cluster; per-pod opt-in via `estabilis.io/instrument-with-beyla: "true"` label.
   grafana-dashboards: true   # observability: pre-built dashboards
   mimir-rules: true          # observability: alerting rules
   kube-state-metrics: true   # observability: Kubernetes state metrics
