@@ -68,7 +68,9 @@ datasources:
         uid: tempo
         type: tempo
         access: proxy
-        url: http://grafana-tempo.grafana.svc.cluster.local:3100
+        # Chart tempo>=1.20 defaults tempo.server.http_listen_port to 3200
+        # (was 3100 on chart 1.10). Service follows the binary port.
+        url: http://grafana-tempo.grafana.svc.cluster.local:3200
         jsonData:
           tracesToLogsV2:
             datasourceUid: loki

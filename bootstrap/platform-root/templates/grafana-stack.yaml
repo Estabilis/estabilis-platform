@@ -304,7 +304,7 @@ spec:
   sources:
     - repoURL: https://grafana.github.io/helm-charts
       chart: tempo
-      targetRevision: "1.10.3"
+      targetRevision: "1.24.4"
       helm:
         valueFiles:
           - $values/core/components/grafana-stack/tempo-values.yaml

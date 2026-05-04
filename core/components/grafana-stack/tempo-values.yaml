@@ -14,27 +14,35 @@ tempo:
   metricsGenerator:
     enabled: true
     remoteWriteUrl: "http://grafana-mimir-gateway.grafana.svc.cluster.local/api/v1/push"
+    # local-blocks processor is required by Grafana Drilldown/Traces (TraceQL
+    # metrics queries). flush_to_storage=true persists the metric blocks to
+    # the trace backend so queries survive ingester restarts.
+    processor:
+      local_blocks:
+        flush_to_storage: true
+  # Tempo standard overrides — chart >=1.16 templatizes this path; the legacy
+  # extraConfig.overrides.defaults block on chart 1.10 was a no-op because the
+  # template hard-coded the processor list when metricsGenerator.enabled=true.
+  overrides:
+    defaults:
+      metrics_generator:
+        processors:
+          - service-graphs
+          - span-metrics
+          - local-blocks
   resources:
     requests:
-      cpu: 50m
-      memory: 128Mi
+      cpu: 100m
+      memory: 1Gi
     limits:
-      cpu: 200m
-      memory: 512Mi
+      cpu: 1500m
+      memory: 3Gi
   securityContext:
     readOnlyRootFilesystem: false
     allowPrivilegeEscalation: false
     runAsNonRoot: true
     capabilities:
       drop: [ALL]
-  extraConfig:
-    overrides:
-      defaults:
-        metrics_generator:
-          processors:
-            - service-graphs
-            - span-metrics
-            - local-blocks
 
 persistence:
   enabled: true
