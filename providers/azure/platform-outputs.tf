@@ -79,10 +79,17 @@ resource "kubernetes_config_map" "platform_infrastructure" {
     # decodes with fromJson and iterates over the result. Uses the
     # *_resolved locals so empty host fields are substituted with the
     # auto-derived hostname (see _app_host in main.tf).
-    "global.lokiExposures"     = jsonencode({ for k, v in local.loki_exposures_resolved : k => v if v.enabled })
-    "global.mimirExposures"    = jsonencode({ for k, v in local.mimir_exposures_resolved : k => v if v.enabled })
-    "global.grafanaExposures"  = jsonencode({ for k, v in local.grafana_exposures_resolved : k => v if v.enabled })
-    "global.argocdExposures"   = jsonencode({ for k, v in local.argocd_exposures_resolved : k => v if v.enabled })
+    "global.lokiExposures"    = jsonencode({ for k, v in local.loki_exposures_resolved : k => v if v.enabled })
+    "global.mimirExposures"   = jsonencode({ for k, v in local.mimir_exposures_resolved : k => v if v.enabled })
+    "global.grafanaExposures" = jsonencode({ for k, v in local.grafana_exposures_resolved : k => v if v.enabled })
+    "global.argocdExposures"  = jsonencode({ for k, v in local.argocd_exposures_resolved : k => v if v.enabled })
+
+    # Per-cluster ArgoCD UI URL — flat string consumed by the
+    # grafana-dashboards chart to substitute __ARGOCD_URL__ placeholders
+    # in the argocd-application dashboard JSON (data links on the table
+    # panels). Defaults to the external profile's resolved host when
+    # enabled; empty otherwise.
+    "global.argocdUrl"         = try(local.argocd_exposures_resolved.external.enabled ? "https://${local.argocd_exposures_resolved.external.host}" : "", "")
     "global.hubbleUiExposures" = jsonencode({ for k, v in local.hubble_ui_exposures_resolved : k => v if v.enabled })
     "global.vaultExposures"    = jsonencode({ for k, v in local.vault_exposures_resolved : k => v if v.enabled })
 

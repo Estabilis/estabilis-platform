@@ -201,13 +201,30 @@ querier:
 
 query_frontend:
   replicas: 1
+  # 2026-05-03 incident — cortex prd query-frontend OOMKilled in a loop
+  # (5 restarts in 24h, exit 137). Symptom on Grafana side: ArgoCD /
+  # Operational / Overview dashboard's "gRPC Requests Handled" panel
+  # (and any panel with similar grouping cardinality) returned HTTP 502
+  # Bad Gateway from the mimir gateway nginx because the query-frontend
+  # connection died mid-response. Live diagnosis: 3817 grpc_server_handled_total
+  # series with 17 grpc_service x 83 grpc_method x 17 grpc_code distinct
+  # values (~1411 effective combinations × 360 timestamps for a 6h
+  # query_range step=60), parsing/aggregation buffer in query-frontend
+  # peaked above 128Mi. Idle steady-state was ~27Mi, so the limit was
+  # only adequate for trivial queries.
+  #
+  # Fix: bump memory limit 128Mi -> 384Mi (3× over former limit, ~14×
+  # over idle steady state). Request bumped 64Mi -> 128Mi so the
+  # scheduler reserves the realistic working-set rather than the idle
+  # baseline. Cpu unchanged — query-frontend isn't CPU-bound on these
+  # workloads.
   resources:
     requests:
       cpu: 50m
-      memory: 64Mi
+      memory: 128Mi
     limits:
       cpu: 100m
-      memory: 128Mi
+      memory: 384Mi
   tolerations:
     - key: "estabilis.io/workload-type"
       operator: "Equal"

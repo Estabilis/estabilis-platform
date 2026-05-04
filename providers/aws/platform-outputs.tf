@@ -116,10 +116,19 @@ resource "kubernetes_config_map_v1" "platform_infrastructure" {
 
     # ADR 0014 — App exposures as JSON-encoded map(object), filtered to
     # only enabled profiles.
-    "global.lokiExposures"     = jsonencode({ for k, v in local.loki_exposures_resolved : k => v if v.enabled })
-    "global.mimirExposures"    = jsonencode({ for k, v in local.mimir_exposures_resolved : k => v if v.enabled })
-    "global.grafanaExposures"  = jsonencode({ for k, v in local.grafana_exposures_resolved : k => v if v.enabled })
-    "global.argocdExposures"   = jsonencode({ for k, v in local.argocd_exposures_resolved : k => v if v.enabled })
+    "global.lokiExposures"    = jsonencode({ for k, v in local.loki_exposures_resolved : k => v if v.enabled })
+    "global.mimirExposures"   = jsonencode({ for k, v in local.mimir_exposures_resolved : k => v if v.enabled })
+    "global.grafanaExposures" = jsonencode({ for k, v in local.grafana_exposures_resolved : k => v if v.enabled })
+    "global.argocdExposures"  = jsonencode({ for k, v in local.argocd_exposures_resolved : k => v if v.enabled })
+
+    # Per-cluster ArgoCD UI URL — flat string consumed by the
+    # grafana-dashboards chart to substitute __ARGOCD_URL__ placeholders
+    # in the argocd-application dashboard JSON (data links on the table
+    # panels). Defaults to the external profile's resolved host when
+    # enabled; empty otherwise. Stays in sync with whichever exposure
+    # the operator chose because it reads the same `host` field that
+    # cert-manager + Traefik/ALB ingress consume.
+    "global.argocdUrl"         = try(local.argocd_exposures_resolved.external.enabled ? "https://${local.argocd_exposures_resolved.external.host}" : "", "")
     "global.hubbleUiExposures" = jsonencode({ for k, v in local.hubble_ui_exposures_resolved : k => v if v.enabled })
     "global.vaultExposures"    = jsonencode({ for k, v in local.vault_exposures_resolved : k => v if v.enabled })
 
