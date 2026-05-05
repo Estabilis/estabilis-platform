@@ -3,7 +3,10 @@ groups:
   interval: 1m
   rules:
   - alert: ArgocdAppOutOfSync
-    expr: argocd_app_info{sync_status!="Synced", project="platform"}
+    # project regex covers platform (core), platform-apps (client workloads)
+    # and platform-client-infra (per-client shared infra). Was scoped to
+    # `platform` only, leaving 25/64 apps unmonitored.
+    expr: argocd_app_info{sync_status!="Synced", project=~"platform|platform-apps|platform-client-infra"}
     for: 10m
     labels:
       severity: critical
@@ -11,10 +14,10 @@ groups:
       component: argocd
     annotations:
       summary: ArgoCD Application {{ $labels.name }} is out of sync
-      description: Application {{ $labels.name }} has sync status {{ $labels.sync_status
+      description: Application {{ $labels.name }} (project {{ $labels.project }}) has sync status {{ $labels.sync_status
         }} for more than 10 minutes.
   - alert: ArgocdAppDegraded
-    expr: argocd_app_info{health_status!="Healthy", health_status!="", project="platform"}
+    expr: argocd_app_info{health_status!="Healthy", health_status!="", project=~"platform|platform-apps|platform-client-infra"}
     for: 10m
     labels:
       severity: critical
@@ -22,7 +25,7 @@ groups:
       component: argocd
     annotations:
       summary: ArgoCD Application {{ $labels.name }} is degraded
-      description: Application {{ $labels.name }} has health status {{ $labels.health_status
+      description: Application {{ $labels.name }} (project {{ $labels.project }}) has health status {{ $labels.health_status
         }} for more than 10 minutes.
   - alert: ArgocdServerDown
     expr: up{job="argocd-server"} == 0
@@ -36,7 +39,14 @@ groups:
       description: ArgoCD server is not responding on {{ $labels.instance }} for more
         than 3 minutes. GitOps operations are stopped.
   - alert: PodCrashLoopingCritical
-    expr: increase(kube_pod_container_status_restarts_total{namespace=~"argocd|cert-manager|external-secrets|kyverno|cnpg-system|traefik"}[1h])
+    # Tier 1 = platform-down. Namespace regex covers core platform components
+    # whose loss makes the cluster unusable: ingress (traefik on Azure;
+    # aws-load-balancer-controller on AWS), DNS sync (external-dns), node
+    # autoscaling (karpenter on AWS), secrets (external-secrets, vault),
+    # backups (velero), policy enforcement (kyverno), DB (cnpg-system),
+    # certs (cert-manager), gitops (argocd) and observability (grafana).
+    # Client app crashloops are tracked at Tier 2 (PodCrashLoopingWarning).
+    expr: increase(kube_pod_container_status_restarts_total{namespace=~"argocd|cert-manager|external-secrets|kyverno|cnpg-system|traefik|aws-load-balancer-controller|external-dns|karpenter|vault|velero|grafana"}[1h])
       > 5
     for: 5m
     labels:
@@ -102,7 +112,11 @@ groups:
       summary: Kyverno admission controller is down
       description: Kyverno webhook is not responding. Policy enforcement is disabled.
   - alert: DaemonSetUnavailable
-    expr: kube_daemonset_status_number_unavailable{daemonset=~"grafana-alloy|node-exporter-prometheus-node-exporter"}
+    # Critical DaemonSets across both providers. Provider-specific names
+    # (aws-node, ebs-csi-node, kube-proxy, eks-pod-identity-agent) are
+    # AWS/EKS — on Azure the metric returns no series for those, so the
+    # regex is harmless cross-provider.
+    expr: kube_daemonset_status_number_unavailable{daemonset=~"grafana-alloy|node-exporter-prometheus-node-exporter|beyla|aws-node|ebs-csi-node|kube-proxy|eks-pod-identity-agent"}
       > 0
     for: 5m
     labels:
@@ -150,3 +164,49 @@ groups:
     annotations:
       summary: Pyroscope is down
       description: Pyroscope has zero ready replicas. Continuous profiling is not functioning.
+  - alert: AwsLoadBalancerControllerDown
+    # AWS-only: ALB Controller is the ingress on EKS clusters. On Azure
+    # the namespace doesn't exist and the metric returns no series, so
+    # the alert is silently inert there (cross-provider safe).
+    expr: kube_deployment_status_replicas_available{namespace="aws-load-balancer-controller", deployment="aws-load-balancer-controller"}
+      == 0
+    for: 3m
+    labels:
+      severity: critical
+      tier: '1'
+      component: aws-load-balancer-controller
+    annotations:
+      summary: AWS Load Balancer Controller is down
+      description: ALB Controller deployment has zero available replicas. New
+        Ingresses (k8s class=alb) will not be provisioned and existing ones
+        will not have their target groups updated.
+  - alert: KarpenterDown
+    # AWS-only: Karpenter handles node provisioning on EKS. Cross-provider
+    # safe (returns no series on Azure).
+    expr: kube_deployment_status_replicas_available{namespace="karpenter", deployment="karpenter"}
+      == 0
+    for: 3m
+    labels:
+      severity: critical
+      tier: '1'
+      component: karpenter
+    annotations:
+      summary: Karpenter controller is down
+      description: Karpenter has zero available replicas. Pending pods will
+        not get new nodes and existing nodes will not be deprovisioned.
+  - alert: VaultDown
+    # Vault is a StatefulSet (HA mode). Alerts only when ALL replicas are
+    # down — quorum-loss state. Partial outage (e.g. 1/3 down with quorum
+    # held) belongs in a Tier 2 degradation alert if needed.
+    expr: kube_statefulset_status_replicas_ready{namespace="vault", statefulset="vault"}
+      == 0
+    for: 3m
+    labels:
+      severity: critical
+      tier: '1'
+      component: vault
+    annotations:
+      summary: Vault is down
+      description: Vault has zero ready replicas. Secret reads/writes are
+        unavailable. Apps using Vault Agent or vault-injector will fail
+        to start.
