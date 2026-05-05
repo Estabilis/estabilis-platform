@@ -241,3 +241,24 @@ groups:
       description: Tempo metrics-generator on {{ $labels.pod }} is failing
         ({{ $value }}/s — collections_failed and/or spans_discarded).
         Drilldown/Traces queries may return incomplete data.
+  - alert: VaultPartialFailure
+    # Vault runs as a 3-replica StatefulSet with raft consensus; quorum
+    # is 2/3. Tier 1 (VaultDown) only fires when ALL replicas are down
+    # (full HA loss). Catch the degraded state earlier:
+    # - 1/3 down: cluster operational but next failure breaks quorum.
+    # - 2/3 down: quorum lost — cluster goes read-only.
+    # Either should be a Tier 2 warning so the operator can replace the
+    # failed replica before the remaining one(s) also fail.
+    expr: kube_statefulset_status_replicas_ready{namespace="vault", statefulset="vault"}
+      < kube_statefulset_replicas{namespace="vault", statefulset="vault"}
+    for: 5m
+    labels:
+      severity: warning
+      tier: '2'
+      component: vault
+    annotations:
+      summary: Vault HA cluster degraded
+      description: Vault has fewer ready replicas than desired
+        ({{ $value }} ready). Raft quorum is at risk — losing one more
+        replica triggers VaultDown (critical) and the cluster goes
+        read-only.
