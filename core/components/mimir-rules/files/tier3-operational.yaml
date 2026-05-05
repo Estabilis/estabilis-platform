@@ -65,3 +65,28 @@ groups:
     annotations:
       summary: Node {{ $labels.node }} has memory pressure
       description: Node {{ $labels.node }} is under memory pressure. Pods may be evicted.
+
+  - alert: PvcGrowthVelocity
+    # Predicts whether each PVC will run out of space in the next 6 hours
+    # based on the recent 6h growth rate. Complements the existing
+    # threshold-based PvcAlmostFull (Tier 2 @ 85%) and PvcFull (Tier 2
+    # @ 95%) — those catch slow growth after the fact; this catches a
+    # fast-filling PVC before it hits 85%. Guard with > 70% used so we
+    # don't alert on early-life PVCs that haven't established a stable
+    # baseline yet (predict_linear is noisy on small fill levels).
+    expr: |
+      (kubelet_volume_stats_used_bytes / kubelet_volume_stats_capacity_bytes) > 0.7
+      and
+      predict_linear(kubelet_volume_stats_available_bytes[6h], 6 * 3600) < 0
+    for: 30m
+    labels:
+      severity: info
+      tier: '3'
+      component: storage
+    annotations:
+      summary: PVC {{ $labels.namespace }}/{{ $labels.persistentvolumeclaim }} will run out of space in 6h
+      description: PVC {{ $labels.persistentvolumeclaim }} in {{ $labels.namespace }}
+        is currently at {{ $value | humanizePercentage }} usage and projected
+        to be empty within 6 hours at the current growth rate. Plan a resize
+        or cleanup before the absolute thresholds (PvcAlmostFull @ 85%,
+        PvcFull @ 95%) fire.

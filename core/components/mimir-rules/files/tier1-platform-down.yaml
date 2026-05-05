@@ -210,3 +210,41 @@ groups:
       description: Vault has zero ready replicas. Secret reads/writes are
         unavailable. Apps using Vault Agent or vault-injector will fail
         to start.
+  - alert: CertManagerControllerDown
+    # cert-manager has 3 deployments — controller (issuance), webhook
+    # (admission validation) and cainjector (CA bundle injection). Loss
+    # of any one is critical: certs stop being issued/renewed and
+    # admission requests for cert-manager CRs may fail. Existing
+    # CertificateExpiring* alerts are downstream — they only catch the
+    # tail effect days later.
+    expr: kube_deployment_status_replicas_available{namespace="cert-manager", deployment=~"cert-manager|cert-manager-webhook|cert-manager-cainjector"}
+      == 0
+    for: 3m
+    labels:
+      severity: critical
+      tier: '1'
+      component: cert-manager
+    annotations:
+      summary: cert-manager component {{ $labels.deployment }} is down
+      description: cert-manager component {{ $labels.deployment }} has zero
+        available replicas. Certificate issuance/renewal stopped — every
+        cert that expires in the next 14 days will silently fail to
+        renew unless this is recovered.
+  - alert: ArgocdApplicationSetControllerDown
+    # ApplicationSet controller renders dynamic Application sets (e.g.
+    # client-apps + hub-client-apps cover 21 client app namespaces in
+    # cortex prd). Loss of all replicas = ApplicationSet templates stop
+    # being reconciled, new clusters/apps don't get bootstrapped, and
+    # template changes don't propagate.
+    expr: kube_deployment_status_replicas_available{namespace="argocd", deployment="argocd-applicationset-controller"}
+      == 0
+    for: 3m
+    labels:
+      severity: critical
+      tier: '1'
+      component: argocd
+    annotations:
+      summary: ArgoCD ApplicationSet controller is down
+      description: ApplicationSet controller has zero available replicas.
+        Dynamic Application generation (client-apps, hub-client-apps,
+        etc.) is halted.

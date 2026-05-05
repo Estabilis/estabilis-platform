@@ -1,5 +1,71 @@
 # Changelog
 
+## [0.43.0] - 2026-05-05
+
+### Added — 5 new platform alerts (audit follow-up)
+
+Closes 5 of the 7 audit-listed "opportunity" gaps from the v0.41/v0.42
+audit. Each alert addresses a class of failure that was silent in the
+existing rule set.
+
+#### `CertManagerControllerDown` (Tier 1, critical)
+
+`core/components/mimir-rules/files/tier1-platform-down.yaml`. Catches
+loss of any of the 3 cert-manager deployments (controller, webhook,
+cainjector). Existing `CertificateExpiring14d`/`CertificateExpiring3d`
+(Tier 2) only catch the tail effect days after issuance/renewal stops
+— this fires within 3 minutes of controller down.
+
+#### `ArgocdApplicationSetControllerDown` (Tier 1, critical)
+
+Same file. ApplicationSet controller renders dynamic Application sets
+(e.g. `client-apps` + `hub-client-apps` cover 21 cortex client app
+namespaces). Loss = template changes don't propagate, new clusters
+don't get bootstrapped.
+
+#### `ImagePullBackOff` (Tier 2, warning)
+
+`core/components/mimir-rules/files/tier2-degradation.yaml`. Catches
+deploy-time failures invisible until now: wrong ECR tag, podre digest,
+missing IAM permissions, registry-egress NetworkPolicy gap. The
+existing `PodCrashLooping*` alerts only catch restart loops AFTER the
+container starts; this catches the state where it never starts.
+Validation against cortex prd: the metric saw 1 `ImagePullBackOff`
+event and 1 `ErrImagePull` event in the last 24h that this alert
+would have caught.
+
+#### `MimirIngesterPartialFailure` (Tier 2, warning)
+
+Same file. Tier 1 (`MimirIngesterDown`) only fires when ALL ingesters
+are down. On 2-ingester cortex prd, losing 1/2 means write
+replication is gone — single point of failure if the remaining one
+dies. New alert catches `replicas_ready < spec_replicas` for >5min.
+
+#### `PvcGrowthVelocity` (Tier 3, info)
+
+`core/components/mimir-rules/files/tier3-operational.yaml`. Predicts
+empty-in-6h via `predict_linear` over the last 6h growth rate.
+Complements the existing absolute thresholds (`PvcAlmostFull` @ 85%,
+`PvcFull` @ 95%) — a fast-filling PVC can blow past those thresholds
+between scrape intervals. Guarded with `> 70% used` so we don't alert
+on early-life PVCs whose growth rate isn't stable yet.
+
+### Net effect
+
+| | Before | After (AWS) |
+|---|---|---|
+| Total rules | 35 | 40 |
+| Tier 1 alerts | 16 | 18 |
+| Tier 2 alerts | 14 | 16 |
+| Tier 3 alerts | 5 | 6 |
+| Components without any alert | 5 | 5 (Trivy, OpenCost, Policy Reporter, Envoy Gateway, metrics-server — Tier-3 priority, deferred) |
+
+### Audit status after this release
+
+✅ Done: 4 broken alerts (v0.41.1), B1-B4 coverage gaps + 3 new alerts (v0.42.0), 5 new alerts (this release).
+
+⏳ Deferred: 4 Tier-3 components without alerts (Trivy, OpenCost, Policy Reporter, Envoy Gateway), RED metrics SLO alerts for 21 cortex client apps (scope dictates separate planning per app), Tempo metrics-generator push-error alerting (low value — Drilldown failures are user-visible immediately).
+
 ## [0.42.0] - 2026-05-05
 
 ### Added — Coverage gaps in mimir-rules platform alerts (B1–B4 + 3 new alerts)
