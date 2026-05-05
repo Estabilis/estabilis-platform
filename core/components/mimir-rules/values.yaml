@@ -6,6 +6,11 @@ ruleGroups:
     enabled: true
   platformOperational:
     enabled: true
+    # Traefik 5xx rule — only meaningful on clusters where Traefik
+    # serves as the ingress controller. AWS overlay flips this off
+    # because AWS clients use the AWS Load Balancer Controller (ALB),
+    # where `traefik_*` metrics never exist.
+    traefik: true
 
 # Custom rule groups — clients can add their own alerting rules here.
 # Each entry renders as a separate YAML file uploaded to Mimir Ruler.

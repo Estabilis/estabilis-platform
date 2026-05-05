@@ -1,0 +1,14 @@
+groups:
+- name: platform-operational-traefik
+  interval: 1m
+  rules:
+  - alert: TraefikHighError5xx
+    expr: sum(rate(traefik_service_requests_total{code=~"5.."}[5m])) / clamp_min(sum(rate(traefik_service_requests_total[5m])), 1) > 0.05
+    for: 10m
+    labels:
+      severity: info
+      tier: '3'
+      component: traefik
+    annotations:
+      summary: Traefik 5xx error rate above 5%
+      description: Traefik is returning {{ $value | humanizePercentage }} 5xx errors. Check backend services.

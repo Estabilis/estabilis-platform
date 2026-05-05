@@ -96,17 +96,28 @@ groups:
       summary: Loki error rate above 5%
       description: Loki has a {{ $value | humanizePercentage }} error rate. Log ingestion
         may be degraded.
-  - alert: ExternalDnsErrors
-    expr: increase(external_dns_source_errors_total[10m]) > 5
-    for: 10m
+  - alert: ExternalDnsDown
+    # Renamed from ExternalDnsErrors (was based on
+    # external_dns_source_errors_total). The external-dns chart in this
+    # platform doesn't ship Prometheus scrape annotations enabled by
+    # default — the metrics endpoint exists on the Pod but Alloy's
+    # metric_pods discovery never reaches it, so 0 external_dns_*
+    # metrics ever land in Mimir. Until scrape coverage is added
+    # (separate follow-up), the controller-down signal is the strongest
+    # one available: if the Deployment goes to 0 ready replicas, DNS
+    # records stop syncing.
+    expr: kube_deployment_status_replicas_available{namespace="external-dns", deployment="external-dns"}
+      == 0
+    for: 5m
     labels:
       severity: warning
       tier: '2'
       component: external-dns
     annotations:
-      summary: ExternalDNS source errors detected
-      description: ExternalDNS had {{ $value }} source errors in the last 10 minutes.
-        DNS records may not be updating.
+      summary: ExternalDNS controller is down
+      description: ExternalDNS deployment has zero available replicas for 5 minutes.
+        New Ingress hostnames will not be created in DNS and changes to existing
+        ones will not propagate.
   - alert: ExternalSecretsNotSynced
     expr: externalsecret_status_condition{condition="Ready", status="False"} > 0
     for: 30m

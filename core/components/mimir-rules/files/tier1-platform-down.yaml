@@ -137,7 +137,10 @@ groups:
       summary: Tempo is down
       description: Tempo has zero ready replicas. Distributed tracing is not functioning.
   - alert: PyroscopeDown
-    expr: kube_deployment_status_replicas_available{namespace="grafana", deployment="grafana-pyroscope"}
+    # Pyroscope is a StatefulSet (not a Deployment) — kube_deployment_*
+    # returned 0 series so this alert never fired. Switched to
+    # kube_statefulset_status_replicas_ready (validated 2026-05-04).
+    expr: kube_statefulset_status_replicas_ready{namespace="grafana", statefulset="grafana-pyroscope"}
       == 0
     for: 3m
     labels:
@@ -146,4 +149,4 @@ groups:
       component: pyroscope
     annotations:
       summary: Pyroscope is down
-      description: Pyroscope has zero available replicas. Continuous profiling is not functioning.
+      description: Pyroscope has zero ready replicas. Continuous profiling is not functioning.

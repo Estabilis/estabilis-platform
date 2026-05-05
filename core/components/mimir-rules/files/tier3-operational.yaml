@@ -25,7 +25,11 @@ groups:
       description: Container {{ $labels.container }} in pod {{ $labels.pod }} ({{ $labels.namespace }}) is throttled {{ $value | humanizePercentage }} of the time. Consider increasing CPU limits.
 
   - alert: KyvernoPolicyViolation
-    expr: increase(kyverno_policy_results{rule_result="fail"}[1h]) > 100
+    # Kyverno renamed kyverno_policy_results -> kyverno_policy_results_total
+    # in v1.10 (Counter convention). The old name returns 0 series, so the
+    # alert was silently dead. Validated against live cortex prd: the
+    # _total form returns ~150 active series.
+    expr: increase(kyverno_policy_results_total{rule_result="fail"}[1h]) > 100
     for: 15m
     labels:
       severity: info
@@ -34,17 +38,6 @@ groups:
     annotations:
       summary: High rate of Kyverno policy violations
       description: More than 100 policy violations in the last hour. Policy {{ $labels.policy_name }} rule {{ $labels.rule_name }}.
-
-  - alert: TraefikHighError5xx
-    expr: sum(rate(traefik_service_requests_total{code=~"5.."}[5m])) / clamp_min(sum(rate(traefik_service_requests_total[5m])), 1) > 0.05
-    for: 10m
-    labels:
-      severity: info
-      tier: '3'
-      component: traefik
-    annotations:
-      summary: Traefik 5xx error rate above 5%
-      description: Traefik is returning {{ $value | humanizePercentage }} 5xx errors. Check backend services.
 
   - alert: NodeDiskPressure
     expr: kube_node_status_condition{condition="DiskPressure", status="true"} == 1

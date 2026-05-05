@@ -1,5 +1,69 @@
 # Changelog
 
+## [0.41.1] - 2026-05-05
+
+### Fixed — 4 broken Mimir alerting rules
+
+Audit of the 33-rule mimir-rules platform alert set against the live
+state of cortex prd surfaced four rules that could never fire as
+written. Fixes are query-level only — alert names, severities, tier
+labels and runbook annotations are preserved where possible.
+
+#### `PyroscopeDown` (Tier 1, critical)
+
+`core/components/mimir-rules/files/tier1-platform-down.yaml`. The
+alert checked `kube_deployment_status_replicas_available{deployment="grafana-pyroscope"}`,
+but the `grafana/pyroscope` chart deploys Pyroscope as a StatefulSet,
+not a Deployment. The metric returned 0 series, so the alert never
+fired even when Pyroscope was unhealthy. Switched to
+`kube_statefulset_status_replicas_ready{statefulset="grafana-pyroscope"}`,
+matching the existing TempoDown / LokiDown pattern in the same group.
+
+#### `KyvernoPolicyViolation` (Tier 3, info)
+
+`core/components/mimir-rules/files/tier3-operational.yaml`. The alert
+referenced `kyverno_policy_results`, but Kyverno renamed the metric to
+`kyverno_policy_results_total` in v1.10 (Counter convention with the
+`_total` suffix). The old name returned 0 series; the rename returns
+~150 active series in cortex prd today. Added `_total`.
+
+#### `ExternalDnsErrors` → `ExternalDnsDown` (Tier 2, warning)
+
+`core/components/mimir-rules/files/tier2-degradation.yaml`. The alert
+queried `external_dns_source_errors_total[10m]`, but no
+`external_dns_*` metrics reach Mimir on this platform — the
+external-dns chart doesn't ship with Prometheus scrape annotations
+enabled and Alloy's `metric_pods` discovery never reaches the Pod's
+:7979 metrics endpoint. Replaced with a controller-down query
+(`kube_deployment_status_replicas_available{namespace="external-dns"} == 0`)
+which doesn't depend on the metrics endpoint and surfaces the most
+critical degradation (DNS records stop syncing) reliably. Renamed the
+alert to `ExternalDnsDown` so the new semantic is reflected in
+notifications. Enabling external-dns scrape coverage is left for a
+separate follow-up; the metrics-based form can return when scrape lands.
+
+#### `TraefikHighError5xx` — provider-gated (Tier 3, info)
+
+`core/components/mimir-rules/files/tier3-traefik.yaml` (new) +
+`core/components/mimir-rules/values{,-aws}.yaml`. The alert queries
+`traefik_service_requests_total`, which is correct on Azure clusters
+where Traefik serves ingress. On AWS clusters (cortex / future AWS
+clients) Traefik is not the ingress controller — every Ingress uses
+the AWS Load Balancer Controller (ALB) class, so the metric is empty
+and the rule was dead-code in the rule list. Split the rule into a
+new file `tier3-traefik.yaml` and gated its inclusion via
+`ruleGroups.platformOperational.traefik` (default `true`, set to
+`false` in `values-aws.yaml`). Existing Azure deployments behave
+identically; AWS deployments stop loading the dead rule.
+
+#### Net effect
+
+Two formerly-silent critical alerts (Pyroscope, Kyverno) and one
+formerly-silent warning (external-dns) now produce signal when the
+underlying components fail. AWS clusters get one fewer dead-code
+rule loaded into Mimir Ruler. No alert names changed except
+`ExternalDnsErrors` → `ExternalDnsDown` (different semantic).
+
 ## [0.41.0] - 2026-05-04
 
 ### Added — TraceQL metrics support (Grafana Drilldown/Traces)
