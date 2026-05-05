@@ -16,6 +16,16 @@ data:
   {{- if .Values.ruleGroups.platformOperational.enabled }}
   tier3-operational.yaml: |
 {{ .Files.Get "files/tier3-operational.yaml" | indent 4 }}
+  {{- /* Traefik rules are scoped to clusters that actually use Traefik
+         as the ingress controller. AWS clusters use the AWS Load
+         Balancer Controller (ALB) — `traefik_*` metrics are empty there
+         and the rule is dead-code that pollutes the rule list. Set
+         platformOperational.traefik=false on AWS via values-aws.yaml;
+         leave true on Azure where Traefik is the default ingress. */}}
+  {{- if .Values.ruleGroups.platformOperational.traefik }}
+  tier3-traefik.yaml: |
+{{ .Files.Get "files/tier3-traefik.yaml" | indent 4 }}
+  {{- end }}
   {{- end }}
   {{- range $name, $group := .Values.customRuleGroups }}
   custom-{{ $name }}.yaml: |

@@ -17,3 +17,10 @@
 #   The Ruler then persists the rules into S3 itself.
 uploadJob:
   enabled: true
+
+# Traefik 5xx rule is scoped out on AWS — clusters use ALB and Traefik
+# (even when the namespace exists) doesn't serve ingress traffic, so
+# `traefik_*` metrics never exist and the alert is dead-code.
+ruleGroups:
+  platformOperational:
+    traefik: false
