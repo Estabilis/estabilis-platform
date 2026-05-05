@@ -218,3 +218,26 @@ groups:
       description: Mimir Ingester has fewer ready replicas than desired
         ({{ $value }} ready). Write path replication is degraded — losing
         another replica triggers MimirIngesterDown (critical).
+  - alert: TempoMetricsGeneratorFailures
+    # Tempo's metrics-generator (local-blocks + service-graphs +
+    # span-metrics processors) feeds Grafana Drilldown/Traces. Failures
+    # in the registry collection cycle (which exports Prometheus-format
+    # metrics out of the in-memory series store) or spans being
+    # discarded by the processor mean Drilldown queries silently return
+    # incomplete data. Requires tempo /metrics scrape annotations
+    # (tempo-values.yaml `podAnnotations` block) — without scrape, the
+    # metric simply doesn't exist and the alert is inert.
+    expr: |
+      rate(tempo_metrics_generator_registry_collections_failed_total[5m]) > 0
+      or
+      rate(tempo_metrics_generator_spans_discarded_total[5m]) > 0
+    for: 10m
+    labels:
+      severity: warning
+      tier: '2'
+      component: tempo
+    annotations:
+      summary: Tempo metrics-generator is dropping data
+      description: Tempo metrics-generator on {{ $labels.pod }} is failing
+        ({{ $value }}/s — collections_failed and/or spans_discarded).
+        Drilldown/Traces queries may return incomplete data.

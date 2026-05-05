@@ -9,6 +9,15 @@ securityContext:
   seccompProfile:
     type: RuntimeDefault
 
+# Pod-level annotations enable Alloy's metric_pods discovery to scrape
+# Tempo's /metrics endpoint. Without these, Alloy doesn't know to look,
+# so all tempo_* metrics (including tempo_metrics_generator_*) are
+# absent from Mimir — making any alert based on them silently dead.
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "3200"
+  prometheus.io/path: "/metrics"
+
 tempo:
   retention: 720h
   metricsGenerator:

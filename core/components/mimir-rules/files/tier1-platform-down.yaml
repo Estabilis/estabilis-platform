@@ -248,3 +248,24 @@ groups:
       description: ApplicationSet controller has zero available replicas.
         Dynamic Application generation (client-apps, hub-client-apps,
         etc.) is halted.
+  - alert: EnvoyGatewayDown
+    # Catches both the controller (deployment "envoy-gateway") AND any
+    # data-plane proxy deployment ("envoy-<class-name>-...") going to
+    # zero replicas. Controller down = no config reconcile; data plane
+    # down = ingress traffic stops on the affected Gateway. The
+    # generated data-plane name has a per-cluster hash suffix (e.g.
+    # "envoy-envoy-gateway-system-cortex-shared-8f6fbb84"), so we match
+    # by namespace rather than exact name.
+    expr: kube_deployment_status_replicas_available{namespace="envoy-gateway-system"}
+      == 0
+    for: 3m
+    labels:
+      severity: critical
+      tier: '1'
+      component: envoy-gateway
+    annotations:
+      summary: Envoy Gateway component {{ $labels.deployment }} is down
+      description: Envoy Gateway component {{ $labels.deployment }} has zero
+        available replicas. Either the controller (no new config applies)
+        or a data-plane proxy (ingress traffic stops on the affected
+        Gateway resource).
