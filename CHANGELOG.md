@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.45.0] - 2026-05-05
+
+### Added — `VaultPartialFailure` alert (Tier 2)
+
+`core/components/mimir-rules/files/tier2-degradation.yaml`. Vault runs
+as a 3-replica StatefulSet with raft consensus (quorum = 2/3). The
+existing `VaultDown` (Tier 1, critical) only fires when ALL replicas
+are at zero — full HA loss. This new alert catches the degraded state
+earlier:
+
+- 1/3 down: cluster operational but next failure breaks quorum
+- 2/3 down: quorum lost, cluster goes read-only
+
+Same `replicas_ready < spec_replicas` pattern used for
+`MimirIngesterPartialFailure` (added in v0.43.0). Tier 2 warning so
+operators can replace the failed replica before the cluster goes
+fully read-only or down.
+
+Total rules in AWS overlay: 43 → 44.
+
 ## [0.44.0] - 2026-05-05
 
 ### Added — 3 new platform alerts + Tempo /metrics scrape
