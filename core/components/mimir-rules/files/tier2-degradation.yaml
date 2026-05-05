@@ -182,3 +182,39 @@ groups:
       summary: No successful backup in the last 24 hours
       description: Schedule {{ $labels.schedule }} has not completed a successful
         backup in over 24 hours. Data protection is at risk.
+  - alert: ImagePullBackOff
+    # Catches deploy mistakes silent until now — wrong ECR tag, podre
+    # digest, missing IAM permissions, network egress to registry blocked.
+    # Pre-existing PodCrashLoopingCritical/Warning rules only catch
+    # restart loops AFTER the container starts; ImagePullBackOff is the
+    # state where the container never starts.
+    expr: kube_pod_container_status_waiting_reason{reason=~"ImagePullBackOff|ErrImagePull"}
+      > 0
+    for: 5m
+    labels:
+      severity: warning
+      tier: '2'
+      component: '{{ $labels.namespace }}'
+    annotations:
+      summary: Pod {{ $labels.namespace }}/{{ $labels.pod }} cannot pull image
+      description: Container {{ $labels.container }} in pod {{ $labels.pod }}
+        ({{ $labels.namespace }}) is in {{ $labels.reason }} state for over
+        5 minutes. Check the deployment image tag/digest and registry
+        permissions.
+  - alert: MimirIngesterPartialFailure
+    # Tier 1 (MimirIngesterDown) only fires when ALL ingesters are down
+    # (replicas_ready == 0). On a 2-ingester cluster (cortex prd default),
+    # losing 1/2 means write replication is gone — single point of failure
+    # if the remaining one dies. Catch this earlier as Tier 2.
+    expr: kube_statefulset_status_replicas_ready{namespace="grafana", statefulset="grafana-mimir-ingester"}
+      < kube_statefulset_replicas{namespace="grafana", statefulset="grafana-mimir-ingester"}
+    for: 5m
+    labels:
+      severity: warning
+      tier: '2'
+      component: mimir
+    annotations:
+      summary: Mimir Ingester quorum at risk
+      description: Mimir Ingester has fewer ready replicas than desired
+        ({{ $value }} ready). Write path replication is degraded — losing
+        another replica triggers MimirIngesterDown (critical).
