@@ -1,5 +1,88 @@
 # Changelog
 
+## [0.44.0] - 2026-05-05
+
+### Added — 3 new platform alerts + Tempo /metrics scrape
+
+Closes 3 of the 4 audit-listed Tier 3 component gaps + the Tempo
+metrics-generator push-error gap. The other 2 originally-listed
+components (OpenCost, Policy Reporter) turned out to have **no
+workloads deployed** in this platform — namespaces exist but no
+Deployments/StatefulSets/DaemonSets. Skipped accordingly; alerts can
+be added in a follow-up if those components get rolled out.
+
+#### `TrivyOperatorDown` (Tier 3, info)
+
+`core/components/mimir-rules/files/tier3-operational.yaml`. Covers
+the Trivy vulnerability scanner. Tier 3 because loss of Trivy doesn't
+break running workloads; existing scan results remain valid in the
+ConfigMaps. Promote to Tier 2 if compliance reporting depends on
+scan freshness.
+
+#### `EnvoyGatewayDown` (Tier 1, critical)
+
+`core/components/mimir-rules/files/tier1-platform-down.yaml`. Single
+alert covers both the Envoy Gateway controller (Deployment
+`envoy-gateway`) AND the data-plane proxy (Deployment
+`envoy-<class-name>-<hash>`). Controller down = no config reconcile;
+data-plane down = ingress traffic stops on the affected Gateway. The
+alert matches by namespace + label `deployment` rather than exact
+name because the data-plane Deployment carries a per-cluster hash
+suffix that's stable per cluster but unique across clusters.
+
+#### `TempoMetricsGeneratorFailures` (Tier 2, warning)
+
+`core/components/mimir-rules/files/tier2-degradation.yaml`. Catches
+two failure modes of Tempo's metrics-generator (which feeds Grafana
+Drilldown/Traces): registry collection failures and spans discarded
+by the processor. Either means Drilldown silently returns incomplete
+data.
+
+**Required enabling Tempo /metrics scrape** —
+`core/components/grafana-stack/tempo-values.yaml`. Audit found ZERO
+`tempo_metrics_generator_*` metrics reaching Mimir despite Tempo
+being healthy: the Tempo pod had no `prometheus.io/scrape` annotation,
+so Alloy's `metric_pods` discovery never picked it up. Added pod
+annotations (`prometheus.io/scrape=true`, `port=3200`,
+`path=/metrics`) — same pattern already used by the `aws-load-balancer-controller`,
+`cert-manager` and `beyla` pods on this platform. Without this scrape
+fix, the new alert would be silently dead — same class as the
+formerly-broken `ExternalDnsErrors` we replaced in v0.41.1.
+
+### Skipped — no workloads to alert on
+
+- **OpenCost**: namespace `opencost` exists, no Argo Application, no
+  resources. Component not deployed in this platform.
+- **Policy Reporter**: namespace `policy-reporter` exists, no Argo
+  Application, no resources. Same situation.
+
+If/when these are deployed, equivalent `*Down` alerts can be added
+following the same `kube_deployment_status_replicas_available == 0`
+pattern.
+
+### Net effect
+
+| | Before v0.44.0 | After v0.44.0 (AWS) |
+|---|---|---|
+| Total rules | 40 | 43 |
+| Tier 1 alerts | 18 | 19 |
+| Tier 2 alerts | 16 | 17 |
+| Tier 3 alerts | 6 | 7 |
+| Tempo `/metrics` scraped | NO | YES |
+
+### Audit closure
+
+This release closes the audit started in v0.41/v0.42. Net delta from
+the original 33-rule baseline:
+- 4 broken alerts repaired (v0.41.1)
+- B1-B4 coverage gaps + 3 Tier 1 alerts (v0.42.0)
+- 5 platform alerts (v0.43.0)
+- 3 alerts + Tempo scrape (this release)
+
+= **43 functional rules** (from 32 functional + 1 broken/dead-code,
+actually 30 useful rules pre-audit) covering the platform topology as
+of 2026-05-05.
+
 ## [0.43.0] - 2026-05-05
 
 ### Added — 5 new platform alerts (audit follow-up)

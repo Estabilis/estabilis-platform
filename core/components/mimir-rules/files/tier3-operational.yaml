@@ -90,3 +90,20 @@ groups:
         to be empty within 6 hours at the current growth rate. Plan a resize
         or cleanup before the absolute thresholds (PvcAlmostFull @ 85%,
         PvcFull @ 95%) fire.
+
+  - alert: TrivyOperatorDown
+    # Tier 3 (info) — vulnerability scanner. Loss = scans stop but
+    # cluster keeps functioning; existing scan results stay valid.
+    # Promote to Tier 2 if compliance reporting depends on freshness.
+    expr: kube_deployment_status_replicas_available{namespace="trivy-system", deployment="trivy-operator"}
+      == 0
+    for: 10m
+    labels:
+      severity: info
+      tier: '3'
+      component: trivy
+    annotations:
+      summary: Trivy operator is down
+      description: Trivy operator deployment has zero available replicas.
+        Vulnerability scans on new images and re-scans of existing
+        workloads have stopped.
