@@ -3,7 +3,10 @@ groups:
   interval: 1m
   rules:
   - alert: DeploymentReplicasMismatch
-    expr: kube_deployment_spec_replicas{namespace=~"argocd|grafana|cert-manager|kyverno|external-secrets|external-dns|traefik|velero"} != kube_deployment_status_available_replicas
+    # Covers core platform + client app namespaces (app-*). Tier 3 (info)
+    # signal — useful for spotting partial-outage states (e.g. 1/3 ready)
+    # that don't trigger the all-down Tier 1 alerts.
+    expr: kube_deployment_spec_replicas{namespace=~"argocd|grafana|cert-manager|kyverno|external-secrets|external-dns|traefik|velero|aws-load-balancer-controller|karpenter|vault|app-.*"} != kube_deployment_status_available_replicas
     for: 15m
     labels:
       severity: info
@@ -14,7 +17,9 @@ groups:
       description: Deployment {{ $labels.deployment }} in {{ $labels.namespace }} wants {{ $labels.spec_replicas }} replicas but only has {{ $labels.available_replicas }} available for 15 minutes.
 
   - alert: HighCpuThrottling
-    expr: rate(container_cpu_cfs_throttled_periods_total{namespace=~"argocd|grafana|cert-manager|kyverno|cnpg-system", container!=""}[5m]) / clamp_min(rate(container_cpu_cfs_periods_total[5m]), 1) > 0.5
+    # Covers core platform + client app namespaces (app-*). Throttling
+    # >50% sustained means the workload is wedged on its CPU limit.
+    expr: rate(container_cpu_cfs_throttled_periods_total{namespace=~"argocd|grafana|cert-manager|kyverno|cnpg-system|external-secrets|external-dns|aws-load-balancer-controller|karpenter|vault|velero|app-.*", container!=""}[5m]) / clamp_min(rate(container_cpu_cfs_periods_total[5m]), 1) > 0.5
     for: 15m
     labels:
       severity: info

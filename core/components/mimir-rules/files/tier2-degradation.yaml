@@ -141,7 +141,10 @@ groups:
       description: Metrics collection for {{ $labels.job }} ({{ $labels.instance }})
         has been down for 10 minutes. Monitoring is blind for this component.
   - alert: HighMemoryUsage
-    expr: container_memory_working_set_bytes{namespace=~"argocd|grafana|cert-manager|kyverno|cnpg-system",
+    # Covers core platform + client app namespaces (app-*). Min limit
+    # threshold (134217728 = 128Mi) skips tiny utility pods where 95%
+    # of a small limit isn't actionable.
+    expr: container_memory_working_set_bytes{namespace=~"argocd|grafana|cert-manager|kyverno|cnpg-system|external-secrets|external-dns|aws-load-balancer-controller|karpenter|vault|velero|app-.*",
       container!=""} / container_spec_memory_limit_bytes > 0.95 and container_spec_memory_limit_bytes
       > 134217728
     for: 15m
@@ -154,7 +157,10 @@ groups:
       description: Container {{ $labels.container }} in pod {{ $labels.pod }} ({{
         $labels.namespace }}) is using over 95% of memory limit. OOM kill imminent.
   - alert: PodCrashLoopingWarning
-    expr: increase(kube_pod_container_status_restarts_total{namespace=~"grafana|velero|opencost|trivy-system|external-dns|node-exporter|kube-state-metrics"}[1h])
+    # Tier 2 = degradation. Catches client app crashloops (app-*) plus
+    # secondary platform components. Tier 1 (PodCrashLoopingCritical)
+    # covers core platform whose loss makes the cluster unusable.
+    expr: increase(kube_pod_container_status_restarts_total{namespace=~"grafana|velero|opencost|trivy-system|external-dns|node-exporter|kube-state-metrics|envoy-gateway-system|policy-reporter|metrics-server|app-.*"}[1h])
       > 5
     for: 15m
     labels:

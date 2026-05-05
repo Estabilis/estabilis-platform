@@ -1,5 +1,78 @@
 # Changelog
 
+## [0.42.0] - 2026-05-05
+
+### Added — Coverage gaps in mimir-rules platform alerts (B1–B4 + 3 new alerts)
+
+Follow-up to v0.41.1 (broken-alert fixes). Audit identified the existing
+33-rule set reflected platform state from ~2 months ago — selectors were
+defaulted to a smaller core platform and didn't grow as the platform
+added Karpenter, Beyla, more app namespaces (21 cortex client apps),
+and ALB controller. Fixes:
+
+#### B1 — ArgoCD project filter widened (`platform` → 3 projects)
+
+`ArgocdAppOutOfSync` and `ArgocdAppDegraded` (Tier 1) checked
+`project="platform"` only, leaving 25/64 ArgoCD apps unmonitored:
+21 client apps in `platform-apps`, 3 in `platform-client-infra`.
+Switched to `project=~"platform|platform-apps|platform-client-infra"`.
+Added `{{ $labels.project }}` to the description so notifications
+identify which fleet the failing app belongs to.
+
+#### B2 — `PodCrashLoopingCritical` (Tier 1) namespace regex
+
+Added: `aws-load-balancer-controller`, `external-dns`, `karpenter`,
+`vault`, `velero`, `grafana`. These are core platform components
+whose loss makes the cluster unusable but were missing from the
+critical regex. Client app crashloops stay at Tier 2
+(`PodCrashLoopingWarning`, see below).
+
+#### B3 — `DaemonSetUnavailable` (Tier 1) daemonset regex
+
+Added: `beyla` (deployed 2026-05-04), `aws-node`, `ebs-csi-node`,
+`kube-proxy`, `eks-pod-identity-agent`. AWS/EKS-specific names are
+cross-provider safe — on Azure the metric returns no series for
+those, so the regex is harmless.
+
+#### B4 — Tier 2/3 namespace regexes for client app coverage
+
+Four alerts (`HighMemoryUsage` Tier 2, `PodCrashLoopingWarning` Tier 2,
+`HighCpuThrottling` Tier 3, `DeploymentReplicasMismatch` Tier 3) now
+include `app-.*` (matches all 21 cortex client app namespaces and any
+future ones) plus the missing platform components (alb-controller,
+karpenter, vault, etc.). Tier separation preserved: client app
+crashloops route to warning, not critical.
+
+#### Priority 2 — 3 new Tier 1 alerts for unmonitored platform components
+
+- `AwsLoadBalancerControllerDown` — ALB controller is the ingress on
+  EKS. It had zero alert coverage; cluster losing ALB controller =
+  Ingresses stop being provisioned silently.
+- `KarpenterDown` — Karpenter handles node autoscaling on EKS. Loss =
+  pending pods get no nodes, scaling stops.
+- `VaultDown` — full HA loss (all 3 replicas down). Partial-quorum
+  degradation belongs in a separate Tier 2 alert if needed (not added
+  now to keep scope tight).
+
+All three use the `kube_*_status_*` metric pattern (no scrape
+dependency) so they're cross-provider safe — on Azure clusters where
+these components aren't installed, the metric returns no series and
+the alert is silently inert.
+
+### Net effect
+
+| | Before v0.42.0 | After v0.42.0 (AWS) |
+|---|---|---|
+| Total rules | 32 (post-v0.41.1) | 35 |
+| Apps in ArgocdAppOutOfSync scope | 39/64 (project=platform only) | 64/64 |
+| Namespaces in PodCrashLooping coverage | 6 critical / 7 warning | 12 critical / 31 warning (incl. 21 app-*) |
+| DaemonSets in unavailable alert | 2 | 7 |
+| Components without ANY alert | 8+ | 5 (Trivy, OpenCost, Policy Reporter, Envoy Gateway, metrics-server) |
+
+The 5 remaining unalerted components are Tier-3-priority and left for
+a separate PR; this release covers everything that affects platform
+availability or client workload health.
+
 ## [0.41.1] - 2026-05-05
 
 ### Fixed — 4 broken Mimir alerting rules
