@@ -1,5 +1,43 @@
 # Changelog
 
+## [0.47.0] - 2026-05-06
+
+### Added — Grafana Infinity datasource plugin enabled by default
+
+`core/components/grafana-stack/grafana-values.yaml` — adds
+`yesoreyeram-infinity-datasource` to the upstream `plugins:` list,
+alongside the existing `grafana-llm-app`, `grafana-lokioperational-app`
+and `grafana-github-datasource`.
+
+#### Why
+
+The Infinity datasource (a generic JSON/CSV/XML/HTML/GraphQL/REST
+datasource) has been carried as a downstream-only override in
+`cortex-platform-aws-us-east-1-prd/overrides/grafana/values.yaml`
+since the Bright Data integration landed (2026-04). With the
+brightdata-exporter hub-app coming online, a second consumer of the
+Infinity plugin is needed (the exporter exposes a `/api` REST surface
+the FinOps dashboard hits via Infinity), and other clients have asked
+for ad-hoc REST/JSON datasources too.
+
+Promoting the plugin to the platform default removes the bespoke
+override (one fewer entry to repeat in every downstream that wants
+Infinity-style datasources) while keeping the actual datasource
+configuration downstream — the plugin is a generic capability, the
+specific datasource declarations remain client-specific.
+
+#### Impact
+
+- `cortex-platform-aws-us-east-1-prd` removes the duplicate plugin
+  entry from `overrides/grafana/values.yaml` after bumping
+  `platform_version` (Helm list-replace semantics: the override
+  REPLACES upstream's `plugins:` list, so the upstream Infinity entry
+  is only seen once the override drops it).
+- New downstream deployments inherit Infinity automatically.
+- No new credentials / secrets / TF inputs — the plugin is
+  load-time-free; specific datasources still declare their own auth
+  in `overrides/grafana/values.yaml`.
+
 ## [0.46.1] - 2026-05-06
 
 ### Fixed — Velero memory limit insufficient for CSI snapshot flow
