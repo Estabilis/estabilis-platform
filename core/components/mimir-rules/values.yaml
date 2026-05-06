@@ -27,6 +27,45 @@ ruleGroups:
 #             summary: "My app is down"
 customRuleGroups: {}
 
+# ============================================================================
+# Per-alert overrides (v0.47.1+) — disable or customize platform-shipped
+# alerts without forking the chart.
+#
+# Override key MUST match the `alert:` field exactly (case-sensitive). A
+# typo silently no-ops because the chart cannot validate against names
+# that don't exist in your installed version. Cross-check via:
+#   kubectl get configmap mimir-alerting-rules -n grafana -o yaml \
+#     | grep "alert:"
+#
+# Behavior:
+#   - `enabled: false`       → rule is dropped from the rendered ConfigMap
+#   - any other field        → SHALLOW-merged onto the upstream rule.
+#                              Override wins on collision. Providing a
+#                              complex field like `labels:` REPLACES the
+#                              entire labels map (you must include every
+#                              label you want, not just the changed one).
+#
+# Threshold tweaks: provide the complete new `expr:` string. The chart
+# does not parse PromQL; surgical edit of a single number inside an expr
+# is intentionally not supported.
+#
+# Group-level toggles (ruleGroups.<group>.enabled) and customRuleGroups
+# continue to work as before; alertOverrides is independent and stacks
+# on top.
+#
+# Example — disable a noisy alert + adjust other fields:
+#   alertOverrides:
+#     TempoMetricsGeneratorFailures:
+#       enabled: false
+#     HighMemoryUsage:
+#       for: 30m
+#     PvcAlmostFull:
+#       expr: |
+#         (kubelet_volume_stats_used_bytes / kubelet_volume_stats_capacity_bytes) > 0.95
+#       for: 30m
+# ============================================================================
+alertOverrides: {}
+
 # Upload mechanism for rules — defaults to OFF.
 #
 # When enabled=false (default, used on Azure):

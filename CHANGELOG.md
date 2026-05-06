@@ -1,5 +1,73 @@
 # Changelog
 
+## [0.47.1] - 2026-05-06
+
+### Added — `alertOverrides` slot in `mimir-rules` chart
+
+Clients can now disable or customize platform-shipped alerts without
+forking the chart, via `overrides/mimir-rules/values.yaml`:
+
+```yaml
+alertOverrides:
+  TempoMetricsGeneratorFailures:
+    enabled: false
+  HighMemoryUsage:
+    for: 30m
+  PvcAlmostFull:
+    expr: |
+      (kubelet_volume_stats_used_bytes / kubelet_volume_stats_capacity_bytes) > 0.95
+    labels:
+      severity: info
+```
+
+#### Behavior
+
+- `enabled: false` → rule is dropped from the rendered ConfigMap
+- Any other field → SHALLOW-merged onto the upstream rule (override
+  wins on collision). Providing a complex field like `labels:` REPLACES
+  the entire labels map; caller must include every label intended.
+- Threshold tweaks: provide the complete new `expr:` string. The chart
+  does not parse PromQL — surgical edit of a single number inside an
+  expr is intentionally not supported.
+- Override key MUST match the `alert:` field exactly (case-sensitive).
+  Typo silently no-ops; cross-check with `kubectl get configmap
+  mimir-alerting-rules -n grafana -o yaml | grep "alert:"`.
+- Group-level toggles (`ruleGroups.<group>.enabled`) and
+  `customRuleGroups` keep working unchanged; `alertOverrides` is
+  independent and stacks on top.
+
+#### Files changed
+
+- `core/components/mimir-rules/templates/_helpers.tpl` — new
+  `mimir-rules.applyOverrides` helper (parse YAML → filter/merge → emit)
+- `core/components/mimir-rules/templates/configmap.yaml` — calls helper
+  for each tier file
+- `core/components/mimir-rules/values.yaml` — adds `alertOverrides: {}`
+  default (empty = upstream behavior preserved)
+- `core/components/mimir-rules/Chart.yaml` — chart version bumped
+  `0.2.0` → `0.3.0`
+
+#### Why PATCH bump (not MINOR)
+
+The new field defaults to `{}`, which produces a rendered ConfigMap
+byte-equivalent to v0.47.0 output for every existing client. Zero
+behavior change without opt-in. Per the same rationale used for default
+tweaks elsewhere in this CHANGELOG, opt-in additions with a no-op
+default land as PATCH.
+
+#### Smoke tested
+
+- `helm template` with empty overrides → 45 alerts, identical to v0.47.0
+- `helm template` with `TempoMetricsGeneratorFailures.enabled=false` →
+  44 alerts, target alert absent
+- `helm template` with `HighMemoryUsage.for=30m` → field replaced,
+  `expr`/`labels` preserved
+- Typo (`TempoMetricsGeneratorFailur`) silently no-ops as designed
+- Disabling all alerts in a group renders `groups: []` (Mimir Ruler
+  accepts; no error)
+- Group-level toggle (`ruleGroups.platformDegradation.enabled=false`)
+  still drops the entire tier file as before
+
 ## [0.47.0] - 2026-05-06
 
 ### Added — Grafana Infinity datasource plugin enabled by default

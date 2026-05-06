@@ -46,3 +46,70 @@ labels:
 annotations:
   {{- include "estabilis.annotations" . | nindent 2 }}
 {{- end -}}
+
+{{/*
+mimir-rules.applyOverrides — render a tier file with `alertOverrides`
+applied.
+
+Input dict:
+  tier      — basename of the tier file (e.g. "tier2-degradation")
+  overrides — .Values.alertOverrides map
+  files     — pass `.Files` (renderer needs context to call `Files.Get`)
+
+Behavior per rule (matched by `alert:` field):
+  - override `enabled: false` → rule is dropped from output
+  - any other override field  → shallow-merged onto the rule (override
+    wins on conflict); providing a complex field like `labels:` REPLACES
+    the entire labels map — caller provides the complete intended value
+  - rule with no matching override → emitted unchanged
+
+Group-level: a group whose rules are all dropped is omitted (avoids
+empty `rules: []` blocks that Mimir Ruler logs as warnings).
+
+Returns: YAML string of `groups:` ready to be indented into the
+ConfigMap data section.
+*/}}
+{{- define "mimir-rules.applyOverrides" -}}
+{{- $tier := .tier -}}
+{{- $overrides := .overrides | default dict -}}
+{{- $files := .files -}}
+{{- $raw := $files.Get (printf "files/%s.yaml" $tier) -}}
+{{- $parsed := fromYaml $raw -}}
+{{- $newGroups := list -}}
+{{- range $group := $parsed.groups -}}
+  {{- $newRules := list -}}
+  {{- range $rule := $group.rules -}}
+    {{- $name := index $rule "alert" -}}
+    {{- $override := dict -}}
+    {{- if and $name (hasKey $overrides $name) -}}
+      {{- $override = index $overrides $name -}}
+    {{- end -}}
+    {{- $disabled := false -}}
+    {{- if and $override (hasKey $override "enabled") -}}
+      {{- if eq (index $override "enabled") false -}}
+        {{- $disabled = true -}}
+      {{- end -}}
+    {{- end -}}
+    {{- if not $disabled -}}
+      {{- $merged := dict -}}
+      {{- range $k, $v := $rule -}}
+        {{- $_ := set $merged $k $v -}}
+      {{- end -}}
+      {{- range $k, $v := $override -}}
+        {{- if ne $k "enabled" -}}
+          {{- $_ := set $merged $k $v -}}
+        {{- end -}}
+      {{- end -}}
+      {{- $newRules = append $newRules $merged -}}
+    {{- end -}}
+  {{- end -}}
+  {{- if gt (len $newRules) 0 -}}
+    {{- $newGroup := dict "name" $group.name "rules" $newRules -}}
+    {{- if hasKey $group "interval" -}}
+      {{- $_ := set $newGroup "interval" $group.interval -}}
+    {{- end -}}
+    {{- $newGroups = append $newGroups $newGroup -}}
+  {{- end -}}
+{{- end -}}
+{{- dict "groups" $newGroups | toYaml -}}
+{{- end -}}

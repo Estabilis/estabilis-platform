@@ -5,17 +5,18 @@ metadata:
   namespace: grafana
   {{- include "estabilis.metadata" . | nindent 2 }}
 data:
+  {{- $overrides := .Values.alertOverrides | default dict }}
   {{- if .Values.ruleGroups.platformDown.enabled }}
   tier1-platform-down.yaml: |
-{{ .Files.Get "files/tier1-platform-down.yaml" | indent 4 }}
+{{ include "mimir-rules.applyOverrides" (dict "tier" "tier1-platform-down" "overrides" $overrides "files" .Files) | indent 4 }}
   {{- end }}
   {{- if .Values.ruleGroups.platformDegradation.enabled }}
   tier2-degradation.yaml: |
-{{ .Files.Get "files/tier2-degradation.yaml" | indent 4 }}
+{{ include "mimir-rules.applyOverrides" (dict "tier" "tier2-degradation" "overrides" $overrides "files" .Files) | indent 4 }}
   {{- end }}
   {{- if .Values.ruleGroups.platformOperational.enabled }}
   tier3-operational.yaml: |
-{{ .Files.Get "files/tier3-operational.yaml" | indent 4 }}
+{{ include "mimir-rules.applyOverrides" (dict "tier" "tier3-operational" "overrides" $overrides "files" .Files) | indent 4 }}
   {{- /* Traefik rules are scoped to clusters that actually use Traefik
          as the ingress controller. AWS clusters use the AWS Load
          Balancer Controller (ALB) — `traefik_*` metrics are empty there
@@ -24,7 +25,7 @@ data:
          leave true on Azure where Traefik is the default ingress. */}}
   {{- if .Values.ruleGroups.platformOperational.traefik }}
   tier3-traefik.yaml: |
-{{ .Files.Get "files/tier3-traefik.yaml" | indent 4 }}
+{{ include "mimir-rules.applyOverrides" (dict "tier" "tier3-traefik" "overrides" $overrides "files" .Files) | indent 4 }}
   {{- end }}
   {{- end }}
   {{- range $name, $group := .Values.customRuleGroups }}
