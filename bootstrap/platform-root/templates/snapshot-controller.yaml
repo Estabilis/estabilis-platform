@@ -1,0 +1,67 @@
+{{- /*
+  snapshot-controller — VolumeSnapshotClass(es) for the in-cluster CSI
+  snapshot-controller.
+
+  The controller deployment + CRDs (volumesnapshots, volumesnapshotcontents,
+  volumesnapshotclasses + the volumegroup* triplet) are NOT in this chart;
+  they come from the EKS managed addon `snapshot-controller`, provisioned
+  in providers/aws/eks.tf via local.default_addons. This Application only
+  ships the VolumeSnapshotClass that Velero needs (label
+  `velero.io/csi-volumesnapshot-class: "true"` is the discovery hook).
+
+  Velero CSI backups silently skip PV snapshotting when no VSC carries
+  that label (observed on cortex prd 2026-05-05 — backups completed with
+  phase=PartiallyFailed and 14 PVs went unsnapshotted). Sync wave 6
+  guarantees the VSC exists before velero (wave 7) takes its first
+  scheduled backup.
+
+  AWS-only for now — the EKS managed addon is the canonical install path
+  per AWS + Kubernetes SIG-Storage docs. Azure (AKS) ships an analogous
+  built-in for `disk.csi.azure.com`; will add when there is a workload
+  demanding CSI snapshots there.
+*/ -}}
+{{- if eq .Values.global.provider "aws" }}
+{{- if ne (index .Values.components "snapshot-controller") false }}
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: snapshot-controller
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "6"
+spec:
+  project: platform
+  sources:
+    - repoURL: {{ .Values.platformGitopsRepoUrl }}
+      targetRevision: {{ .Values.platformGitopsVersion }}
+      path: components/snapshot-controller
+      helm:
+        valueFiles:
+          - $values/components/snapshot-controller/values.yaml
+          - $values/components/snapshot-controller/values-{{ .Values.global.provider }}.yaml
+          {{- include "platform-root.overrideValueFile" (dict "component" "snapshot-controller" "root" $) | nindent 10 }}
+          {{- include "platform-root.gitopsValueFile" (dict "component" "snapshot-controller" "root" $) | nindent 10 }}
+        {{- include "platform-root.ignoreMissingValueFiles" $ | nindent 8 }}
+        {{- include "platform-root.provenanceParametersBlock" $ | nindent 8 }}
+    - repoURL: {{ .Values.platformGitopsRepoUrl }}
+      targetRevision: {{ .Values.platformGitopsVersion }}
+      ref: values
+    {{- include "platform-root.overrideSource" . | nindent 4 }}
+    {{- include "platform-root.gitopsSource" . | nindent 4 }}
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: default
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    retry:
+      limit: 10
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 3m
+    syncOptions:
+      - ServerSideApply=true
+{{- end }}
+{{- end }}

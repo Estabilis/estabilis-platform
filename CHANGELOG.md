@@ -1,5 +1,59 @@
 # Changelog
 
+## [0.46.0] - 2026-05-06
+
+### Added — CSI snapshot-controller EKS managed addon + VolumeSnapshotClass wiring
+
+`providers/aws/eks.tf` adds `snapshot-controller` to `local.default_addons`
+(installs the `volumesnapshots/volumesnapshotcontents/volumesnapshotclasses`
+CRDs and the controller Deployment that reconciles them — managed by AWS,
+upgrade lifecycle stays on the EKS control plane).
+
+`bootstrap/platform-root/templates/snapshot-controller.yaml` (new) creates
+an ArgoCD Application that pulls from `estabilis-platform-gitops`
+v0.39.10's new `components/snapshot-controller` chart. AWS-only,
+sync wave 6 (before velero in wave 7), `components.snapshot-controller`
+toggle in `bootstrap/platform-root/values.yaml`.
+
+`bootstrap/platform-root/templates/_helpers.tpl` — `componentsForwarding`
+helper now lists `snapshot-controller` as AWS-only so it gets stripped
+from the components map propagated to network-policies / resource-quotas
+on Azure clusters (preventing OutOfSync drift).
+
+#### Why
+
+Velero CSI backups silently skip PV snapshotting unless a
+VolumeSnapshotClass carries the `velero.io/csi-volumesnapshot-class:
+"true"` discovery label. Observed on cortex prd 2026-05-05 after
+v0.45.1 fixed the KMS gap: 14 PVs landed in `PartiallyFailed` phase
+because no VSC existed at all. The CSI external-snapshotter (CRDs +
+controller) is the prerequisite that unlocks the proper backup flow.
+
+The community converged on the EKS managed addon as the canonical
+install path (per AWS docs and Kubernetes SIG-Storage). It tracks
+upstream releases (v8.5.0-eksbuild.4 today, paired with K8s 1.31+),
+upgrades cleanly via the EKS control plane, and follows the same
+opinionated treatment as the other 5 platform-managed addons (vpc-cni,
+coredns, kube-proxy, eks-pod-identity-agent, aws-ebs-csi-driver).
+
+The VolumeSnapshotClass itself (with the velero label) is shipped via
+estabilis-platform-gitops v0.39.10 — paired release.
+
+#### How
+
+Existing AWS clients on platform v0.46.0+:
+1. `terraform init -upgrade && terraform apply` (creates the addon)
+2. `estabilis promote <client> -d <deployment> --force-refresh`
+   (rolls the new `snapshot-controller` Application into platform-root)
+
+Verification:
+- `kubectl get crds | grep snapshot.storage.k8s.io` → 6 CRDs
+- `kubectl get volumesnapshotclass ebs-csi-aws` → exists, with the velero label
+- Trigger an ad-hoc backup: phase=Completed (no PartiallyFailed) and items list includes PVs
+
+Azure clients are unaffected — addon block + Application both gated
+on `global.provider == "aws"`.
+
 ## [0.45.1] - 2026-05-06
 
 ### Fixed — Velero IAM role missing KMS permissions

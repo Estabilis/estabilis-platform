@@ -171,6 +171,7 @@ components:
   argocd-image-updater: false # optional: auto-update container images via registry polling (opt-in)
   policy-reporter: false     # optional: kubernetes policy report dashboards (disabled by default — opt-in)
   metrics-server: true       # optional: AWS-only — Resource Metrics API server (kubectl top, HPA). Azure AKS provides natively
+  snapshot-controller: true  # optional: AWS-only — VolumeSnapshotClass for Velero CSI backups (snapshot-controller addon installs CRDs+Deployment via providers/aws/eks.tf)
   karpenter: true            # optional: AWS-only — node autoscaler. Activates when global.autoscaler is `karpenter` or `hybrid`
   karpenter-resources: true  # optional: AWS-only — default NodePool + EC2NodeClass. Same activation as karpenter
   aws-load-balancer-controller: true  # optional: AWS-only — provisions ALB/NLB from Ingress/Service. Activates when global.ingressController == "alb"

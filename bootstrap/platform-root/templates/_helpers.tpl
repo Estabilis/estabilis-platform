@@ -408,12 +408,13 @@ tolerations:
     - bootstrap/platform-root/templates/aws-load-balancer-controller.yaml
     - bootstrap/platform-root/templates/karpenter.yaml (also gates karpenter-resources)
     - bootstrap/platform-root/templates/metrics-server.yaml
+    - bootstrap/platform-root/templates/snapshot-controller.yaml
 
   Output: a `components:` block ready to nest under valuesObject.
 */ -}}
 {{- define "platform-root.componentsForwarding" -}}
 {{- /* Vault is intentionally NOT in this list — it's multi-provider (AWS + Azure) and gated separately on (provider in (aws|azure)) in vault.yaml. */ -}}
-{{- $awsOnly := list "aws-load-balancer-controller" "karpenter" "karpenter-resources" "metrics-server" -}}
+{{- $awsOnly := list "aws-load-balancer-controller" "karpenter" "karpenter-resources" "metrics-server" "snapshot-controller" -}}
 components:
   {{- range $k, $v := .Values.components }}
   {{- if and (has $k $awsOnly) (ne $.Values.global.provider "aws") }}

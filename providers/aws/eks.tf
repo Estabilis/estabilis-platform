@@ -84,11 +84,25 @@ locals {
       most_recent              = true
       service_account_role_arn = module.ebs_csi_irsa.arn
     }
+    # CSI external-snapshotter — provides VolumeSnapshot/VolumeSnapshotContent/
+    # VolumeSnapshotClass CRDs and the snapshot-controller Deployment that
+    # reconciles them. Required by Velero's CSI plugin to snapshot
+    # PVs (without it, backups complete with phase=PartiallyFailed and
+    # PV data is not captured — observed on cortex prd 2026-05-05).
+    #
+    # Cluster-scoped, opinionated defaults from AWS — same `most_recent`
+    # treatment as the other 5 addons. The matching VolumeSnapshotClass
+    # (with the velero discovery label) is shipped via
+    # estabilis-platform-gitops/components/snapshot-controller (consumed
+    # by bootstrap/platform-root/templates/snapshot-controller.yaml).
+    snapshot-controller = {
+      most_recent = true
+    }
   }
 
   # Merge instead of substitute. Operators set var.cluster_addons to override
   # individual addons (e.g. enable amazon-cloudwatch-observability) without
-  # losing the 5 platform defaults. User-provided keys win on collision.
+  # losing the 6 platform defaults. User-provided keys win on collision.
   effective_addons = merge(local.default_addons, var.cluster_addons)
 
   # Fargate profiles — kube-system is always included (addons land here),
