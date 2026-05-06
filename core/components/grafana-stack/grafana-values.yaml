@@ -92,6 +92,7 @@ plugins:
   - grafana-llm-app
   - grafana-lokioperational-app
   - grafana-github-datasource
+  - yesoreyeram-infinity-datasource
 
 sidecar:
   securityContext:
