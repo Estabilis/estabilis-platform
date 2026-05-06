@@ -87,13 +87,22 @@ affinity:
               operator: In
               values: ["regular"]
 
+# 2026-05-06 — bumped memory limit 512Mi → 1Gi after first real CSI
+# backup test on cortex prd OOMKilled at ~35s (exitCode 137) under
+# velero v1.17.1 with `--features=EnableCSI` against 12 PVs. Process
+# memory peaks during cluster-wide resource discovery + CSI plugin
+# work (snapshot lifecycle reconcile, VolumeSnapshot watcher, S3
+# multi-part upload buffers); 512Mi is sufficient for backup-without-CSI
+# but tight for CSI flow on a non-trivial workload count. 1Gi gives
+# ~2× headroom over observed peak; request bumped 128Mi → 256Mi so
+# Karpenter reserves accurately for steady state.
 resources:
   requests:
     cpu: 50m
-    memory: 128Mi
+    memory: 256Mi
   limits:
     cpu: 200m
-    memory: 512Mi
+    memory: 1Gi
 
 initContainers:
   - name: velero-plugin-for-azure

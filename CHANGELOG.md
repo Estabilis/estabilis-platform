@@ -1,5 +1,41 @@
 # Changelog
 
+## [0.46.1] - 2026-05-06
+
+### Fixed — Velero memory limit insufficient for CSI snapshot flow
+
+`core/components/velero/values.yaml` — bumps the velero container
+memory request 128Mi → 256Mi and limit 512Mi → 1Gi.
+
+#### Why
+
+First real CSI backup test on cortex prd after v0.46.0 (snapshot-
+controller addon + VolumeSnapshotClass) consistently OOMKilled at
+~35-40s (exitCode 137). Velero v1.17.1 with `--features=EnableCSI`
+holds:
+
+- Cluster-wide resource discovery state (kopia uploader walks every
+  resource in scope, ~1k-4k objects on a typical cortex-sized cluster)
+- 12+ in-flight CSI VolumeSnapshot reconciles (one per PVC)
+- AWS S3 multi-part upload buffers
+- Plugin RPC channels to velero-plugin-for-aws
+
+512Mi was sufficient for the no-CSI flow shipped by v0.46.0 but tight
+once the snapshot-controller component started being exercised. 1Gi
+gives ~2× headroom over observed peak. Memory peak after fix: spike
+during backup phase, ~51Mi steady-state idle.
+
+Request bumped to 256Mi so Karpenter reserves accurately for the
+steady state plus CSI baseline (avoids node bin-packing surprises
+during multi-cluster backup windows).
+
+#### Lineage
+
+This is the patch I expected per the "ship vX.Y.0 expecting patch
+vX.Y.1 after first real consumer apply" rule — design-time review
+(brutal-code-critic) catches structural issues but cannot anticipate
+runtime memory pressure on a specific cluster's workload mix.
+
 ## [0.46.0] - 2026-05-06
 
 ### Added — CSI snapshot-controller EKS managed addon + VolumeSnapshotClass wiring
