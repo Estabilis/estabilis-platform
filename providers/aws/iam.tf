@@ -98,6 +98,35 @@ module "velero_irsa" {
   }
 }
 
+# The upstream `attach_velero_policy = true` template assumes the bucket
+# uses SSE-S3 (AES256) and DOES NOT include KMS permissions. Our S3 buckets
+# are encrypted with SSE-KMS via the customer-managed `s3_data` key
+# (see s3.tf), so Velero's `s3:PutObject` calls trigger
+# `kms:GenerateDataKey` from S3 against the caller identity. Without this
+# inline policy, every backup fails with `AccessDenied` on KMS — which is
+# exactly the failure mode observed in cortex prd before this fix
+# (6 days of `velero_backup_failure_total` firing, all errors=14).
+# Permissions are scoped to the single key by ARN; no `kms:*` or wildcard.
+resource "aws_iam_role_policy" "velero_kms" {
+  name = "velero-kms"
+  role = module.velero_irsa.name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "AllowKMSForVeleroBucketEncryption"
+        Effect = "Allow"
+        Action = [
+          "kms:Decrypt",
+          "kms:GenerateDataKey",
+        ]
+        Resource = aws_kms_key.s3_data.arn
+      },
+    ]
+  })
+}
+
 # ========================== loki ==========================================
 # No upstream helper for Loki S3 access — bespoke role with the minimum
 # policy needed to read/write Loki chunks + index.
