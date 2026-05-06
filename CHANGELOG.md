@@ -1,5 +1,52 @@
 # Changelog
 
+## [0.45.1] - 2026-05-06
+
+### Fixed — Velero IAM role missing KMS permissions
+
+`providers/aws/iam.tf`. Adds an inline policy to the Velero IRSA role
+granting `kms:Decrypt` + `kms:GenerateDataKey` scoped to the
+customer-managed `s3_data` KMS key.
+
+#### Why
+
+The upstream module `terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts`
+v6.5 with `attach_velero_policy = true` builds a policy with EC2
+(snapshot management) + S3 (PutObject/GetObject/etc) but **no KMS
+actions**. The default Velero policy template assumes the backup
+bucket uses SSE-S3 (AES256), not SSE-KMS.
+
+Estabilis platform encrypts the Velero bucket with the
+customer-managed `aws_kms_key.s3_data` (see `s3.tf`). When Velero
+calls `s3:PutObject`, S3 in turn calls `kms:GenerateDataKey` carrying
+the **caller's identity** (the Velero IRSA role). IAM evaluates the
+caller's policy and finds no KMS grant → `AccessDenied`. The KMS key
+policy's `kms:ViaService` clause for the S3 service is necessary but
+not sufficient — IAM still requires the caller to have the action
+on its identity-based policy.
+
+Observed in cortex prd (the only AWS client running this code today):
+6 consecutive days of failed backups (2026-05-01 through 2026-05-06),
+each with `errors: 14` and `failureReason` containing
+`AccessDenied: ... is not authorized to perform: kms:GenerateDataKey`.
+
+#### Why scoped to one key (not `kms:*` / `Resource: *`)
+
+`aws_kms_key.s3_data` encrypts every S3 bucket in the platform that
+needs customer-managed encryption (Velero, Loki, Cost Export, Flow
+Logs). A blanket `kms:*` would let Velero touch keys it has no
+business with (e.g. the `platform_secrets` key used by Vault). The
+two scoped actions on a single key match Velero's actual need.
+
+#### Compatibility
+
+- Other Estabilis AWS clients running Velero are affected by the same
+  bug — this fix lands at the platform tag level, so they pick it up
+  on their next platform bump.
+- The fix is purely additive (new `aws_iam_role_policy`); no existing
+  resource modified, no destroy/recreate. `terraform plan` shows a
+  single resource creation.
+
 ## [0.45.0] - 2026-05-05
 
 ### Added — `VaultPartialFailure` alert (Tier 2)
