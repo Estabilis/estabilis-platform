@@ -1,5 +1,34 @@
 # Changelog
 
+## [0.48.0] - 2026-05-07
+
+### Added — `clientHubAppExtraSourceRepos` slot for the `platform-client-infra` AppProject
+
+New override slot in `bootstrap/platform-root/values.yaml`:
+
+```yaml
+clientHubAppExtraSourceRepos:
+  - "https://github.com/<org>/<client>-projects.git"
+  - "https://github.com/<org>/<client>-policies.git"
+```
+
+Appends additional repos to the `platform-client-infra` AppProject's `sourceRepos` list, beyond the default single entry (`clientGitopsRepoUrl`). Mirrors the existing `platformAppsExtraSourceRepos` / `workloadAppsExtraSourceRepos` pattern from ADR 0027 — no wildcards, every host must be explicit so AppProject scope-creep is auditable in code review.
+
+#### Why
+
+When a client splits gitops content across multiple repos — e.g. a dedicated provisioning repo (`<client>-projects`) for declarative project bootstrap (ADR 0033 Phase 4) alongside the runtime gitops repo (`<client>-gitops`) for app values — the second repo must be a permitted source of the same AppProject that authorizes hub-app Applications. Without this slot, the hardcoded `sourceRepos: [{{ .Values.clientGitopsRepoUrl }}]` rejected any Application sourced from the additional repo.
+
+The four governance dimensions of `platform-client-infra` are now uniformly extensible via wrapper override:
+
+| Dimension | Override slot |
+|-----------|---------------|
+| Source repos | `clientHubAppExtraSourceRepos` (this PR) |
+| Destination namespaces | `clientHubAppNamespaces` |
+| Cluster-scoped resource kinds | `clientHubAppExtraClusterResources` |
+| Namespace-scoped resource kinds | `*/*` (always permitted) |
+
+This is a MINOR bump because it adds a new override slot (no behavior change for clients who do not opt in — empty list default).
+
 ## [0.47.1] - 2026-05-06
 
 ### Added — `alertOverrides` slot in `mimir-rules` chart
