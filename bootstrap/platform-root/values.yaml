@@ -323,6 +323,23 @@ clientApps:
 # Default empty — no extras beyond the baseline.
 clientHubAppExtraClusterResources: []
 
+# ---------------------------------------------------------------------------
+# Extra sourceRepos for the `platform-client-infra` AppProject (ADR 0017).
+# ---------------------------------------------------------------------------
+# By default `platform-client-infra` accepts only `clientGitopsRepoUrl`
+# (the client's gitops repo) as a source. When the client splits gitops
+# content across multiple repos — e.g. a per-project provisioning repo
+# alongside the runtime gitops repo — declare the additional repos here:
+#
+#   clientHubAppExtraSourceRepos:
+#     - "https://github.com/<org>/<client>-projects.git"
+#     - "https://github.com/<org>/<client>-policies.git"
+#
+# Mirrors the platformAppsExtraSourceRepos / workloadAppsExtraSourceRepos
+# pattern. No wildcards — every repo must be explicit (auditable in
+# review). Operator-managed via overrides/platform-root/values.yaml.
+clientHubAppExtraSourceRepos: []
+
 # Scheduling policy per component (ADR 0012 — tracked in
 # Estabilis/estabilis-platform-tools#97). Empty by default — each
 # Application template uses its opinionated mode ("auto" for most,

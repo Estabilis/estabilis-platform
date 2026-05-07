@@ -282,6 +282,15 @@ spec:
     {{- if .Values.global.sharedAcrLoginServer }}
     - {{ printf "%s/charts" .Values.global.sharedAcrLoginServer | quote }}
     {{- end }}
+    {{- /* ADR 0017 extension — additional source repos when the client
+           splits gitops content across multiple repos (e.g. a per-project
+           provisioning repo alongside the runtime gitops repo). Mirrors
+           platformAppsExtraSourceRepos / workloadAppsExtraSourceRepos
+           pattern. Appended via wrapper override at
+           overrides/platform-root/values.yaml.clientHubAppExtraSourceRepos. */}}
+    {{- range .Values.clientHubAppExtraSourceRepos }}
+    - {{ . | quote }}
+    {{- end }}
   destinations:
     - server: https://kubernetes.default.svc
       namespace: argocd
