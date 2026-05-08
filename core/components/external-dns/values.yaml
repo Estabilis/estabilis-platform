@@ -3,7 +3,23 @@ commonLabels:
 
 txtOwnerId: ""  # injected via ArgoCD helm.parameters (global.clusterName)
 
-policy: upsert-only
+# `sync` (not `upsert-only`) so deleted Ingresses GC their DNS records
+# on the next reconcile (default 1m interval). Without this, every
+# offboarded app (any GitOps flow that removes Ingress resources)
+# leaves an orphan CNAME + TXT registry pair on the DNS zone, which
+# on Cloudflare Free (200-record cap per zone) hits the quota in days
+# on an active platform tenant — observed in a production cluster
+# instance: 138 orphan records pinned the zone at 200/200, blocking
+# record creation for any new deployment via `code 81045: Record
+# quota exceeded`.
+#
+# Safe because external-dns only acts on records whose TXT registry
+# matches `--txt-owner-id` (set per cluster via global.clusterName).
+# Records created by another tool, manual entries, or another cluster
+# instance (different owner-id) are preserved untouched. Identifies
+# eligible records via the heritage TXT companion, not the CNAME
+# itself.
+policy: sync
 
 sources:
   - service

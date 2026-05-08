@@ -1,5 +1,50 @@
 # Changelog
 
+## [0.49.0] - 2026-05-08
+
+### Changed — external-dns policy `upsert-only` → `sync`
+
+`core/components/external-dns/values.yaml` switches the default
+policy from `upsert-only` to `sync`. Removed Ingress / Service hosts
+now have their CNAME + TXT registry records garbage-collected on the
+next external-dns reconcile (default `--interval=1m`).
+
+#### Why
+
+`upsert-only` only creates and updates records; nothing ever deletes
+them. Every offboarded app (any GitOps flow that removes Ingress
+resources, manual `kubectl delete ingress`, cluster teardown, etc.)
+leaves an orphan CNAME + TXT pair on the DNS zone forever. On
+Cloudflare Free (zone record cap = 200), this hits the wall in days
+for an active platform tenant.
+
+Observed in a production cluster instance: 138 orphan records pinned
+the zone at 200/200, blocking record creation for any new deployment
+with Cloudflare `code 81045: Record quota exceeded`. New deployments
+came up Healthy in the cluster but had NXDOMAIN on the public host
+until manual API cleanup unblocked the quota.
+
+#### Safety
+
+`sync` only deletes records whose TXT registry companion matches the
+local `--txt-owner-id` (set per cluster via `global.clusterName`).
+Records created by another tool (manual entries, another cluster's
+external-dns instance with a different owner-id, NS/SOA, etc.) are
+preserved untouched — the registry is what gives external-dns
+ownership; without that companion TXT, it walks past.
+
+#### Migration
+
+No action required for clusters where the cluster's external-dns is
+the only writer of its hosts. Operators can confirm by listing
+records in the zone and grouping by their `external-dns/owner=...`
+TXT content; only records matching the cluster's own owner-id will
+be touched.
+
+This is a MINOR bump because the policy change is provider-wide and
+operationally observable (deletion events appear in external-dns
+logs that previously didn't).
+
 ## [0.48.0] - 2026-05-07
 
 ### Added — `clientHubAppExtraSourceRepos` slot for the `platform-client-infra` AppProject
