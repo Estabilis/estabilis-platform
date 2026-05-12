@@ -1219,6 +1219,30 @@ alloy:
         }
       }
 
+      // ====================================================================
+      // Downstream extension point — `alloy.configMap.extraContent`
+      //
+      // The Alloy chart applies `tpl` to this entire content string at
+      // render time (see chart's templates/configmap.yaml). Any River
+      // components supplied by an override values file under the
+      // `alloy.configMap.extraContent` key are appended below — they can
+      // reference upstream-defined exporters/receivers by ID (e.g.
+      // `forward_to = [prometheus.remote_write.mimir.receiver]`).
+      //
+      // Typical use cases: prometheus.exporter.* embeds (blackbox, snmp,
+      // unix), extra discovery.kubernetes blocks for non-default service
+      // discovery, prometheus.scrape jobs targeting endpoints that
+      // pod-annotation discovery cannot reach (external URLs, headless
+      // services, multi-target exporters that need relabel rewrites).
+      //
+      // Default = empty → byte-identical rendered ConfigMap to the
+      // pre-hook version, so existing clients see zero behavior change
+      // until they opt in. See CHANGELOG [0.49.1].
+      // ====================================================================
+      {{- with .Values.alloy.configMap.extraContent }}
+      {{ tpl . $ | trim }}
+      {{- end }}
+
 controller:
   type: daemonset
   hostPID: true

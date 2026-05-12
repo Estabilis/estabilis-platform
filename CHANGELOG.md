@@ -1,5 +1,106 @@
 # Changelog
 
+## [0.50.0] - 2026-05-12
+
+### Added — `alloy.configMap.extraContent` extension point
+
+Clients can now append custom River components to the Alloy DaemonSet
+config without forking `core/components/grafana-stack/alloy-values.yaml`,
+via `overrides/alloy/values.yaml` in their gitops repo:
+
+```yaml
+alloy:
+  configMap:
+    extraContent: |
+      // e.g. blackbox-exporter embedded in Alloy
+      prometheus.exporter.blackbox "external_apis" {
+        config = "{ modules: { http_2xx: { prober: http, timeout: 5s } } }"
+        target {
+          name    = "custom-data-api"
+          address = "https://custom-data-api.example.com/health"
+          module  = "http_2xx"
+        }
+      }
+
+      prometheus.scrape "external_apis" {
+        targets    = prometheus.exporter.blackbox.external_apis.targets
+        forward_to = [prometheus.remote_write.mimir.receiver]
+      }
+```
+
+#### Why
+
+The Alloy chart consumes its entire River config as a single
+`alloy.configMap.content` string. Helm value merging on a scalar string
+is replace-not-merge — any downstream attempt to add scrape jobs would
+require copying the full ~1200-line upstream content into the override,
+which the downstream gitops convention explicitly forbids ("never
+duplicate upstream charts").
+
+Adding new scrape targets is a recurring need:
+- Multi-target exporters (blackbox, snmp) that need static target lists
+  scoped to a single client deployment
+- Endpoints that pod-annotation discovery cannot reach (URLs in other
+  clusters/accounts, headless services, non-pod targets)
+- Domain-specific `prometheus.exporter.*` embeds that downstream owns
+
+The Grafana Alloy chart at `1.6.2` already wraps its `configMap.content`
+in a `tpl` call (chart's `templates/configmap.yaml`), so introducing a
+client-controlled tail block is a 4-line `{{- with ... }}` substitution
+at the end of the upstream content string. No chart fork.
+
+#### Behavior
+
+- Default `extraContent` = unset → no functional River added. The
+  rendered ConfigMap gains only inert documentation comments describing
+  the slot, behaviorally byte-equivalent to v0.49.0.
+- When set, the string is `tpl`-evaluated against the chart context
+  (downstream can reference `.Values.*` like any other Helm template),
+  then appended after `prometheus.remote_write "mimir"`. River blocks
+  in `extraContent` can therefore reference upstream-defined receivers
+  and exporters by ID (e.g.
+  `forward_to = [prometheus.remote_write.mimir.receiver]`).
+
+#### Migration
+
+No action required. Existing clusters render identically until an
+override values file populates the new key.
+
+To opt in, downstream gitops repos add `overrides/alloy/values.yaml`
+with the `extraContent` block. The `overrideValueFile` helper in
+`bootstrap/platform-root/templates/grafana-stack.yaml` already wires
+this path into the Alloy `Application` — no platform-root change
+needed.
+
+#### Files changed
+
+- `core/components/grafana-stack/alloy-values.yaml` — appends
+  `{{- with .Values.alloy.configMap.extraContent }}{{ tpl . $ | trim }}{{- end }}`
+  at the tail of the existing `configMap.content` string, framed by a
+  descriptive comment block explaining the slot to operators reading
+  the rendered River config in-cluster.
+
+#### Smoke tested
+
+- `helm template grafana/alloy --version 1.6.2 -f alloy-values.yaml`
+  (no override) → renders without errors; only addition vs v0.49.0
+  output is the documentation comment block at the end of the River
+  config (functional River unchanged).
+- `helm template grafana/alloy --version 1.6.2 -f alloy-values.yaml -f
+  override-with-blackbox.yaml` → appends the override's
+  `prometheus.exporter.blackbox` + `prometheus.scrape` blocks after the
+  comment, preserves 4-space indentation, no template errors.
+
+#### Why MINOR bump (not PATCH)
+
+The 0.47.1 `alertOverrides` slot landed as PATCH because the empty
+default produced a byte-identical rendered ConfigMap. This slot adds a
+new permanent comment block to the rendered River regardless of opt-in
+(serves as operator-facing documentation of the extension point), so
+the no-op claim is "behaviorally byte-equivalent" rather than strictly
+byte-identical. Matches the 0.48.0 `clientHubAppExtraSourceRepos`
+precedent: new override slot → MINOR.
+
 ## [0.49.0] - 2026-05-08
 
 ### Changed — external-dns policy `upsert-only` → `sync`
