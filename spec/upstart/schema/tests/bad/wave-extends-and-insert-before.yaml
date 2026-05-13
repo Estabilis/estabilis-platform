@@ -1,0 +1,11 @@
+# NEGATIVE: wave-level allOf prohibits combining `extends:` with
+# `insert-before:` / `insert-after:` — semantically a wave either EXTENDS an
+# existing one OR INSERTS as new; cannot be both.
+# Expected: $.waves[0]: not allowed (allOf branch)
+version: "3"
+
+waves:
+  - extends: Platform Secrets
+    insert-before: Policies
+    apps:
+      - { name: vault }

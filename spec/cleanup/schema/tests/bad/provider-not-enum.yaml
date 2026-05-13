@@ -1,0 +1,8 @@
+# NEGATIVE: provider enum is [aws, azure]; 'gcp' rejected.
+version: "1"
+cleanup:
+  order:
+    - phase: bad-provider
+      action: helm-uninstall
+      release: foo
+      provider: gcp

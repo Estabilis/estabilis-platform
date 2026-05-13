@@ -1,0 +1,12 @@
+# NEGATIVE: values-file pattern rejects `..` traversal and absolute paths.
+# Pattern: ^(?!\.\./)(?!/)[A-Za-z0-9._/-]+$
+# Expected: $.bootstrap.argocd.values-file: '../../../etc/passwd' does not match
+version: "3"
+
+bootstrap:
+  argocd:
+    chart: argo-cd
+    repo: oci://ghcr.io/argoproj/argo-helm
+    version: "9.5.6"
+    namespace: argocd
+    values-file: ../../../etc/passwd

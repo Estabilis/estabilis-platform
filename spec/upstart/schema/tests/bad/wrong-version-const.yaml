@@ -1,0 +1,6 @@
+# NEGATIVE: version is const "3"; engine rejects "1" and "2" so the schema
+# must too (or operators bypass the engine).
+# Expected: $.version: '2' was expected
+version: "2"
+bootstrap:
+  pre: []

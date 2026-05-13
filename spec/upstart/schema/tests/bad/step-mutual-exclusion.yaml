@@ -1,0 +1,19 @@
+# NEGATIVE: preStep has oneOf [helm-install, helm-template-apply, kubectl-apply, script].
+# Mutual exclusion — declaring both helm-install AND kubectl-apply is ambiguous.
+# Expected: $.bootstrap.pre[0]: is valid against more than one of the schemas listed in oneOf
+version: "3"
+
+bootstrap:
+  pre:
+    - name: ambiguous
+      helm-install:
+        chart: foo
+        repo: oci://example.com/foo
+        version: "1.0"
+        namespace: foo
+      kubectl-apply:
+        manifest: |
+          apiVersion: v1
+          kind: ConfigMap
+          metadata:
+            name: bar

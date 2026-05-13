@@ -1,0 +1,4 @@
+# Overlay with no provider-specific phases — matches the Azure overlay shape.
+version: "1"
+cleanup:
+  order: []

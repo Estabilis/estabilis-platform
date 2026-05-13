@@ -1,0 +1,10 @@
+# NEGATIVE: waitMode enum is [healthy, synced, applied, phase-running].
+# "frozen" is not a member.
+# Expected: $.waves[0].apps[0].wait: 'frozen' is not one of [...]
+version: "3"
+
+waves:
+  - name: TLS
+    apps:
+      - name: cert-manager
+        wait: frozen

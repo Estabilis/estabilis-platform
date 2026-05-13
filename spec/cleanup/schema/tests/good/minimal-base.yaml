@@ -1,0 +1,9 @@
+# Minimal-but-complete cleanup spec.
+version: "1"
+cleanup:
+  order:
+    - phase: uninstall-argocd
+      action: helm-uninstall
+      release: argocd
+      namespace: argocd
+      no-hooks: true

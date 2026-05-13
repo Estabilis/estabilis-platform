@@ -1,0 +1,4 @@
+# NEGATIVE: top-level `version` field is the only mandatory key in every file.
+# Expected: $: 'version' is a required property
+bootstrap:
+  pre: []

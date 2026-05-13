@@ -1,0 +1,109 @@
+name: spec-validation
+
+# Validates the declarative bootstrap/cleanup specs against their JSON
+# Schemas (ADR 0036 §4.11 Layer 2 CI gate). Two-sided test:
+#
+#   1. spec/upstart/schema/tests/good/*.yaml  → must validate
+#   2. spec/upstart/schema/tests/bad/*.yaml   → must FAIL validation
+#   3. spec/cleanup/schema/tests/good/*.yaml  → must validate
+#   4. spec/cleanup/schema/tests/bad/*.yaml   → must FAIL validation
+#
+# Plus the production specs themselves (spec/upstart/upstart*.yaml,
+# spec/cleanup/cleanup*.yaml) must validate.
+#
+# This is intentionally STRICTER than the pre-commit check-jsonschema hook,
+# which only validates the production files. The fixtures guard the schema
+# itself: if someone weakens a rule (e.g. drops additionalProperties: false),
+# at least one bad/ fixture starts passing and CI flags it.
+
+on:
+  pull_request:
+    paths:
+      - "spec/**"
+      - ".github/workflows/spec-validation.yaml"
+  push:
+    branches: [main]
+    paths:
+      - "spec/**"
+      - ".github/workflows/spec-validation.yaml"
+
+concurrency:
+  group: spec-validation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install check-jsonschema
+        run: pip install --quiet check-jsonschema==0.30.0
+
+      - name: Validate production upstart specs (must pass)
+        run: |
+          set -euo pipefail
+          check-jsonschema \
+            --schemafile spec/upstart/schema/upstart.v3.schema.json \
+            spec/upstart/upstart.yaml \
+            spec/upstart/upstart.aws.yaml \
+            spec/upstart/upstart.azure.yaml
+
+      - name: Validate production cleanup specs (must pass)
+        run: |
+          set -euo pipefail
+          check-jsonschema \
+            --schemafile spec/cleanup/schema/cleanup.v1.schema.json \
+            spec/cleanup/cleanup.yaml \
+            spec/cleanup/cleanup.aws.yaml \
+            spec/cleanup/cleanup.azure.yaml
+
+      - name: Validate good fixtures (must pass)
+        run: |
+          set -euo pipefail
+          for f in spec/upstart/schema/tests/good/*.yaml; do
+            check-jsonschema --schemafile spec/upstart/schema/upstart.v3.schema.json "$f"
+          done
+          for f in spec/cleanup/schema/tests/good/*.yaml; do
+            check-jsonschema --schemafile spec/cleanup/schema/cleanup.v1.schema.json "$f"
+          done
+
+      - name: Validate bad fixtures (must FAIL)
+        run: |
+          set -uo pipefail
+          fails=0
+          for f in spec/upstart/schema/tests/bad/*.yaml; do
+            if check-jsonschema \
+                 --schemafile spec/upstart/schema/upstart.v3.schema.json \
+                 "$f" > /dev/null 2>&1; then
+              echo "::error file=$f::Expected validation failure, but file PASSED — schema rule has been weakened."
+              fails=$((fails + 1))
+            else
+              echo "  ok (rejected as expected): $f"
+            fi
+          done
+          for f in spec/cleanup/schema/tests/bad/*.yaml; do
+            if check-jsonschema \
+                 --schemafile spec/cleanup/schema/cleanup.v1.schema.json \
+                 "$f" > /dev/null 2>&1; then
+              echo "::error file=$f::Expected validation failure, but file PASSED — schema rule has been weakened."
+              fails=$((fails + 1))
+            else
+              echo "  ok (rejected as expected): $f"
+            fi
+          done
+          if [ "$fails" -gt 0 ]; then
+            echo
+            echo "$fails fixture(s) that should fail validation are now PASSING."
+            echo "The schema has been weakened. Either:"
+            echo "  - Restore the schema rule that the fixture targets, OR"
+            echo "  - Delete the obsolete bad/ fixture and commit the schema change deliberately."
+            exit 1
+          fi

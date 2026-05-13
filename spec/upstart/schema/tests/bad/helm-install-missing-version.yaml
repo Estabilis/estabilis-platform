@@ -1,0 +1,12 @@
+# NEGATIVE: helmInstall requires chart, repo, version, namespace.
+# Missing `version:` means floating tag — disallowed.
+# Expected: $.bootstrap.pre[0].helm-install: 'version' is a required property
+version: "3"
+
+bootstrap:
+  pre:
+    - name: bad
+      helm-install:
+        chart: example
+        repo: oci://example.com/foo
+        namespace: example
