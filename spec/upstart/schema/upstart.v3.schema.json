@@ -1,0 +1,589 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://estabilis.io/schemas/upstart.v3.schema.json",
+  "title": "Estabilis upstart.yaml v3",
+  "description": "Declarative bootstrap specification for the Estabilis Platform. Consumed by N renderers (Python in-process, Argo Workflows, documentation generator). See ADR 0036 (estabilis-platform-tools/docs/adr/0036-upstart-yaml-v3-declarative-bootstrap.md) for design rationale.",
+
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version"],
+
+  "$comment": "Top-level required list intentionally narrow: only `version` is mandatory in every file. Overlays (upstart.{aws,azure}.yaml) are partial deltas that contribute fields the base supplies elsewhere. The renderer applies post-merge validation: after deep-merge of base + overlay + local, the resulting spec MUST include `bootstrap`, `bootstrap.argocd`, `bootstrap.init`, `bootstrap.wait`, and `waves`. Schema-level checks here cover structural correctness of fields-as-present.",
+
+  "properties": {
+    "version": {
+      "type": "string",
+      "const": "3",
+      "description": "Schema version. Engine rejects '1' and '2' with instruction to run `estabilis migrate upstart`. Future bumps (3.1, 3.2) follow semver-minor for additive fields and require explicit migration on majors."
+    },
+
+    "bootstrap": {
+      "type": "object",
+      "additionalProperties": false,
+      "$comment": "Sub-blocks (argocd, init, wait) are required post-merge but NOT in each individual file (overlays may omit). The renderer enforces post-merge required-set.",
+      "properties": {
+        "pre": {
+          "type": "array",
+          "description": "Steps executed BEFORE ArgoCD is installed. Empty in base (provider-agnostic). AWS overlay carries Karpenter CRDs + controller + resources. Azure overlay empty (AKS managed node pools).",
+          "items": { "$ref": "#/$defs/preStep" }
+        },
+        "argocd":   { "$ref": "#/$defs/argocdInstall" },
+        "repos":    {
+          "type": "array",
+          "description": "Repository credentials registered as ArgoCD Secrets. Entries with empty url or token are silently skipped (matches kubernetes.py:_create_repo_credentials).",
+          "items": { "$ref": "#/$defs/repoCredential" }
+        },
+        "init":     { "$ref": "#/$defs/bootstrapInit" },
+        "wait":     { "$ref": "#/$defs/bootstrapWait" }
+      }
+    },
+
+    "defaults": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Defaults inherited by waves and apps unless overridden. Universal `ServerSideApply=true` resolves cortex prd 2026-04-29 CSA-vs-SSA toggle bug (proposal 0002 §1.1 issues #3 and #4).",
+      "properties": {
+        "timeout":      { "type": "integer", "minimum": 30, "maximum": 1800, "default": 300 },
+        "wait":         { "$ref": "#/$defs/waitMode" },
+        "sync-options": {
+          "type": "array",
+          "items": { "type": "string", "enum": ["CreateNamespace=true", "ServerSideApply=true", "RespectIgnoreDifferences=true", "Validate=false", "ApplyOutOfSyncOnly=true", "PrunePropagationPolicy=foreground", "Replace=true"] },
+          "uniqueItems": true
+        },
+        "retry": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "limit":   { "type": "integer", "minimum": 0, "maximum": 10 },
+            "backoff": { "type": "string", "enum": ["linear", "exponential"] },
+            "factor":  { "type": "number",  "minimum": 1, "maximum": 10 }
+          }
+        }
+      }
+    },
+
+    "waves": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Sequential ArgoCD Application sync stages. Each wave executes 6 phases (apply-CRDs → trigger-sync → force-reconcile → wait-healthy → optional hardening-resync → verify-checks). Apps within a wave sync in parallel. Wave-level dependencies are expressed by array order, NOT by depends-on field (removed from schema by design — see ADR 0036 §3.5 decision #5).",
+      "items": { "$ref": "#/$defs/wave" }
+    },
+
+    "post": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Post-last-wave operations. Per ADR 0029, `prune` is decided per-App in chart/ApplicationSet templates by risk taxonomy — NOT by this block. `enable-auto-sync` is a defensive fallback for Apps arriving without any `automated:` block.",
+      "properties": {
+        "enable-auto-sync": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["apps"],
+          "properties": {
+            "apps":      { "$ref": "#/$defs/appSelector" },
+            "self-heal": { "type": "boolean", "default": true },
+            "prune":     { "type": "boolean", "default": false, "description": "Defensive fallback only — chart-emitted prune decisions are respected as-is (ADR 0029)." }
+          }
+        },
+        "manual-markers": {
+          "type": "array",
+          "description": "Genuinely post-everything operations. Today: empty in all known specs. Wave-inline markers use waves[].manual-marker-after instead (see §4.8 vault-init).",
+          "items": { "$ref": "#/$defs/manualMarker" }
+        }
+      }
+    }
+  },
+
+  "$defs": {
+
+    "waitMode": {
+      "type": "string",
+      "enum": ["healthy", "synced", "applied", "phase-running"],
+      "description": "healthy: wait Application health=Healthy AND sync=Synced (default for ArgoCD-managed apps). synced: wait sync=Synced only. applied: kubectl apply returned 0 (no readiness check). phase-running: wait pod phase=Running (used for Vault where Sealed pods are not Ready by design — see ADR 0036 §4.8)."
+    },
+
+    "appSelector": {
+      "oneOf": [
+        { "type": "string", "const": "all", "description": "All apps in the cluster." },
+        { "type": "array", "items": { "type": "string" }, "description": "Explicit list of app names." },
+        { "type": "object", "additionalProperties": false, "required": ["except"], "properties": { "except": { "type": "array", "items": { "type": "string" } } } }
+      ]
+    },
+
+    "preStep": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name"],
+      "properties": {
+        "name":               { "type": "string", "minLength": 1, "description": "Step identifier for logging and resume state." },
+        "skip-when":          { "$ref": "#/$defs/skipWhen" },
+        "helm-install":       { "$ref": "#/$defs/helmInstall" },
+        "helm-template-apply":{ "$ref": "#/$defs/helmTemplateApply" },
+        "kubectl-apply":      { "$ref": "#/$defs/kubectlApply" },
+        "script":             { "$ref": "#/$defs/script" }
+      },
+      "oneOf": [
+        { "required": ["helm-install"] },
+        { "required": ["helm-template-apply"] },
+        { "required": ["kubectl-apply"] },
+        { "required": ["script"] }
+      ],
+      "description": "Pre-bootstrap step. Exactly one of helm-install / helm-template-apply / kubectl-apply / script must be present (oneOf discriminator)."
+    },
+
+    "helmInstall": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["chart", "repo", "version", "namespace"],
+      "properties": {
+        "chart":     { "type": "string", "minLength": 1 },
+        "repo":      { "type": "string", "minLength": 1, "description": "OCI URL (oci://...) or HTTPS Helm classic repo (https://...). Engine selects --repo flag or OCI ref accordingly." },
+        "version":   { "type": "string", "minLength": 1, "description": "Helm chart version. Pinned (no floating tags). Variables ${X} supported." },
+        "namespace": { "type": "string", "minLength": 1 },
+        "values":    { "type": "object", "description": "Helm values dict. Strings may reference variables ${X}. Engine resolves before passing to helm." },
+        "values-file": { "type": "string", "pattern": "^(?!\\.\\./)(?!/)[A-Za-z0-9._/-]+$", "description": "Path relative to estabilis-platform repo checkout. NO `..` traversal. NO absolute paths." },
+        "set": { "type": "object", "description": "Helm --set parameters (string-only, applied after values-file)." }
+      }
+    },
+
+    "helmTemplateApply": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["chart-from-git"],
+      "properties": {
+        "chart-from-git": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["repo", "ref", "path"],
+          "properties": {
+            "repo": { "type": "string", "minLength": 1, "description": "Git URL of the chart's host repo (e.g. estabilis-platform-gitops)." },
+            "ref":  { "type": "string", "minLength": 1, "description": "Tag, branch, or commit SHA. Engine performs shallow clone." },
+            "path": { "type": "string", "minLength": 1, "description": "Path within the cloned repo to the chart directory." }
+          }
+        },
+        "set":       { "type": "object", "description": "Helm --set parameters injected at template time." },
+        "namespace": { "type": "string", "description": "Optional target namespace; engine passes via --namespace to helm template + kubectl apply -n." }
+      },
+      "description": "Render a chart living in another git repo and kubectl apply --server-side --force-conflicts. Engine clones shallow at ref, renders helm template with --set, applies, cleans up temp clone. Inherent idempotency via SSA."
+    },
+
+    "kubectlApply": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["manifest"],
+      "properties": {
+        "manifest":  { "type": "string", "description": "Inline YAML manifest (raw string). Engine pipes to kubectl apply --server-side." },
+        "namespace": { "type": "string" }
+      }
+    },
+
+    "script": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["run"],
+      "properties": {
+        "run":      { "type": "string", "minLength": 1, "description": "Shell command. Engine executes via subprocess; non-zero exit fails the step. Escape hatch — prefer typed step (helm-install / kubectl-apply) when possible." },
+        "interpreter": { "type": "string", "enum": ["sh", "bash"], "default": "sh" }
+      }
+    },
+
+    "skipWhen": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Step is skipped silently if condition resolves true. Used for non-idempotent steps that must not re-run (e.g. vault-init).",
+      "properties": {
+        "kubectl": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind"],
+          "properties": {
+            "kind":      { "type": "string", "minLength": 1 },
+            "name":      { "type": "string" },
+            "namespace": { "type": "string" },
+            "jsonpath":  { "type": "string" },
+            "equals":    { "type": "string" }
+          },
+          "description": "Engine runs `kubectl get <kind> <name> -n <namespace>`. Skip when resource exists (and matches jsonpath==equals if provided)."
+        },
+        "file": {
+          "type": "string",
+          "description": "Engine checks file existence on disk relative to cwd. Skip when file exists."
+        }
+      },
+      "oneOf": [
+        { "required": ["kubectl"] },
+        { "required": ["file"] }
+      ]
+    },
+
+    "argocdInstall": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["chart", "repo", "version", "namespace", "values-file"],
+      "properties": {
+        "chart":       { "type": "string", "const": "argo-cd" },
+        "repo":        { "type": "string", "minLength": 1 },
+        "version":     { "type": "string", "minLength": 1 },
+        "namespace":   { "type": "string", "minLength": 1 },
+        "values-file": { "type": "string", "pattern": "^(?!\\.\\./)(?!/)[A-Za-z0-9._/-]+$", "description": "Path relative to estabilis-platform repo checkout — e.g. 'spec/upstart/values/argocd-seed.yaml'. Engine resolves the absolute path." },
+        "pre-create-secrets": {
+          "type": "array",
+          "description": "Secrets created BEFORE helm install argocd. Required for argocd-redis (so the chart's redisSecretInit Job stays disabled, avoiding the finalizer deadlock from earlier ArgoCD versions).",
+          "items": { "$ref": "#/$defs/preCreateSecret" }
+        }
+      }
+    },
+
+    "preCreateSecret": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "type", "data"],
+      "properties": {
+        "name":      { "type": "string", "minLength": 1 },
+        "namespace": { "type": "string", "default": "argocd" },
+        "type":      { "type": "string", "enum": ["Opaque", "kubernetes.io/dockerconfigjson", "kubernetes.io/tls", "kubernetes.io/basic-auth"] },
+        "data":      { "type": "object", "additionalProperties": { "type": "string" }, "description": "Map of key → value (raw string). Engine base64-encodes when writing the Secret. Values commonly reference ${_X} private variables." }
+      }
+    },
+
+    "repoCredential": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "url"],
+      "properties": {
+        "name":  { "type": "string", "minLength": 1 },
+        "url":   { "type": "string", "description": "Git repository URL. If empty after variable resolution, the engine silently skips this entry (matches kubernetes.py:_create_repo_credentials behavior)." },
+        "token": { "type": "string", "description": "Personal access token. If empty after variable resolution, the engine silently skips." },
+        "label": { "type": "string", "description": "Label applied to the resulting Secret for ArgoCD discovery (e.g. 'config-repo', 'client-gitops')." },
+        "username": { "type": "string", "default": "x-access-token" }
+      }
+    },
+
+    "bootstrapInit": {
+      "type": "object",
+      "additionalProperties": false,
+      "$comment": "Sub-fields (namespaces, appproject, platform-root) are required post-merge but NOT in each individual file — AWS overlay declares only namespaces[] to append to the base list.",
+      "properties": {
+        "namespaces": {
+          "type": "array",
+          "items":  { "type": "string", "pattern": "^[a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?$" },
+          "minItems": 1,
+          "uniqueItems": true,
+          "description": "Component namespaces pre-created before ArgoCD waves to avoid hook race conditions. Base list (13) lives here; provider overlays append (3 in AWS overlay: aws-load-balancer-controller, metrics-server, vault)."
+        },
+        "appproject":    { "$ref": "#/$defs/appProject" },
+        "platform-root": { "$ref": "#/$defs/platformRootApplication" }
+      }
+    },
+
+    "appProject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "namespace", "sourceRepos", "destinations"],
+      "properties": {
+        "name":      { "type": "string", "minLength": 1 },
+        "namespace": { "type": "string", "default": "argocd" },
+        "sourceRepos": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "minItems": 1,
+          "description": "Placeholder AppProject. Chart sync via platform-root immediately overwrites with the full ADR 0028 taxonomy (platform-core / platform-observability / platform-security / client / hub)."
+        },
+        "destinations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["server", "namespace"],
+            "properties": {
+              "server":    { "type": "string" },
+              "namespace": { "type": "string" }
+            }
+          },
+          "minItems": 1
+        },
+        "clusterResourceWhitelist": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["group", "kind"],
+            "properties": {
+              "group": { "type": "string" },
+              "kind":  { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+
+    "platformRootApplication": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "namespace", "project", "sources"],
+      "properties": {
+        "name":      { "type": "string", "const": "platform-root" },
+        "namespace": { "type": "string", "default": "argocd" },
+        "project":   { "type": "string", "default": "default" },
+        "sources": {
+          "type": "array",
+          "minItems": 1,
+          "items":   { "$ref": "#/$defs/applicationSource" }
+        },
+        "syncPolicy": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "syncOptions": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "automated": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "prune":    { "type": "boolean" },
+                "selfHeal": { "type": "boolean" }
+              }
+            }
+          }
+        }
+      }
+    },
+
+    "applicationSource": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repoURL", "targetRevision"],
+      "properties": {
+        "repoURL":        { "type": "string", "minLength": 1 },
+        "targetRevision": { "type": "string", "minLength": 1, "description": "Per ADR 0020, cluster-own content uses branch tracking (e.g. 'main'); external deps stay pinned (vX.Y.Z). Use ${configRepoRevision:-${configRepoVersion}} for transitional backcompat." },
+        "path":           { "type": "string" },
+        "ref":            { "type": "string", "description": "Names a source for cross-source references (e.g. ref: values, ref: overrides). Mutually informational with path." },
+        "helm": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "valueFiles":              { "type": "array", "items": { "type": "string" } },
+            "ignoreMissingValueFiles": { "type": "boolean" },
+            "parameters": {
+              "description": "Either the string 'auto' (engine injects all params from resolve_platform_params + provenance) or an explicit array of {name, value, forceString}.",
+              "oneOf": [
+                { "type": "string", "const": "auto" },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["name", "value"],
+                    "properties": {
+                      "name":        { "type": "string" },
+                      "value":       { "type": "string" },
+                      "forceString": { "type": "boolean" }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "condition": {
+          "type": "string",
+          "description": "Renderer-evaluated gate. Source is rendered only when the expression resolves truthy. Supports POSIX ${VAR:+truthy} idiom for is-set checks. Example: ${configRepoUrl:+true} → render only when configRepoUrl is non-empty."
+        }
+      }
+    },
+
+    "bootstrapWait": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["platform-root-apps"],
+      "properties": {
+        "platform-root-apps": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["min-count", "stable-rounds", "timeout", "check-interval"],
+          "properties": {
+            "min-count":      { "type": "integer", "minimum": 1,   "description": "Minimum child Applications platform-root must materialize before waves begin." },
+            "stable-rounds":  { "type": "integer", "minimum": 1,   "description": "Number of consecutive polls where count is stable AND ≥ min-count before declaring convergence." },
+            "timeout":        { "type": "integer", "minimum": 30,  "description": "Total seconds before the wait gives up and fails the bootstrap." },
+            "check-interval": { "type": "integer", "minimum": 1,   "description": "Seconds between polls." }
+          }
+        }
+      }
+    },
+
+    "wave": {
+      "type": "object",
+      "additionalProperties": false,
+      "oneOf": [
+        { "required": ["name"] },
+        { "required": ["extends"] }
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Wave identifier. Stable across overlays (used as the binding key for `extends:`)."
+        },
+        "extends": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Overlay-only directive. Names a base wave to merge with. Arrays (apps, verify) APPEND; scalars overwrite. Engine validates the base wave exists before merging."
+        },
+        "insert-before": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Overlay-only directive. Insert this wave at the position of the named base wave; the named wave (and all subsequent) shift down."
+        },
+        "insert-after": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Overlay-only directive. Insert this wave AFTER the named base wave."
+        },
+        "timeout": {
+          "type": "integer",
+          "minimum": 30,
+          "maximum": 1800,
+          "description": "Wave-level default timeout for apps that don't declare their own."
+        },
+        "apply-crds": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/applyCrdsChart" },
+          "description": "CRD apply phase. Engine pipes `helm template <chart>` through `yq 'select(.kind == \"CustomResourceDefinition\")'` then `kubectl apply --server-side --force-conflicts`. The yq filter is MANDATORY (cortex prd 2026-04-30 postmortem — `helm template --include-crds` does NOT filter and installs full Helm release in `default` namespace; see ADR 0036 §6.6)."
+        },
+        "apps": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/waveApp" },
+          "description": "Apps synced in parallel within this wave. Order is informational only; engine batches the sync triggers."
+        },
+        "verify": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/verifyCheck" },
+          "description": "Checks executed after all apps in the wave are Healthy, before advancing."
+        },
+        "verify-and-resync": {
+          "type": "boolean",
+          "default": false,
+          "description": "When true, after wait-Healthy converges the engine re-triggers sync explicitly on every app in the wave. Catches the `Synced/Healthy parcial` regression (cortex prd 2026-04-30 — Service/metrics-server permanently OutOfSync forever because Phase 9 had already disabled auto-sync). Canonical use: AWS overlay Wave 0."
+        },
+        "manual-marker-after": {
+          "$ref": "#/$defs/manualMarker",
+          "description": "Inline manual marker between this wave and the next. Engine prompts operator; honors skip-when. Wave-inline placement is preferred for non-idempotent operations bound to a specific wave (e.g. vault-init after Vault is Running)."
+        },
+        "manual-marker-before": {
+          "$ref": "#/$defs/manualMarker",
+          "description": "Inline manual marker BEFORE this wave starts."
+        }
+      },
+      "allOf": [
+        {
+          "if": { "required": ["insert-before"] },
+          "then": { "not": { "required": ["insert-after"] } }
+        },
+        {
+          "if": { "required": ["extends"] },
+          "then": { "not": { "anyOf": [ { "required": ["insert-before"] }, { "required": ["insert-after"] } ] } }
+        }
+      ]
+    },
+
+    "waveApp": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name"],
+      "properties": {
+        "name":     { "type": "string", "minLength": 1, "description": "ArgoCD Application name (must match the App emitted by the platform-root chart)." },
+        "optional": { "type": "boolean", "default": false, "description": "When true and the App is absent from ArgoCD (chart conditional gated it off), the engine skips silently. When false (default) and the App is absent, the wave fails." },
+        "timeout":  { "type": "integer", "minimum": 30, "maximum": 1800, "description": "Per-app wait timeout. Overrides wave timeout, defaults timeout." },
+        "wait":     { "$ref": "#/$defs/waitMode", "description": "Override wait mode for this app. Vault uses 'phase-running' (Sealed pods are not Ready by design)." }
+      }
+    },
+
+    "applyCrdsChart": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["chart", "repo", "version"],
+      "properties": {
+        "chart":   { "type": "string", "minLength": 1 },
+        "repo":    { "type": "string", "minLength": 1 },
+        "version": { "type": "string", "minLength": 1 }
+      }
+    },
+
+    "verifyCheck": {
+      "type": "object",
+      "required": ["check"],
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "required": ["check", "name", "namespace"],
+          "properties": {
+            "check":     { "const": "webhook-ready" },
+            "name":      { "type": "string" },
+            "namespace": { "type": "string" }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": ["check", "name", "namespace"],
+          "properties": {
+            "check":     { "const": "secret-exists" },
+            "name":      { "type": "string" },
+            "namespace": { "type": "string" }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": ["check", "apiVersion", "kind", "name", "namespace", "jsonpath", "expected"],
+          "properties": {
+            "check":      { "const": "resource-ready" },
+            "apiVersion": { "type": "string" },
+            "kind":       { "type": "string" },
+            "name":       { "type": "string" },
+            "namespace":  { "type": "string" },
+            "jsonpath":   { "type": "string" },
+            "expected":   { "type": "string" }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": ["check", "name"],
+          "properties": {
+            "check": { "const": "apiservice-available" },
+            "name":  { "type": "string", "description": "APIService name, e.g. v1beta1.metrics.k8s.io" }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": ["check"],
+          "properties": {
+            "check":     { "const": "ingress-hostname-resolved" },
+            "name":      { "type": "string" },
+            "namespace": { "type": "string" },
+            "host":      { "type": "string" }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": ["check", "name", "namespace"],
+          "properties": {
+            "check":     { "const": "deployment-ready" },
+            "name":      { "type": "string" },
+            "namespace": { "type": "string" }
+          }
+        }
+      ]
+    },
+
+    "manualMarker": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "message"],
+      "properties": {
+        "name":      { "type": "string", "minLength": 1, "description": "Identifier for logging and resume state." },
+        "message":   { "type": "string", "minLength": 1, "description": "Instructional text shown to the operator." },
+        "skip-when": { "$ref": "#/$defs/skipWhen" }
+      }
+    }
+  }
+}

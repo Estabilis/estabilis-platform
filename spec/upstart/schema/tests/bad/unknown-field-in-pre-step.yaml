@@ -1,0 +1,13 @@
+# NEGATIVE: additionalProperties: false on preStep — unknown field rejected.
+# Expected validation path: $.bootstrap.pre[0]: Additional properties are not allowed
+version: "3"
+
+bootstrap:
+  pre:
+    - name: bad-step
+      helm-install:
+        chart: foo
+        repo: oci://example.com/foo
+        version: "1.0"
+        namespace: foo
+      unknown-field: should-fail

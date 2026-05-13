@@ -1,0 +1,9 @@
+# NEGATIVE: criteria enum is closed; 'unknown-criterion' rejected.
+version: "1"
+cleanup:
+  order:
+    - phase: bad-webhooks
+      action: delete-webhooks
+      kinds: [ValidatingWebhookConfiguration]
+      criteria:
+        - unknown-criterion

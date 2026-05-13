@@ -1,0 +1,42 @@
+# Minimal-but-complete base spec — every required field present at file level,
+# all enums populated with valid values. Equivalent in shape to upstart.yaml
+# but trimmed to the smallest possible spec the schema accepts.
+version: "3"
+
+bootstrap:
+  pre: []
+  argocd:
+    chart: argo-cd
+    repo: oci://ghcr.io/argoproj/argo-helm
+    version: "9.5.6"
+    namespace: argocd
+    values-file: spec/upstart/values/argocd-seed.yaml
+  init:
+    namespaces:
+      - cert-manager
+    appproject:
+      name: platform
+      namespace: argocd
+      sourceRepos:
+        - https://example.com/repo
+      destinations:
+        - { server: https://kubernetes.default.svc, namespace: "*" }
+    platform-root:
+      name: platform-root
+      namespace: argocd
+      project: default
+      sources:
+        - repoURL: https://example.com/repo
+          targetRevision: v1.0.0
+          path: bootstrap/platform-root
+  wait:
+    platform-root-apps:
+      min-count: 1
+      stable-rounds: 1
+      timeout: 60
+      check-interval: 3
+
+waves:
+  - name: TLS
+    apps:
+      - { name: cert-manager }

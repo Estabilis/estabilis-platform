@@ -1,0 +1,8 @@
+# NEGATIVE: cleanupPhase has additionalProperties: false.
+version: "1"
+cleanup:
+  order:
+    - phase: bad
+      action: helm-uninstall
+      release: argocd
+      typo-field: oops

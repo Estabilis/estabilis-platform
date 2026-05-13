@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://estabilis.io/schemas/cleanup.v1.schema.json",
+  "title": "Estabilis cleanup.yaml v1",
+  "description": "Declarative cluster cleanup specification. Mirrors scripts/cleanup-k8s-restart.sh phases 1 → 7 (idempotent teardown of the platform stack WITHOUT destroying terraform state or cloud-managed resources). Separate from upstart.yaml because the engine is distinct (no ArgoCD orchestration, requires cloud-CLI subprocess calls and finalizer manipulation) and the lifecycle is independent (operator runs cleanup many times per day, no version coupling to upstart).",
+
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version"],
+  "$comment": "Overlays (cleanup.{aws,azure}.yaml) may carry only the order[] delta; merged-spec validation post-merge enforces top-level required-set.",
+
+  "properties": {
+    "version": {
+      "type": "string",
+      "const": "1"
+    },
+
+    "cleanup": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "order": {
+          "type": "array",
+          "description": "Phases executed sequentially. Ordering is SEMANTIC and critical — Phase `uninstall-argocd` MUST come BEFORE Phase `drain-argocd-objects`, otherwise the active argocd-application-controller re-adds finalizers patched out by the drain phase and the script fails silently. Empty array is allowed in overlays (Azure overlay carries no provider-specific cleanup phases).",
+          "items": { "$ref": "#/$defs/cleanupPhase" }
+        }
+      }
+    }
+  },
+
+  "$defs": {
+
+    "cleanupPhase": {
+      "type": "object",
+      "required": ["phase", "action"],
+      "additionalProperties": false,
+      "properties": {
+        "phase":  {
+          "type": "string",
+          "minLength": 1,
+          "description": "Phase identifier (kebab-case). Stable across overlays — used by overlay merge to identify same phase."
+        },
+        "action": {
+          "type": "string",
+          "enum": [
+            "helm-uninstall",
+            "remove-finalizers-and-delete",
+            "remove-finalizers",
+            "aws-ec2-terminate",
+            "delete-namespaces",
+            "delete-all-resources",
+            "delete-webhooks"
+          ]
+        },
+        "provider": {
+          "type": "string",
+          "enum": ["aws", "azure"],
+          "description": "Optional provider gate. When present, phase runs only when overlay matches. Omit for provider-agnostic phases."
+        },
+        "release": {
+          "type": "string",
+          "description": "Helm release name (for action: helm-uninstall)."
+        },
+        "releases": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Multiple helm releases to uninstall in this phase (alternative to `release:`)."
+        },
+        "namespace": { "type": "string" },
+        "no-hooks":  { "type": "boolean", "description": "helm uninstall --no-hooks (avoids foregroundDeletion deadlock). Default false." },
+        "kinds": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Resource kinds to act on (e.g. [Application, AppProject, ApplicationSet])."
+        },
+        "kinds-from": {
+          "type": "string",
+          "description": "Symbolic reference for a list of kinds defined elsewhere. Current values: `nuke_crd_prefixes` (reads from estabilis-platform-tools/template.yaml:61-73 — kyverno.io, cnpg.io, external-secrets.io, cert-manager.io, traefik.io, aquasecurity.github.io, velero.io, monitoring.grafana.com, argoproj.io, wgpolicyk8s.io)."
+        },
+        "filter": {
+          "type": "string",
+          "description": "AWS resource filter (for action: aws-ec2-terminate). Example: tag:karpenter.sh/nodepool=*"
+        },
+        "namespaces-from": {
+          "type": "string",
+          "description": "Symbolic reference for the namespace list. Current values: `bootstrap.init.namespaces` (reads merged base+overlay namespace list from upstart.yaml v3)."
+        },
+        "exclude-system": {
+          "type": "boolean",
+          "description": "When true, never delete kube-*, default, argocd namespaces (cleanup hygiene)."
+        },
+        "target-namespace": { "type": "string", "description": "Single namespace operand (for action: delete-all-resources)." },
+        "keep": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Resources to KEEP when deleting all (e.g. [`kubernetes Service`, `default ServiceAccount`])."
+        },
+        "criteria": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["service-missing", "webhooks-list-empty", "validating-failed", "mutating-failed"]
+          },
+          "description": "Webhook deletion criteria (for action: delete-webhooks). At least one must match for the webhook to be removed."
+        }
+      }
+    }
+  }
+}

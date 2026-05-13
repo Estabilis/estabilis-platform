@@ -1,0 +1,11 @@
+# Defense-in-depth: ensure ArgoCD never accidentally renders files under
+# spec/ as Application manifests. This directory is a SOURCE OF TRUTH for
+# the upstart/cleanup renderers (Python in-process, Argo Workflows future),
+# NOT a kustomize/helm/manifests path.
+#
+# Existing ApplicationSets target platforms/{deploymentId}/* and
+# bootstrap/platform-root/ — never spec/. A future ApplicationSet pattern
+# that does target spec/ would be a deliberate, reviewable change AND would
+# need to override this ignore file. See ADR 0036 §3.1.
+
+*

@@ -1,0 +1,51 @@
+name: spec-validation
+
+# Validates the declarative bootstrap/cleanup specs against their JSON
+# Schemas (ADR 0036 §4.11 Layer 2 CI gate).
+#
+# Delegates to scripts/validate-specs.sh — the SAME script the local
+# pre-commit hook calls (.pre-commit-config.yaml). Zero drift between
+# local and CI.
+#
+# Four checks:
+#   1. Production upstart specs validate.
+#   2. Production cleanup specs validate.
+#   3. spec/{upstart,cleanup}/schema/tests/good/*.yaml validate.
+#   4. spec/{upstart,cleanup}/schema/tests/bad/*.yaml MUST FAIL — any that
+#      passes means a schema rule has been removed/relaxed.
+
+on:
+  pull_request:
+    paths:
+      - "spec/**"
+      - "scripts/validate-specs.sh"
+      - ".github/workflows/spec-validation.yaml"
+  push:
+    branches: [main]
+    paths:
+      - "spec/**"
+      - "scripts/validate-specs.sh"
+      - ".github/workflows/spec-validation.yaml"
+
+concurrency:
+  group: spec-validation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install check-jsonschema
+        run: pip install --quiet check-jsonschema==0.30.0
+
+      - name: Run spec validation
+        run: bash scripts/validate-specs.sh

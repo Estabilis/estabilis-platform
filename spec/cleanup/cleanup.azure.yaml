@@ -1,0 +1,16 @@
+# Estabilis Platform — Cleanup Spec (v1, Azure overlay)
+# =============================================================================
+# AKS managed node pools mean there are no Karpenter equivalents to clean up
+# and no orphan VMs to terminate (the pool lifecycle is owned by Azure
+# Resource Manager + Terraform). This overlay exists for symmetry with the
+# AWS overlay and as the binding site for future Azure-only cleanup deltas
+# (e.g. Workload Identity federated credentials if those start carrying
+# cluster-bound state).
+#
+# Schema:  spec/cleanup/schema/cleanup.v1.schema.json
+# -----------------------------------------------------------------------------
+
+version: "1"
+
+cleanup:
+  order: []

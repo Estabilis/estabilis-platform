@@ -1,0 +1,38 @@
+# Partial overlay — only version + bootstrap.pre + a wave with directives.
+# Mirrors the shape of upstart.aws.yaml but trimmed. Validates that the
+# schema accepts overlay-style partials (no requirement on full top-level
+# blocks per file; merged-spec required-set is enforced post-merge by the
+# renderer, not by the JSON Schema gate).
+version: "3"
+
+bootstrap:
+  pre:
+    - name: example-pre
+      helm-install:
+        chart: example
+        repo: oci://public.ecr.aws/example
+        version: "1.0.0"
+        namespace: example
+
+waves:
+  - name: AWS Wave 0
+    insert-before: TLS & Certificates
+    verify-and-resync: true
+    apps:
+      - { name: aws-load-balancer-controller }
+    verify:
+      - check: apiservice-available
+        name: v1beta1.metrics.k8s.io
+
+  - extends: Platform Secrets
+    apps:
+      - name: vault
+        wait: phase-running
+    manual-marker-after:
+      name: vault-init
+      message: "Initialize vault manually before advancing."
+      skip-when:
+        kubectl:
+          kind: Secret
+          namespace: vault
+          name: vault-root-token

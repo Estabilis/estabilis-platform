@@ -1,0 +1,6 @@
+# NEGATIVE: action enum doesn't include 'delete-stuff'.
+version: "1"
+cleanup:
+  order:
+    - phase: bad
+      action: delete-stuff

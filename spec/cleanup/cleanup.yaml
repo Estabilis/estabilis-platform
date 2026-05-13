@@ -1,0 +1,88 @@
+# Estabilis Platform — Cleanup Specification (v1, BASE / provider-agnostic)
+# =============================================================================
+# Declarative teardown of the platform stack INSIDE the cluster, WITHOUT
+# destroying terraform state or cloud-managed resources (EKS/AKS, IAM/AAD
+# roles, KMS/Key Vault, S3/Storage Account, ConfigMap platform-infrastructure).
+#
+# Source-of-truth for what `cleanup-k8s-restart.sh` does — the engine MUST
+# match this ordering (Phase 1 helm-uninstall argocd BEFORE Phase 2 finalizer
+# removal — otherwise active argocd-application-controller re-adds finalizers
+# patched out by the drain phase).
+#
+# Schema:  spec/cleanup/schema/cleanup.v1.schema.json
+# Design:  estabilis-platform-tools/docs/adr/0036-upstart-yaml-v3-declarative-bootstrap.md §6.7
+# Source:  estabilis-platform-tools/scripts/cleanup-k8s-restart.sh (Phases 1-8)
+#
+# Idempotent: re-run safely. No "is already gone" failure modes.
+# -----------------------------------------------------------------------------
+
+version: "1"
+
+cleanup:
+  order:
+
+    # Phase 1 — Helm uninstall argocd FIRST so argocd-application-controller
+    # stops. Otherwise the active controller re-adds the finalizer
+    # `resources-finalizer.argocd.argoproj.io` during Phase 2's patch and
+    # the script fails silently. --no-hooks avoids the foregroundDeletion
+    # deadlock from the chart's PostSync hooks.
+    - phase: uninstall-argocd
+      action: helm-uninstall
+      release: argocd
+      namespace: argocd
+      no-hooks: true
+
+    # Phase 2 — Drain ArgoCD-owned objects (Applications, AppProjects,
+    # ApplicationSets). All carry finalizers; controller is now gone, so
+    # patch [] and delete proceed cleanly.
+    - phase: drain-argocd-objects
+      action: remove-finalizers-and-delete
+      kinds: [Application, AppProject, ApplicationSet]
+      namespace: argocd
+
+    # Phase 5 — Defensive finalizer patch on platform custom resources.
+    # Some CRs (kyverno PolicyExceptions, CNPG Clusters, ESO ExternalSecrets,
+    # cert-manager Certificates, traefik IngressRoutes, Velero Restores)
+    # carry controller finalizers. Namespace deletion in Phase 6 would
+    # otherwise hang on these. kinds-from reads from template.yaml's
+    # nuke_crd_prefixes list (cross-provider, 12 prefixes).
+    - phase: finalize-orphan-crs
+      action: remove-finalizers
+      kinds-from: nuke_crd_prefixes
+
+    # Phase 6 — Delete component namespaces (base 13 + overlay deltas).
+    # exclude-system protects kube-*, default, argocd from accidental wipe.
+    # The argocd namespace is intentionally preserved here so the
+    # platform-infrastructure ConfigMap + Secret (terraform-managed) survive.
+    - phase: delete-platform-namespaces
+      action: delete-namespaces
+      namespaces-from: bootstrap.init.namespaces
+      exclude-system: true
+
+    # Phase 6.5 — Orphan resources in `default` namespace. If a wave's
+    # apply-crds step ever forgot the yq filter (cortex prd 2026-04-30
+    # postmortem), `helm template --include-crds | kubectl apply -f -`
+    # installs the FULL helm release in `default`. Phase 6.5 cleans up
+    # any such residue without nuking the namespace itself.
+    - phase: cleanup-default-namespace
+      action: delete-all-resources
+      target-namespace: default
+      keep:
+        - kubernetes Service
+        - default ServiceAccount
+
+    # Phase 7 — Orphan ValidatingWebhookConfigurations and
+    # MutatingWebhookConfigurations. Criteria are OR'd — a webhook matching
+    # ANY one is removed. service-missing: webhook.clientConfig.service
+    # points to a Service that no longer exists. webhooks-list-empty: spec
+    # has `webhooks: []`. validating-failed: failurePolicy=Fail and the
+    # backing service is gone (cluster operations would be blocked).
+    - phase: remove-orphan-webhooks
+      action: delete-webhooks
+      kinds:
+        - ValidatingWebhookConfiguration
+        - MutatingWebhookConfiguration
+      criteria:
+        - service-missing
+        - webhooks-list-empty
+        - validating-failed

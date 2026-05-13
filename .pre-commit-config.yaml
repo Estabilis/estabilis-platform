@@ -71,6 +71,38 @@ repos:
       - id: gitleaks
 
   # ---------------------------------------------------------------------------
+  # spec/ declarative specs — JSON Schema validation gate (ADR 0036 §4.11).
+  #
+  # Delegates to scripts/validate-specs.sh — the SAME script the CI workflow
+  # (.github/workflows/spec-validation.yaml) calls. Zero drift between local
+  # and CI.
+  #
+  # Four checks (all must pass for the commit to proceed):
+  #   1. Production upstart specs validate against upstart v3 schema.
+  #   2. Production cleanup specs validate against cleanup v1 schema.
+  #   3. spec/{upstart,cleanup}/schema/tests/good/*.yaml validate.
+  #   4. spec/{upstart,cleanup}/schema/tests/bad/*.yaml MUST FAIL — schema
+  #      weakening regression alarm. A "bad" fixture passing means a schema
+  #      rule was removed/relaxed.
+  #
+  # Per ADR §4.11 strictness mode, additionalProperties: false in the schemas
+  # means unknown fields are hard errors (no silent acceptance, no warn-only).
+  # Pre-commit creates an isolated venv with check-jsonschema 0.30.0 (the
+  # entry uses `bash scripts/validate-specs.sh`; the python venv's PATH
+  # provides check-jsonschema to the script).
+  # ---------------------------------------------------------------------------
+  - repo: local
+    hooks:
+      - id: validate-specs
+        name: Validate spec/** declarative specs (JSON Schemas + good/bad fixtures)
+        entry: bash scripts/validate-specs.sh
+        language: python
+        additional_dependencies:
+          - check-jsonschema==0.30.0
+        files: ^spec/.*$
+        pass_filenames: false
+
+  # ---------------------------------------------------------------------------
   # Commit message — enforce Conventional Commits so CHANGELOG + release
   # tagging stay machine-parseable.
   # ---------------------------------------------------------------------------
