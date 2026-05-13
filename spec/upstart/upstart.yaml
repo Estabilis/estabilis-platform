@@ -1,0 +1,277 @@
+# Estabilis Platform — Bootstrap Specification (v3, BASE / provider-agnostic)
+# =============================================================================
+# This is the canonical declarative source of truth for Estabilis Platform
+# bootstrap. Multiple renderers consume it:
+#   - Python in-process (estabilis-autopilot bootstrap, estabilis bootstrap)
+#   - Argo WorkflowTemplate generator (estabilis render-workflow, phase 2)
+#   - Documentation generator (reserved)
+#
+# Schema:  spec/upstart/schema/upstart.v3.schema.json
+# Design:  estabilis-platform-tools/docs/adr/0036-upstart-yaml-v3-declarative-bootstrap.md
+#
+# Merge order (Kustomize-style base + overlay):
+#   spec/upstart/upstart.yaml              ← this file (provider-agnostic)
+#   spec/upstart/upstart.{aws,azure}.yaml  ← provider overlay
+#   <client-repo>/upstart.local.yaml        ← client deltas (optional)
+#
+# Last write wins on scalar conflicts. Arrays are replaced unless the wave
+# carries `extends: <base-wave-name>` — in which case `apps[]` and `verify[]`
+# arrays APPEND to the base wave.
+#
+# Variables follow POSIX shell convention:
+#   ${X}            → require X to be resolved
+#   ${X:-default}   → fall back to literal `default` if X is empty
+#   ${X:?required}  → fail pre-execution if X is empty
+#   ${X:+word}      → render `word` if X is set (used by source conditionals)
+#
+# All ${X} references are validated against the resolver chain
+# (params.resolve_platform_params) BEFORE any side effect.
+# -----------------------------------------------------------------------------
+
+version: "3"
+
+bootstrap:
+  # No pre-bootstrap steps in the provider-agnostic base. AWS overlay carries
+  # Karpenter CRD + controller + NodePool/EC2NodeClass; Azure overlay is empty
+  # (AKS managed node pools).
+  pre: []
+
+  argocd:
+    chart: argo-cd
+    repo: oci://ghcr.io/argoproj/argo-helm
+    version: "${_argocd_chart_version:-9.5.6}"
+    namespace: argocd
+    values-file: spec/upstart/values/argocd-seed.yaml
+    pre-create-secrets:
+      - name: argocd-redis
+        namespace: argocd
+        type: Opaque
+        data:
+          auth: "${_argocd_redis_password:?required}"
+
+  repos:
+    - name: repo-config-downstream
+      url: "${configRepoUrl}"
+      token: "${_config_repo_token}"
+      label: config-repo
+    - name: repo-client-gitops
+      url: "${clientGitopsRepoUrl}"
+      token: "${_client_gitops_repo_token}"
+      label: client-gitops
+
+  init:
+    # 13 base namespaces — historically loaded from
+    # estabilis-platform-tools/template.yaml:77-90 and consumed by
+    # kubernetes.py:_precreate_component_namespaces. Pre-created BEFORE
+    # ArgoCD waves to avoid hook race conditions on the first sync cycle.
+    # AWS overlay appends 3 (aws-load-balancer-controller, metrics-server, vault).
+    namespaces:
+      - cert-manager
+      - kyverno
+      - external-secrets
+      - external-dns
+      - grafana
+      - traefik
+      - cnpg-system
+      - opencost
+      - velero
+      - trivy-system
+      - kube-state-metrics
+      - node-exporter
+      - policy-reporter
+
+    # Placeholder AppProject — chart sync via platform-root immediately
+    # overwrites with the full ADR 0028 taxonomy (5 AppProjects). The
+    # placeholder exists to unblock the first platform-root sync, which
+    # references `project: platform`.
+    appproject:
+      name: platform
+      namespace: argocd
+      sourceRepos:
+        - "${platformRepoUrl}"
+        - "${configRepoUrl}"
+        - https://argoproj.github.io/argo-helm
+        - https://charts.jetstack.io
+        - https://kyverno.github.io/kyverno
+        - https://charts.external-secrets.io
+        - https://kubernetes-sigs.github.io/external-dns
+        - https://grafana.github.io/helm-charts
+        - https://traefik.github.io/charts
+        - https://aquasecurity.github.io/helm-charts
+        - https://opencost.github.io/opencost-helm-chart
+        - https://cloudnative-pg.github.io/charts
+        - https://vmware-tanzu.github.io/helm-charts
+        - https://prometheus-community.github.io/helm-charts
+      destinations:
+        - { server: https://kubernetes.default.svc, namespace: "*" }
+      clusterResourceWhitelist:
+        - { group: "*", kind: "*" }
+
+    platform-root:
+      name: platform-root
+      namespace: argocd
+      project: default
+      sources:
+        - repoURL: "${platformRepoUrl}"
+          targetRevision: "${platformVersion}"
+          path: bootstrap/platform-root
+          helm:
+            valueFiles:
+              - $values/bootstrap/platform-root/values.yaml
+            ignoreMissingValueFiles: true
+            # 'auto' is a renderer directive: inject every resolved key from
+            # params.resolve_platform_params (minus internals prefixed `_`)
+            # plus the provenance four-key block (ADR 0005 L1). JSON-valued
+            # parameters are auto-base64-encoded with forceString: true
+            # (ADR 0014).
+            parameters: auto
+        - repoURL: "${platformRepoUrl}"
+          targetRevision: "${platformVersion}"
+          ref: values
+        # The overrides source is rendered only when configRepoUrl is set.
+        # ADR 0020: targetRevision tracks branch for cluster-own content
+        # (configRepoRevision); configRepoVersion remains as transitional
+        # fallback during clients' migration to branch tracking. Revision wins.
+        - repoURL: "${configRepoUrl}"
+          targetRevision: "${configRepoRevision:-${configRepoVersion}}"
+          ref: overrides
+          condition: "${configRepoUrl:+true}"
+      syncPolicy:
+        syncOptions:
+          - CreateNamespace=true
+
+  wait:
+    platform-root-apps:
+      min-count: 25
+      stable-rounds: 5
+      timeout: 360
+      check-interval: 3
+
+defaults:
+  timeout: 300
+  wait: healthy
+  sync-options:
+    - CreateNamespace=true
+    # Universal ServerSideApply=true resolves cortex prd 2026-04-29 CSA-vs-SSA
+    # toggle bug (proposal 0002 §1.1 issues #3 and #4). Replaces the
+    # upstart.py:1206 heuristic ("if 'crds' in name or name == 'kyverno'").
+    - ServerSideApply=true
+  retry:
+    limit: 3
+    backoff: exponential
+    factor: 2
+
+waves:
+  - name: TLS & Certificates
+    apps:
+      - { name: cert-manager }
+    verify:
+      - check: webhook-ready
+        name: cert-manager-webhook
+        namespace: cert-manager
+
+  - name: Certificate Issuers & Policy Engine
+    apps:
+      - { name: cert-manager-config }
+      - { name: kyverno, timeout: 300 }
+
+  - name: Operator CRDs
+    apply-crds:
+      - chart: external-secrets
+        repo: https://charts.external-secrets.io
+        version: "${externalSecretsCrdVersion:-2.4.1}"
+      - chart: cloudnative-pg
+        repo: https://cloudnative-pg.github.io/charts
+        version: "${cnpgCrdVersion:-0.28.0}"
+
+  - name: Secrets Management
+    apps:
+      - { name: external-secrets }
+    verify:
+      - check: webhook-ready
+        name: external-secrets-webhook
+        namespace: external-secrets
+
+  - name: Operators & Secret Store
+    timeout: 360
+    apps:
+      - { name: cnpg-operator, timeout: 360 }
+      - { name: cluster-secret-store }
+      - { name: kyverno-exceptions }
+
+  - name: Platform Secrets
+    timeout: 300
+    apps:
+      - { name: platform-secrets }
+    verify:
+      - check: secret-exists
+        name: grafana-db-credentials
+        namespace: cnpg-system
+      - check: secret-exists
+        name: grafana-admin-credentials
+        namespace: grafana
+
+  - name: Database
+    apps:
+      - { name: cnpg-cluster, timeout: 480 }
+    verify:
+      - check: resource-ready
+        apiVersion: postgresql.cnpg.io/v1
+        kind: Cluster
+        name: platform-postgres
+        namespace: cnpg-system
+        jsonpath: "{.status.phase}"
+        expected: "Cluster in healthy state"
+
+  - name: Networking & Ingress
+    timeout: 300
+    apps:
+      - { name: external-dns, optional: true }
+      - { name: external-dns-config, optional: true }
+      - { name: traefik, optional: true }
+      - { name: velero, optional: true }
+
+  - name: Observability & Monitoring
+    apps:
+      - { name: grafana-db }
+      - { name: grafana }
+      - { name: grafana-loki, optional: true }
+      - { name: grafana-mimir, optional: true }
+      - { name: grafana-alloy, optional: true }
+      - { name: grafana-tempo, optional: true }
+      - { name: grafana-pyroscope, optional: true }
+      - { name: opencost, optional: true }
+      - { name: opencost-presync, optional: true }
+      - { name: trivy-operator, optional: true }
+      - { name: kube-state-metrics, optional: true }
+      - { name: node-exporter, optional: true }
+      - { name: velero-config, optional: true }
+
+  - name: Post-Deploy
+    apps:
+      - { name: grafana-dashboards, optional: true }
+      - { name: alloy-rbac, optional: true }
+      - { name: mimir-rules, optional: true }
+      - { name: loki-ingress, optional: true }
+
+  - name: Policies
+    apps:
+      - { name: kyverno-policies }
+      - { name: network-policies, optional: true }
+      - { name: resource-quotas, optional: true }
+
+post:
+  # Defensive fallback only. Per ADR 0029, prune is decided per-App in the
+  # chart/ApplicationSet template by risk taxonomy (Safe / Coupled /
+  # CRD-owning / Foundational). Chart-emitted automated{} blocks are
+  # respected as-is; this block only fires for Apps arriving WITHOUT any
+  # automated{} block (legacy hand-rolled, custom ApplicationSets).
+  enable-auto-sync:
+    apps: all
+    self-heal: true
+    prune: false
+
+  # Genuinely post-everything operations. Today empty — wave-inline manual
+  # markers (waves[].manual-marker-after) handle the vault-init case in the
+  # AWS overlay.
+  manual-markers: []

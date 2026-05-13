@@ -1,0 +1,133 @@
+# Estabilis Platform — Bootstrap Spec (v3, AWS overlay)
+# =============================================================================
+# Deep-merged on top of spec/upstart/upstart.yaml.
+#
+# Provider deltas captured here reflect real operational structure observed in
+# cortex prd 2026-04-29 / 2026-04-30 bootstrap sessions (postmortems in
+# estabilis-platform-tools/docs/runbooks/cortex/). Schema directives used:
+#   - bootstrap.pre[]                  : Karpenter pre-bootstrap (3 steps)
+#   - bootstrap.init.namespaces[]      : appended namespaces (engine merges arrays)
+#   - waves[].insert-before            : insert Wave 0 before base Wave 1
+#   - waves[].extends                  : extend base "Platform Secrets" with Vault
+#   - waves[].insert-before            : insert "Ingresses" before "Policies"
+#   - waves[].verify-and-resync        : hardening re-sync pass (Synced/Healthy parcial fix)
+#   - waves[].apps[].wait: phase-running : Vault Sealed pods aren't Ready by design
+#   - waves[].manual-marker-after      : inline vault-init between Wave 6 and Wave 7
+#
+# Schema:  spec/upstart/schema/upstart.v3.schema.json
+# Design:  estabilis-platform-tools/docs/adr/0036-upstart-yaml-v3-declarative-bootstrap.md §4.8
+# -----------------------------------------------------------------------------
+
+version: "3"
+
+bootstrap:
+  # Karpenter pre-bootstrap. Replaces the manual Phase 1.5 procedure
+  # documented in docs/runbooks/cortex/cortex-aws-prd-upstart-replay.md.
+  # All 3 steps are inherently idempotent (helm upgrade --install, kubectl
+  # apply --server-side) — no skip-when needed.
+  pre:
+    - name: karpenter-crd
+      helm-install:
+        chart: karpenter-crd
+        repo: oci://public.ecr.aws/karpenter
+        version: "${karpenterVersion:-1.12.0}"
+        namespace: karpenter
+
+    - name: karpenter
+      helm-install:
+        chart: karpenter
+        repo: oci://public.ecr.aws/karpenter
+        version: "${karpenterVersion:-1.12.0}"
+        namespace: karpenter
+        values:
+          settings:
+            clusterName: "${global.clusterName:?required}"
+            interruptionQueue: "${global.karpenterQueueName:?required}"
+          serviceAccount:
+            annotations:
+              eks.amazonaws.com/role-arn: "${global.karpenterControllerRole:?required}"
+
+    # NodePool + EC2NodeClass live in the estabilis-platform-gitops repo
+    # because they are tunable per-cluster (instance types, disk size, tags)
+    # without forcing an estabilis-platform tag bump.
+    - name: karpenter-resources
+      helm-template-apply:
+        chart-from-git:
+          repo: "${platformGitopsRepoUrl}"
+          ref: "${platformGitopsVersion}"
+          path: components/karpenter-resources
+        namespace: karpenter
+        set:
+          clusterName: "${global.clusterName}"
+          nodeRole: "${global.karpenterNodeRoleName}"
+          discoveryTagKey: "${global.karpenterDiscoveryTagKey}"
+
+  init:
+    # Appended to base list (engine merges arrays in base+overlay path).
+    # Karpenter namespace is already created by bootstrap.pre[0] helm
+    # install --create-namespace. traefik-internal and estabilis-system
+    # stay JIT via CreateNamespace=true.
+    namespaces:
+      - aws-load-balancer-controller
+      - metrics-server
+      - vault
+
+waves:
+  # ─── Wave 0 INSERTED before base Wave 1 ────────────────────────────────────
+  # ALB controller and metrics-server are AWS cluster fundamentals — required
+  # before cert-manager (cert-manager-webhook needs metrics-server APIService
+  # to satisfy its readiness check on managed-by metrics).
+  #
+  # verify-and-resync: true ⇒ after wait-Healthy converges, engine re-triggers
+  # sync. Catches the Synced/Healthy parcial bug observed cortex prd
+  # 2026-04-30: ArgoCD reported Synced/Healthy with partial source render;
+  # Service/metrics-server permanently OutOfSync because Phase 9 already
+  # disabled auto-sync. With re-sync the engine catches resources that
+  # rendered post-convergence.
+  - name: AWS Cluster Fundamentals
+    insert-before: TLS & Certificates
+    verify-and-resync: true
+    apps:
+      - { name: aws-load-balancer-controller }
+      - { name: metrics-server }
+    verify:
+      - check: apiservice-available
+        name: v1beta1.metrics.k8s.io
+
+  # ─── Extend base "Platform Secrets" with Vault + inline vault-init ────────
+  # extends: arrays append. Base wave's platform-secrets app and secret-exists
+  # verifies are preserved unchanged; we add Vault and the manual marker.
+  - extends: Platform Secrets
+    apps:
+      - name: vault
+        # Sealed pods are 0/1 Ready by design. Generic wait-Healthy would
+        # deadlock — switch to phase-running so the engine advances as soon
+        # as the pod is scheduled and the container is up. The manual
+        # marker that follows handles the seal/init.
+        wait: phase-running
+    manual-marker-after:
+      name: vault-init
+      message: |
+        Vault não foi inicializado.
+        Em produção: rode `scripts/26-vault-init.sh` (idempotente — recusa
+        re-init se já initialized=true; emite 5 recovery keys ANOTE OFFLINE
+        ANTES do script terminar — não há segunda chance).
+      skip-when:
+        kubectl:
+          kind: Secret
+          namespace: vault
+          name: vault-root-token
+
+  # ─── Wave "Ingresses" INSERTED before "Policies" ──────────────────────────
+  # All entries are optional: true because exposure is gated by the
+  # *_exposures.external boolean in terraform.tfvars per ADR 0014. If a
+  # chart conditional doesn't emit the App, the engine silently skips.
+  - name: Ingresses
+    insert-before: Policies
+    apps:
+      - { name: argocd-ingress, optional: true }
+      - { name: grafana-ingress, optional: true }
+      - { name: loki-ingress, optional: true }
+      - { name: vault-ingress, optional: true }
+    verify:
+      - check: ingress-hostname-resolved

@@ -1,0 +1,22 @@
+# Estabilis Platform — Bootstrap Spec (v3, Azure overlay)
+# =============================================================================
+# Deep-merged on top of spec/upstart/upstart.yaml.
+#
+# Azure runs on AKS managed node pools — no Karpenter equivalent, no pre-
+# bootstrap helm installs needed. The base spec already covers all known
+# Azure-only behavior (it was originally derived from templates/azure/
+# upstart.yaml v2). This overlay exists for symmetry with the AWS overlay
+# and as the binding site for future Azure-only deltas (e.g. a workload
+# identity bootstrap step if AAD federation grows requirements).
+#
+# Schema:  spec/upstart/schema/upstart.v3.schema.json
+# Design:  estabilis-platform-tools/docs/adr/0036-upstart-yaml-v3-declarative-bootstrap.md §4.2
+# -----------------------------------------------------------------------------
+
+version: "3"
+
+bootstrap:
+  # Empty by design — AKS managed pools don't require an autoscaler bootstrap.
+  # Kept as explicit "nothing to do here" so future readers know the parity
+  # with AWS was a deliberate decision, not an oversight.
+  pre: []

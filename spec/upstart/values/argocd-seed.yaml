@@ -1,0 +1,105 @@
+# ArgoCD seed values — used by `bootstrap.argocd.values-file` in upstart.yaml v3.
+# =============================================================================
+# Source of truth: this file. Until the Python renderer of upstart.yaml v3
+# ships (Phase B of ADR 0036), the CLI builds the same dict in
+# estabilis-platform-tools/src/estabilis/kubernetes.py (function
+# `_helm_install_argocd`, lines 2729-2812). Any change here MUST be mirrored
+# there until the renderer takes over.
+#
+# Static, cross-provider. Variables (${X}) intentionally absent — Phase A is
+# extracting the constant seed; client-specific tweaks belong in
+# upstart.local.yaml or in chart-level platform-root values, not here.
+#
+# Why each block exists:
+#   - redisSecretInit.enabled=false: the chart's built-in Job is disabled
+#     because we pre-create the Redis Secret (bootstrap.argocd.pre-create-secrets).
+#     The Job's foregroundDeletion finalizer caused a deadlock on ArgoCD
+#     self-manage sync — proposal 0002 §1.1 issue #2 root cause.
+#   - global.tolerations / global.affinity: ADR 0012 — ArgoCD runs BEFORE
+#     platform-root, so the scheduling helpers don't apply. Mirror the "auto"
+#     mode: tolerate spot (autoscaler can scale it up when no regular pool
+#     exists) + prefer regular (when both pools exist).
+#   - configs.params.server.insecure=true: ArgoCD listens HTTP; TLS is
+#     terminated upstream by Traefik. timeout.reconciliation=10s tightens the
+#     poll loop during bootstrap (chart default is 180s).
+#   - configs.cm.resource.customizations.ignoreDifferences.all: ignore the
+#     estabilis.io/managed-by label flap. The label is set by the
+#     `labels.platform_managed_selector` helper and re-applied by various
+#     controllers; without this rule ArgoCD reports phantom OutOfSync on
+#     every reconciliation.
+#   - configs.cm.resource.customizations.health.*: ESO ExternalSecret and
+#     CNPG Cluster need Lua health rules because the default ArgoCD health
+#     check declares them Progressing forever (ESO conditions vs Synced
+#     mismatch; CNPG status.phase enum vs ArgoCD health enum).
+# -----------------------------------------------------------------------------
+
+redisSecretInit:
+  enabled: false
+
+global:
+  tolerations:
+    - key: kubernetes.azure.com/scalesetpriority
+      operator: Equal
+      value: spot
+      effect: NoSchedule
+  affinity:
+    nodeAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 50
+          preference:
+            matchExpressions:
+              - key: estabilis.io/schedulable
+                operator: In
+                values:
+                  - regular
+
+configs:
+  params:
+    server.insecure: true
+    timeout.reconciliation: 10s
+
+  cm:
+    resource.customizations.ignoreDifferences.all: |
+      jqPathExpressions:
+        - .metadata.labels."estabilis.io/managed-by"
+
+    resource.customizations.health.external-secrets.io_ExternalSecret: |
+      hs = {}
+      if obj.status ~= nil then
+        if obj.status.conditions ~= nil then
+          for i, condition in ipairs(obj.status.conditions) do
+            if condition.type == "Ready" and condition.status == "True" then
+              hs.status = "Healthy"
+              hs.message = condition.message
+              return hs
+            end
+            if condition.type == "Ready" and condition.status == "False" then
+              hs.status = "Degraded"
+              hs.message = condition.message
+              return hs
+            end
+          end
+        end
+      end
+      hs.status = "Progressing"
+      hs.message = "Waiting for secret to sync"
+      return hs
+
+    resource.customizations.health.postgresql.cnpg.io_Cluster: |
+      hs = {}
+      if obj.status == nil or obj.status.phase == nil then
+        hs.status = "Progressing"
+        hs.message = "Waiting for cluster initialization"
+        return hs
+      end
+      if obj.status.phase == "Cluster in healthy state" then
+        hs.status = "Healthy"
+        hs.message = "Cluster is healthy"
+      elseif obj.status.phase == "Setting up primary" or obj.status.phase == "Creating primary" then
+        hs.status = "Progressing"
+        hs.message = obj.status.phase
+      else
+        hs.status = "Progressing"
+        hs.message = obj.status.phase or "Cluster not ready"
+      end
+      return hs

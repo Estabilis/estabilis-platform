@@ -1,0 +1,49 @@
+# Estabilis Platform — Cleanup Spec (v1, AWS overlay)
+# =============================================================================
+# AWS-specific cleanup phases that must INTERLEAVE with the base ordering:
+#   - Phase 3 (Karpenter CRs)         goes between base Phase 2 and Phase 5
+#   - Phase 4 (uninstall karpenter)   goes between Phase 3 and Phase 5
+#   - Phase 4.5 (terminate EC2)       goes between Phase 4 and Phase 5
+#
+# These three phases all carry `provider: aws` and execute only when this
+# overlay merges. Insertion order in the merged spec is governed by overlay
+# semantics (engine inserts in declaration order between matching base
+# phases — see ADR 0036 §6.7).
+#
+# Schema:  spec/cleanup/schema/cleanup.v1.schema.json
+# Source:  estabilis-platform-tools/scripts/cleanup-k8s-restart.sh (Phases 3, 4, 4.5)
+# -----------------------------------------------------------------------------
+
+version: "1"
+
+cleanup:
+  order:
+
+    # Phase 3 — Karpenter custom resources with custom finalizers.
+    # cortex prd 2026-04-29 issue: the karpenter-resources chart (rendered
+    # from estabilis-platform-gitops) injects
+    # `app.kubernetes.io/name: karpenter-resources` as a finalizer that
+    # vanilla Karpenter controller does NOT remove. NodePools and
+    # EC2NodeClasses end up stuck Terminating forever. Patch finalizers []
+    # explicitly.
+    - phase: finalize-karpenter-crs
+      action: remove-finalizers-and-delete
+      kinds: [EC2NodeClass, NodePool, NodeClaim]
+      provider: aws
+
+    # Phase 4 — Helm uninstall karpenter controller + CRD chart.
+    - phase: uninstall-karpenter
+      action: helm-uninstall
+      releases: [karpenter, karpenter-crd]
+      namespace: karpenter
+      provider: aws
+
+    # Phase 4.5 — Terminate orphan EC2 nodes. Without the controller,
+    # consolidation no longer runs; nodes provisioned by Karpenter would
+    # idle forever consuming AWS billing. Filter by the Karpenter discovery
+    # tag (tag:karpenter.sh/nodepool=*) to target only platform-provisioned
+    # instances, never EKS-managed system nodes.
+    - phase: terminate-aws-instances
+      action: aws-ec2-terminate
+      filter: tag:karpenter.sh/nodepool=*
+      provider: aws
