@@ -71,6 +71,29 @@ repos:
       - id: gitleaks
 
   # ---------------------------------------------------------------------------
+  # spec/ declarative specs — JSON Schema validation gate (ADR 0036 §4.11).
+  # The schema files are the source-of-truth contract for upstart v3 and
+  # cleanup v1; any PR that fails this gate is blocked. Per ADR §4.11
+  # strictness mode, additionalProperties: false in the schemas means
+  # unknown fields are hard errors (no silent acceptance, no warn-only).
+  # ---------------------------------------------------------------------------
+  - repo: https://github.com/python-jsonschema/check-jsonschema
+    rev: 0.30.0
+    hooks:
+      - id: check-jsonschema
+        name: Validate spec/upstart/*.yaml against upstart v3 schema
+        files: ^spec/upstart/(upstart|upstart\.aws|upstart\.azure)\.yaml$
+        args:
+          - --schemafile
+          - spec/upstart/schema/upstart.v3.schema.json
+      - id: check-jsonschema
+        name: Validate spec/cleanup/*.yaml against cleanup v1 schema
+        files: ^spec/cleanup/(cleanup|cleanup\.aws|cleanup\.azure)\.yaml$
+        args:
+          - --schemafile
+          - spec/cleanup/schema/cleanup.v1.schema.json
+
+  # ---------------------------------------------------------------------------
   # Commit message — enforce Conventional Commits so CHANGELOG + release
   # tagging stay machine-parseable.
   # ---------------------------------------------------------------------------
