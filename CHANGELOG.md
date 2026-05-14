@@ -1,5 +1,76 @@
 # Changelog
 
+## [0.51.0] - 2026-05-14
+
+### Added — `spec/upstart/` and `spec/cleanup/` (Phase A of ADR 0036)
+
+This release tags the post-`v0.50.0` merge of `feat(spec): upstart.yaml
+v3 + cleanup.yaml v1 declarative specs` (#163), making the declarative
+bootstrap / cleanup specifications available as part of a tagged release
+for consumers (Phase B of `estabilis-platform-tools`, which renders them
+via the new `upstart_loader` + `upstart_engine` + `cleanup_engine`).
+
+New directories under `spec/`:
+
+```
+spec/
+├── upstart/
+│   ├── schema/upstart.v3.schema.json   # JSON Schema 2020-12 (21 $defs)
+│   ├── upstart.yaml                     # base, provider-agnostic
+│   ├── upstart.aws.yaml                 # AWS overlay (Karpenter pre,
+│   │                                    #   Wave 0 inserted, vault init)
+│   ├── upstart.azure.yaml               # Azure overlay (empty pre)
+│   ├── values/argocd-seed.yaml          # ArgoCD helm values, static
+│   └── schema/tests/{good,bad}/         # 14 fixtures (CI regression)
+└── cleanup/
+    ├── schema/cleanup.v1.schema.json    # cleanup gate schema
+    ├── cleanup.yaml                     # base teardown (7 phases)
+    ├── cleanup.aws.yaml                 # AWS overlay (Karpenter CRs,
+    │                                    #   karpenter helm uninstall,
+    │                                    #   EC2 orphan terminate)
+    ├── cleanup.azure.yaml               # Azure overlay (empty)
+    └── schema/tests/{good,bad}/         # additional fixtures
+```
+
+CI enforcement (since #163):
+
+- `pre-commit` local hook + `.github/workflows/spec-validation.yaml`
+  CI gate both delegate to `scripts/validate-specs.sh` (zero drift).
+  Strict `additionalProperties: false` rejects unknown fields per
+  ADR 0036 §4.11.
+- 14 bad/* + 4 good/* fixtures guard against schema weakening.
+- `spec/.argocdignore` blocks accidental consumption by any future
+  ApplicationSet directory generator.
+
+### Why a release tag now
+
+`estabilis-platform-tools` Phase B (#222) introduced
+`upstart_loader.ensure_upstart_spec_configmap()` which fetches
+`spec/upstart/{base,overlay,argocd-seed}.yaml` from the **latest
+release of this repository** (GitHub Releases API). Without a tag
+containing `spec/upstart/`, consumers must use `--refresh-spec` against
+`main` — acceptable for test deployments but undesirable for production.
+This `v0.51.0` tag makes `spec/upstart/` available at a stable,
+auditable ref.
+
+No functional change to charts, Terraform modules, or Helm values from
+`v0.50.0`. Operators upgrading from `v0.50.0` to `v0.51.0` see no
+behavior change in their cluster — only the new `spec/` directory
+becomes consumable by Phase B tooling.
+
+### Migration notes
+
+- Operators using `estabilis-platform-tools` ≥ Phase B (PR #222) and
+  pointing at this `v0.51.0`: the CLI will populate
+  `argocd/upstart-spec` ConfigMap on first run from the spec files
+  shipped in this tag. No manual action.
+- Operators on `estabilis-platform-tools` ≤ Phase A (legacy
+  `upstart.py`): no action — the legacy tooling does not consume
+  `spec/`. The downstream client's `upstart.yaml` v2 continues to be
+  the source of truth for the old CLI.
+
+---
+
 ## [0.50.0] - 2026-05-12
 
 ### Added — `alloy.configMap.extraContent` extension point
