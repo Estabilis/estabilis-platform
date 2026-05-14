@@ -209,6 +209,9 @@ module "ebs_csi_irsa" {
   name                  = "${local.cluster_name}-ebs-csi"
   attach_ebs_csi_policy = true
 
+  # See CONTRIBUTING.md "IRSA module convention".
+  policy_name = var.iam_policy_name_use_cluster_prefix ? "${local.cluster_name}-EBS_CSI" : null
+
   oidc_providers = {
     main = {
       provider_arn               = module.eks.oidc_provider_arn

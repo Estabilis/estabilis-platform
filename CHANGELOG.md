@@ -1,5 +1,67 @@
 # Changelog
 
+## [Unreleased]
+
+### Added — `iam_policy_name_use_cluster_prefix` (multi-cluster-per-account safety)
+
+New tfvar that opts-in to cluster-prefixed IAM policy names for the six
+IRSA bundles wired by `providers/aws/`:
+
+| Module                  | Canonical (default)            | Prefixed (`true`)                                      |
+| ----------------------- | ------------------------------ | ------------------------------------------------------ |
+| `external_secrets_irsa` | `External_Secrets`             | `${cluster_name}-External_Secrets`                     |
+| `external_dns_irsa`     | `External_DNS`                 | `${cluster_name}-External_DNS`                         |
+| `cert_manager_irsa`     | `Cert_Manager`                 | `${cluster_name}-Cert_Manager`                         |
+| `velero_irsa`           | `Velero`                       | `${cluster_name}-Velero`                               |
+| `ebs_csi_irsa`          | `EBS_CSI`                      | `${cluster_name}-EBS_CSI`                              |
+| `alb_controller_irsa`   | `AWS_Load_Balancer_Controller` | `${cluster_name}-AWS_Load_Balancer_Controller`         |
+
+### Why
+
+The upstream `terraform-aws-modules/iam-role-for-service-accounts`
+submodule hardcodes the canonical policy names when `policy_name` is
+left unset. IAM policies are **account-scoped**, so the second EKS
+cluster in the same AWS account that enables the same IRSA bundle fails
+during apply with `EntityAlreadyExists`. Hit in production on 2026-05-13
+bringing up `cortex-platform-hml` next to `cortex-platform-prd` (both in
+account `093996075120`), where 4 of 6 policies collided.
+
+### Behavior
+
+- Default `false` — preserves existing canonical names. Zero-impact for
+  every cluster already running (same names continue to be produced and
+  managed by Terraform with no plan diff).
+- Set `true` on **new** clusters being brought up alongside an existing
+  cluster in the same AWS account.
+- **Do NOT flip on an existing cluster** without first detaching +
+  reattaching policies — Terraform plans delete-then-create on the
+  policy, briefly revoking pod permissions.
+
+### Convention for new IRSA modules
+
+`CONTRIBUTING.md` (new file at repo root) documents the rule every
+future IRSA module addition MUST follow:
+
+```hcl
+policy_name = var.iam_policy_name_use_cluster_prefix ? "${local.cluster_name}-<Canonical>" : null
+```
+
+This keeps the codebase free of the same trap surfacing every time a new
+upstream IRSA helper is wired in.
+
+### Files changed
+
+- `providers/aws/variables.tf` — new variable with heredoc description
+  + irreversibility warning.
+- `providers/aws/iam.tf` — `policy_name` added to `external_secrets_irsa`,
+  `external_dns_irsa`, `cert_manager_irsa`, `velero_irsa`.
+- `providers/aws/eks.tf` — `policy_name` added to `ebs_csi_irsa`.
+- `providers/aws/alb-controller.tf` — `policy_name` added to
+  `alb_controller_irsa`.
+- `providers/aws/terraform.tfvars.example` — documents the new tfvar.
+- `CONTRIBUTING.md` — new file with IRSA module convention + release
+  process notes.
+
 ## [0.51.0] - 2026-05-14
 
 ### Added — `spec/upstart/` and `spec/cleanup/` (Phase A of ADR 0036)
