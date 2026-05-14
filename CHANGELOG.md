@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.52.0] - 2026-05-14
 
 ### Added — `iam_policy_name_use_cluster_prefix` (multi-cluster-per-account safety)
 
