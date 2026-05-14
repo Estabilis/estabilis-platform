@@ -20,6 +20,9 @@ module "alb_controller_irsa" {
   name                                   = "${local.cluster_name}-alb-controller"
   attach_load_balancer_controller_policy = true
 
+  # See CONTRIBUTING.md "IRSA module convention".
+  policy_name = var.iam_policy_name_use_cluster_prefix ? "${local.cluster_name}-AWS_Load_Balancer_Controller" : null
+
   oidc_providers = {
     main = {
       provider_arn               = module.eks.oidc_provider_arn

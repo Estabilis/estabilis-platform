@@ -294,6 +294,38 @@ variable "enable_cluster_creator_admin_permissions" {
   default     = true
 }
 
+variable "iam_policy_name_use_cluster_prefix" {
+  description = <<-EOT
+    Prefix IRSA-bundled IAM policy names with the cluster name to make them
+    cluster-scoped instead of account-scoped.
+
+    Background: the upstream `terraform-aws-modules/iam-role-for-service-accounts`
+    submodule hardcodes canonical IAM policy names when `policy_name` is not
+    overridden — `External_Secrets`, `External_DNS`, `Cert_Manager`, `Velero`,
+    `EBS_CSI`, `AWS_Load_Balancer_Controller`. IAM policies are account-scoped,
+    so a second cluster in the same AWS account that enables the same IRSA
+    bundles fails on `EntityAlreadyExists` at apply time (a real failure mode
+    observed when bringing up HML alongside PRD).
+
+    When this flag is `true`, each IRSA policy this module creates is named
+    `$${cluster_name}-<Canonical>` (e.g. `eks-cortex-platform-hml-us-east-1-External_Secrets`).
+    Names stay under IAM's 128-char policy-name cap with the longest CAF
+    cluster name.
+
+    DEFAULT IS `false` to preserve backward compatibility with existing
+    clusters that already own the unprefixed policy names. Set to `true` on
+    NEW clusters being brought up alongside an existing cluster in the same
+    AWS account. Do NOT flip on an existing cluster without first detaching
+    + reattaching policies — Terraform would delete-then-create, briefly
+    revoking pod permissions.
+
+    See CONTRIBUTING.md "IRSA module convention" for the rule applied to all
+    six built-in IRSA bundles in this module.
+  EOT
+  type        = bool
+  default     = false
+}
+
 variable "eks_access_entries" {
   description = "List of EKS Access Entry definitions (AWS best practice, replaces aws-auth ConfigMap). Each entry binds an IAM principal to an EKS access policy."
   type = list(object({

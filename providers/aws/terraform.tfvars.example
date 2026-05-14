@@ -273,3 +273,20 @@ client_gitops_repo_revision = "main"
 # network_observability_remote_resources = [
 #   { type = "AWS::EC2::Region", identifier = "us-west-2" },
 # ]
+
+# --- IRSA policy naming — multi-cluster-per-account safety -------------------
+# The upstream `terraform-aws-modules/iam-role-for-service-accounts` submodule
+# names its bundled IAM policies with hardcoded canonical names
+# (`External_Secrets`, `External_DNS`, `Cert_Manager`, `Velero`, `EBS_CSI`,
+# `AWS_Load_Balancer_Controller`). IAM policies are account-scoped, so a
+# second cluster in the same AWS account that enables the same IRSA bundles
+# fails on `EntityAlreadyExists` during apply.
+#
+# Set to `true` on NEW clusters being brought up alongside an existing cluster
+# in the same AWS account. Default `false` preserves backward compatibility
+# with clusters already owning the unprefixed names.
+#
+# WARNING: do NOT flip on an existing cluster without first detaching +
+# reattaching policies — Terraform plans delete-then-create, briefly revoking
+# pod permissions.
+# iam_policy_name_use_cluster_prefix = false

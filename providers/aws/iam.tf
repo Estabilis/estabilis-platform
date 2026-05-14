@@ -26,6 +26,11 @@ module "external_secrets_irsa" {
   external_secrets_secrets_manager_arns = ["arn:${data.aws_partition.current.partition}:secretsmanager:${var.region}:${data.aws_caller_identity.current.account_id}:secret:estabilis/${var.deployment_id}/*"]
   external_secrets_kms_key_arns         = [aws_kms_key.platform_secrets.arn]
 
+  # IAM policy name. Submodule hardcodes `External_Secrets` when null →
+  # collides across clusters in the same AWS account. See CONTRIBUTING.md
+  # "IRSA module convention".
+  policy_name = var.iam_policy_name_use_cluster_prefix ? "${local.cluster_name}-External_Secrets" : null
+
   oidc_providers = {
     main = {
       provider_arn               = module.eks.oidc_provider_arn
@@ -46,6 +51,9 @@ module "external_dns_irsa" {
   name                          = "${local.cluster_name}-external-dns"
   attach_external_dns_policy    = true
   external_dns_hosted_zone_arns = local.route53_zone_arns_or_wildcard
+
+  # See CONTRIBUTING.md "IRSA module convention".
+  policy_name = var.iam_policy_name_use_cluster_prefix ? "${local.cluster_name}-External_DNS" : null
 
   oidc_providers = {
     main = {
@@ -71,6 +79,9 @@ module "cert_manager_irsa" {
   attach_cert_manager_policy    = true
   cert_manager_hosted_zone_arns = local.route53_zone_arns_or_wildcard
 
+  # See CONTRIBUTING.md "IRSA module convention".
+  policy_name = var.iam_policy_name_use_cluster_prefix ? "${local.cluster_name}-Cert_Manager" : null
+
   oidc_providers = {
     main = {
       provider_arn               = module.eks.oidc_provider_arn
@@ -89,6 +100,9 @@ module "velero_irsa" {
   name                  = "${local.cluster_name}-velero"
   attach_velero_policy  = true
   velero_s3_bucket_arns = [aws_s3_bucket.velero.arn]
+
+  # See CONTRIBUTING.md "IRSA module convention".
+  policy_name = var.iam_policy_name_use_cluster_prefix ? "${local.cluster_name}-Velero" : null
 
   oidc_providers = {
     main = {
