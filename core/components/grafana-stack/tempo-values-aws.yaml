@@ -1,0 +1,40 @@
+# AWS-specific Tempo values
+# Loaded in addition to tempo-values.yaml when provider=aws.
+#
+# Wiring (injected via helm.parameters from platform-root grafana-stack.yaml
+# template's AWS branch):
+#   - tempo.storage.trace.s3.bucket    → global.observabilityBucketName
+#   - tempo.storage.trace.s3.endpoint  → s3.{region}.amazonaws.com
+#   - tempo.storage.trace.s3.region    → global.region
+#   - serviceAccount.annotations.eks.amazonaws.com/role-arn → identity.tempo.roleArn
+#
+# IAM: aws_iam_role.tempo has s3:{Get,Put,Delete,List}Object on the
+# observability bucket — matches the convention loki + mimir established
+# in v0.19.0 (bucket-wide access, shared bucket).
+#
+# Storage layout in the shared observability bucket:
+#   loki:  fake/, index/  (no global prefix support in chart 6.54)
+#   mimir: blocks/, ruler/, alertmanager/
+#   tempo: single-tenant/ (Tempo's hardcoded multi-tenancy root when
+#          multitenancy_enabled=false)
+#
+# WAL stays on the local PVC; only immutable blocks ship to S3. Tempo 2.x
+# always writes WAL locally regardless of backend choice. After this
+# change the PVC's growth bound is WAL turnover (observed: <10Mi),
+# not retention — so the 4Gi PVC from tempo-values.yaml is conservative.
+
+tempo:
+  storage:
+    trace:
+      backend: s3
+      s3:
+        bucket: ""        # injected
+        endpoint: ""      # injected — s3.{region}.amazonaws.com
+        region: ""        # injected
+        insecure: false
+
+serviceAccount:
+  create: true
+  name: grafana-tempo
+  annotations:
+    eks.amazonaws.com/role-arn: ""   # injected

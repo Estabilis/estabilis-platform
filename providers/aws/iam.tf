@@ -279,6 +279,78 @@ resource "aws_iam_role_policy" "mimir_s3" {
   policy = data.aws_iam_policy_document.mimir_s3.json
 }
 
+# ========================== tempo =========================================
+# Tempo's S3 backend uses the thanos-io/objstore client, which picks up
+# IRSA credentials via the AWS SDK default chain (AWS_ROLE_ARN +
+# AWS_WEB_IDENTITY_TOKEN_FILE injected by the EKS pod-identity webhook
+# when the SA carries the role-arn annotation). No static keys needed.
+
+data "aws_iam_policy_document" "tempo_trust" {
+  statement {
+    effect  = "Allow"
+    actions = ["sts:AssumeRoleWithWebIdentity"]
+
+    principals {
+      type        = "Federated"
+      identifiers = [module.eks.oidc_provider_arn]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "${replace(module.eks.cluster_oidc_issuer_url, "https://", "")}:sub"
+      values   = ["system:serviceaccount:grafana:grafana-tempo"]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "${replace(module.eks.cluster_oidc_issuer_url, "https://", "")}:aud"
+      values   = ["sts.amazonaws.com"]
+    }
+  }
+}
+
+data "aws_iam_policy_document" "tempo_s3" {
+  statement {
+    effect = "Allow"
+    actions = [
+      "s3:GetObject",
+      "s3:PutObject",
+      "s3:DeleteObject",
+      "s3:ListBucket",
+      "s3:GetBucketLocation",
+    ]
+    # See comment on loki_s3 — bucket-wide access, shared with loki + mimir.
+    # Each component lands at its own top-level prefix (loki: fake/, mimir:
+    # blocks/+ruler/+alertmanager/, tempo: single-tenant/).
+    resources = [
+      aws_s3_bucket.observability.arn,
+      "${aws_s3_bucket.observability.arn}/*",
+    ]
+  }
+
+  statement {
+    effect = "Allow"
+    actions = [
+      "kms:Encrypt",
+      "kms:Decrypt",
+      "kms:GenerateDataKey",
+      "kms:DescribeKey",
+    ]
+    resources = [aws_kms_key.s3_data.arn]
+  }
+}
+
+resource "aws_iam_role" "tempo" {
+  name               = "${local.cluster_name}-tempo"
+  assume_role_policy = data.aws_iam_policy_document.tempo_trust.json
+}
+
+resource "aws_iam_role_policy" "tempo_s3" {
+  name   = "${local.cluster_name}-tempo-s3"
+  role   = aws_iam_role.tempo.id
+  policy = data.aws_iam_policy_document.tempo_s3.json
+}
+
 # ========================== cnpg (CloudNativePG) ==========================
 # Even though database infra is out of scope for Phase 1, CNPG runs inside
 # the cluster and backs up to S3. The IRSA role is provisioned so the

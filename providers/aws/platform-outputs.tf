@@ -192,6 +192,7 @@ resource "kubernetes_secret_v1" "platform_infrastructure" {
     "identity.externalSecrets.roleArn"  = module.external_secrets_irsa.arn
     "identity.loki.roleArn"             = aws_iam_role.loki.arn
     "identity.mimir.roleArn"            = aws_iam_role.mimir.arn
+    "identity.tempo.roleArn"            = aws_iam_role.tempo.arn
     "identity.cnpg.roleArn"             = aws_iam_role.cnpg.arn
     "identity.velero.roleArn"           = module.velero_irsa.arn
     "identity.albController.roleArn"    = var.ingress_controller == "alb" ? module.alb_controller_irsa[0].arn : ""
