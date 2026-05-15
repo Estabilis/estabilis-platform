@@ -135,6 +135,16 @@ client_gitops_repo_revision = "main"
 # ingress_controller       = "none"          # traefik | alb | none
 # traefik_internal_enabled = false
 
+# --- ALB Controller webhook TLS (default: chart auto-generates) ---
+# Opt-in toggle: makes Terraform issue a stable CA + webhook cert and feed
+# them to the chart via webhookTLS.{caCert,cert,key}. Without this, the
+# eks-charts genSignedCert helper produces a new cert every render and
+# can race with running ALB Controller pods (cert mismatch blocks every
+# Service creation until kubectl rollout restart). See variables.tf for
+# the full tradeoff + migration steps for existing clusters.
+# alb_controller_webhook_tls_managed_by = "chart"      # default, backward-compatible
+# alb_controller_webhook_tls_managed_by = "terraform"  # opt-in, recommended for new clusters
+
 # acm_enabled            = false             # Wildcard cert for ALB termination
 # acm_extra_domain_names = []
 

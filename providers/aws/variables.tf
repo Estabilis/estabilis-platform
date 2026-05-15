@@ -850,6 +850,41 @@ variable "traefik_internal_enabled" {
   default     = false
 }
 
+variable "alb_controller_webhook_tls_managed_by" {
+  description = <<-EOT
+    Controls how the aws-load-balancer-controller webhook TLS cert is managed.
+
+    - "chart" (default) — chart auto-generates self-signed cert via Helm template
+      helper `genSignedCert`. This is the upstream eks-charts default behavior
+      and is backward-compatible with all existing Estabilis deployments.
+      Known issue: chart regenerates cert on each render, and the Deployment
+      lacks a `checksum/secret` annotation, so pods don't restart when the
+      Secret rotates. Operator may need to run `kubectl rollout restart` on
+      the ALB Controller deployment after every chart re-sync to resolve
+      "x509: certificate signed by unknown authority" webhook failures.
+
+    - "terraform" — Terraform generates a stable CA (10 year validity) and
+      webhook cert (5 year validity), passes them to the chart via
+      webhookTLS.{caCert,cert,key} helm values. Chart skips genSignedCert.
+      Race condition resolved. Cert rotation is operator-driven via
+      `terraform taint tls_private_key.alb_controller_ca + apply` —
+      acknowledge this is a manual maintenance window task ~once per decade.
+
+    Migration: existing clusters on "chart" can flip to "terraform" via this
+    tfvar, then run `terraform apply` to provision the new cert + helm
+    parameters. After ArgoCD reconciles, run
+    `kubectl rollout restart deployment/aws-load-balancer-controller -n
+    aws-load-balancer-controller` to load the new cert into the running pods.
+  EOT
+  type        = string
+  default     = "chart"
+
+  validation {
+    condition     = contains(["chart", "terraform"], var.alb_controller_webhook_tls_managed_by)
+    error_message = "alb_controller_webhook_tls_managed_by must be one of: chart, terraform."
+  }
+}
+
 # ---------------------------------------------------------------------------
 # DNS provider
 # ---------------------------------------------------------------------------
