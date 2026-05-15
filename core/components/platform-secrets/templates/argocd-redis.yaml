@@ -22,3 +22,4 @@ spec:
     - secretKey: auth
       remoteRef:
         key: {{ .Values.kvSecrets.argocdRedisPassword | quote }}
+        nullBytePolicy: Ignore

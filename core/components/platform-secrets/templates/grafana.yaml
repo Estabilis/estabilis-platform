@@ -17,6 +17,7 @@ spec:
     - secretKey: GF_DATABASE_PASSWORD
       remoteRef:
         key: {{ .Values.kvSecrets.grafanaDbPassword | quote }}
+        nullBytePolicy: Ignore
 ---
 # grafana-admin-credentials — persistent admin password from Key Vault
 apiVersion: external-secrets.io/v1
@@ -41,6 +42,7 @@ spec:
     - secretKey: password
       remoteRef:
         key: {{ .Values.kvSecrets.grafanaAdminPassword | quote }}
+        nullBytePolicy: Ignore
 ---
 {{- /* grafana-llm-provisioning ConfigMap is rendered unconditionally.
       The Grafana pod's `extraConfigmapMounts` in
@@ -99,4 +101,5 @@ spec:
     - secretKey: OPENAI_API_KEY
       remoteRef:
         key: {{ .Values.kvSecrets.openaiApiKey | quote }}
+        nullBytePolicy: Ignore
 {{- end }}

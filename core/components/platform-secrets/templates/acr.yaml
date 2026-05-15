@@ -28,4 +28,5 @@ spec:
     - secretKey: token
       remoteRef:
         key: {{ .Values.kvSecrets.acrArgocdToken | quote }}
+        nullBytePolicy: Ignore
 {{- end }}

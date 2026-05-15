@@ -28,6 +28,7 @@ spec:
     - secretKey: cloudIntegration
       remoteRef:
         key: {{ .Values.kvSecrets.opencostCloudIntegration | quote }}
+        nullBytePolicy: Ignore
 ---
 apiVersion: external-secrets.io/v1
 kind: ExternalSecret
@@ -51,4 +52,5 @@ spec:
     - secretKey: serviceKey
       remoteRef:
         key: {{ .Values.kvSecrets.opencostServiceKey | quote }}
+        nullBytePolicy: Ignore
 {{- end }}

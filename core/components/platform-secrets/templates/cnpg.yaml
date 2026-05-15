@@ -22,3 +22,4 @@ spec:
     - secretKey: password
       remoteRef:
         key: {{ .Values.kvSecrets.grafanaDbPassword | quote }}
+        nullBytePolicy: Ignore
