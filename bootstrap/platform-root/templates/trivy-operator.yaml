@@ -29,9 +29,12 @@ spec:
           {{- include "platform-root.schedulingValuesTopLevel" (dict
                 "mode" $mode
                 "provider" .Values.global.provider) | nindent 10 }}
+          {{- $trivyScanTolerations := include "platform-root.schedulingTolerations" (dict "provider" .Values.global.provider) }}
           trivy:
+            {{- if $trivyScanTolerations | trim }}
             scanJobTolerations:
-              {{- include "platform-root.schedulingTolerations" (dict "provider" .Values.global.provider) | nindent 14 }}
+              {{- $trivyScanTolerations | nindent 14 }}
+            {{- end }}
             scanJobAffinity:
               {{- include "platform-root.schedulingAffinity" (dict "mode" $mode) | nindent 14 }}
     - repoURL: {{ .Values.platformRepoUrl }}
