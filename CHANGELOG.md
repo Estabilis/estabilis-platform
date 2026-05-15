@@ -1,5 +1,44 @@
 # Changelog
 
+## [0.53.2] - 2026-05-15
+
+### Fixed — chart drift on platform-root (`tolerations`/`parameters` null)
+
+Three helpers in `bootstrap/platform-root/templates/_helpers.tpl` (`schedulingValuesFor`, `schedulingValuesTopLevel`, `schedulingTolerationsOnly`) and two direct usages in `kyverno.yaml` (`crds.migration` + `webhooksCleanup`) emitted the `tolerations:` key unconditionally, relying on the include result. When the include returns empty (AWS provider — Azure spot toleration N/A), the rendered output became `tolerations:` with no value, parsed as `tolerations: null` by YAML.
+
+The K8s API server normalizes `tolerations: null` to "field absent". ArgoCD then re-renders the chart from Git, sees `null`, compares to cluster state (absent), and reports OutOfSync **permanently**. Functionally harmless (no tolerations = scheduling everywhere allowed) but blocks auto-sync convergence (infinite drift loop) and pollutes audit dashboards.
+
+Same pattern affected `parameters:` emission in three templates:
+
+- `network-policies.yaml` + `resource-quotas.yaml` — unguarded `parameters:` followed by `provenanceParameters` include; emits `parameters: null` when `global.provenance.gitRevision` is empty (typical local-render and ad-hoc operator-run cases).
+- `opencost.yaml` — bare `parameters:` followed by an `{{- if eq .Values.global.provider "azure" }}` block; on AWS the `if` returns empty, yielding `parameters: null`.
+
+### Fix
+
+- Helpers + kyverno direct usages: wrapped each emission in `{{- if $tolerations | trim }}` guard.
+- `network-policies.yaml` / `resource-quotas.yaml`: replaced the unguarded `parameters:` + `provenanceParameters` include with the already-guarded `provenanceParametersBlock` helper.
+- `opencost.yaml`: hoisted the existing `if eq provider azure` guard up one level so it also wraps the `parameters:` key.
+
+### Validation
+
+Helm template against minimum-required values for both providers:
+
+| Render | Before | After |
+|---|---|---|
+| AWS, no provenance set | 53 `tolerations: null` + 3 `parameters: null` | **0 / 0** |
+| Azure, no provenance set | n/a | 0 / 0 + 48 `kubernetes.azure.com/scalesetpriority` still emitted on the expected paths |
+| AWS, with provenance set | n/a | 0 / 0 + 30 populated `parameters` lists, `gitRevision` emitted 23× |
+
+- `helm lint` passes for both providers.
+- YAML parses cleanly via `yaml.safe_load_all` (48 docs / 41 Applications on AWS; 42 / 35 on Azure).
+- Diff vs `main` contains only the targeted removals — no functional change.
+
+### Operational impact
+
+After deploying `v0.53.2` via `estabilis promote` (Azure) or the manual platform-root patch (AWS, until the CLI grows AWS support), the ~17 chronically-OutOfSync child Applications converge on the next reconciliation cycle without operator intervention. No data-plane impact.
+
+Refs ADR 0012 (scheduling modes and pool selection).
+
 ## [0.53.1] - 2026-05-15
 
 ### Fixed — expose `tempo_role_arn` terraform output
