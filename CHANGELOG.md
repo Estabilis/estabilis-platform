@@ -1,5 +1,81 @@
 # Changelog
 
+## [0.53.0] - 2026-05-15
+
+### Added — Tempo S3 backend on AWS
+
+Closes the last gap in the grafana-stack object-storage migration
+started in v0.19.0 (loki + mimir): **Tempo now writes immutable trace
+blocks to the shared observability bucket on AWS**, via IRSA. The local
+PVC is reduced to a WAL holder only.
+
+### Why
+
+The Tempo chart 1.24.4 defaults to `storage.trace.backend: local`. With
+the platform's default 4Gi PVC and 720h (30d) compactor retention, this
+ratio inevitably trips the `PvcAlmostFull` alert on any cluster with
+sustained ingest — observed on `cortex-eks-prd` 2026-05-14 with
+`storage-grafana-tempo-0` at 88.86%. Mimir and Loki had been on S3
+since v0.19.0; Tempo was the last component still relying on a local
+PVC for retention.
+
+### Files changed
+
+- `core/components/grafana-stack/tempo-values-aws.yaml` — **new**.
+  Mirrors `mimir-values-aws.yaml` / `loki-values-aws.yaml`:
+  `tempo.storage.trace.backend: s3` with bucket / endpoint / region
+  placeholders injected via `helm.parameters`, plus IRSA-annotated
+  ServiceAccount.
+- `bootstrap/platform-root/templates/grafana-stack.yaml` — adds the
+  AWS `parameters:` block under the tempo Application, analogous to
+  the loki and mimir blocks already there. Injects
+  `tempo.storage.trace.s3.{bucket,endpoint,region}` from
+  `global.observabilityBucketName` / `global.region`, and the
+  `eks.amazonaws.com/role-arn` SA annotation from
+  `identity.tempo.roleArn`.
+- `providers/aws/iam.tf` — `aws_iam_role.tempo` + inline `tempo_s3`
+  policy, modeled after `aws_iam_role.mimir`. Bucket-wide access on
+  the observability bucket (matches the loki/mimir v0.19.0
+  broadening). KMS permissions on `aws_kms_key.s3_data` included for
+  parity. Inline role-scoped policy avoids the standalone-policy name
+  collision that `CONTRIBUTING.md`'s IRSA-module-convention prevents
+  for the upstream submodule path; Tempo does not use that submodule.
+- `providers/aws/platform-outputs.tf` — exposes
+  `identity.tempo.roleArn` to the helm parameters bridge.
+
+### Credentials
+
+Tempo 2.9's S3 backend uses the thanos-io/objstore client, which picks
+up IRSA credentials via the AWS SDK default chain (`AWS_ROLE_ARN` +
+`AWS_WEB_IDENTITY_TOKEN_FILE` injected by the EKS pod-identity webhook
+when the SA carries the role-arn annotation). No static keys are
+configured.
+
+### Behavior on downstream consumers
+
+- **AWS clusters**: after `terraform apply` bumps the source ref and
+  ArgoCD syncs grafana-tempo, the Tempo pod restarts onto the s3
+  backend. Existing blocks on the local PVC under `/var/tempo/traces`
+  are stranded (the compactor no longer references them) — they
+  persist until the PVC is recreated or the path is manually cleared.
+  WAL stays local; PVC steady-state usage drops to <100Mi against the
+  4Gi reservation.
+- **Azure clusters**: unaffected. The new `parameters:` block is
+  gated on `{{- if eq .Values.global.provider "aws" }}`. Equivalent
+  Azure wiring (`tempo-values-azure.yaml` with the blob backend) is a
+  separate follow-up.
+
+### Operational notes
+
+- The bucket lifecycle (`var.s3_observability_lifecycle_days`) should
+  be `>= tempo.retention` (default 720h = 30d) to avoid S3 expiring
+  blocks before Tempo's compactor does. The platform default is `0`
+  (lifecycle disabled), which is safe.
+- The 4Gi PVC defined in `tempo-values.yaml` is now conservative
+  (was sized for traces; carries only WAL). Shrinking it is a clean
+  follow-up that should land separately to keep this release
+  cirurgical.
+
 ## [0.52.0] - 2026-05-14
 
 ### Added — `iam_policy_name_use_cluster_prefix` (multi-cluster-per-account safety)
