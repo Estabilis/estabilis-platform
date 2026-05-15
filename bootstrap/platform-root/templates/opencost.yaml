@@ -55,15 +55,15 @@ spec:
                 "paths" (list "opencost")
              "provider" .Values.global.provider
              ) | nindent 10 }}
+        {{- if eq .Values.global.provider "azure" }}
         parameters:
-          {{- if eq .Values.global.provider "azure" }}
           - name: opencost.exporter.extraEnv.AZURE_SUBSCRIPTION_ID
             value: "{{ .Values.global.subscriptionId }}"
           - name: opencost.exporter.extraEnv.AZURE_TENANT_ID
             value: "{{ .Values.global.tenantId }}"
           - name: opencost.exporter.extraEnv.AZURE_OFFER_ID
             value: "{{ .Values.global.azureOfferId }}"
-          {{- end }}
+        {{- end }}
     - repoURL: {{ .Values.platformRepoUrl }}
       targetRevision: {{ .Values.platformVersion }}
       ref: values
