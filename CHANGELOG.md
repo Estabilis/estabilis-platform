@@ -1,5 +1,42 @@
 # Changelog
 
+## [0.53.1] - 2026-05-15
+
+### Fixed — expose `tempo_role_arn` terraform output
+
+v0.53.0 added `aws_iam_role.tempo` and wired `identity.tempo.roleArn` into the platform-infrastructure Secret (so in-cluster consumers like the ArgoCD helm parameters bridge see the role ARN), AND added a `{{ .Values.identity.tempo.roleArn }}` reference to the platform-root grafana-stack template — but **forgot to expose the IAM role ARN as a terraform output**.
+
+Downstream consumers that re-render the platform-root Application from terraform outputs (e.g. cortex's `scripts/platform-root-apply.sh` reading `tfout tempo_role_arn`) get an empty string. Their `--set identity.tempo.roleArn=...` flag is dropped from the `helm template` invocation, and the new template reference dereferences nil:
+
+```
+template: platform-root/templates/grafana-stack.yaml:328:30:
+executing "..." at <.Values.identity.tempo.roleArn>:
+nil pointer evaluating interface {}.roleArn
+```
+
+The platform-root Application then enters `ComparisonError` cluster-wide, blocking ALL ArgoCD reconciliation. Observed on `cortex-eks-prd` 2026-05-15 during the v0.50.0 → v0.53.0 bump.
+
+### Files changed
+
+- `providers/aws/outputs.tf` — `+5 / -0`. One block mirroring `loki_role_arn` / `mimir_role_arn`:
+  ```hcl
+  output "tempo_role_arn" {
+    description = "IAM role ARN for Tempo ServiceAccount."
+    value       = aws_iam_role.tempo.arn
+  }
+  ```
+
+### Operational note for the next IRSA addition
+
+When wiring a new IRSA role into `providers/aws/`, the canonical 4 places to touch are:
+
+1. `iam.tf` — `aws_iam_role.<name>` + inline policy
+2. `platform-outputs.tf` — `identity.<name>.roleArn` entry in the platform-infrastructure Secret (for in-cluster consumers)
+3. **`outputs.tf` — `output "<name>_role_arn"`** (for terraform-output-based consumers — this was the missed slot in v0.53.0)
+4. The component's `*-values-aws.yaml` + `bootstrap/platform-root/templates/<area>.yaml` — SA annotation reference
+
+Worth promoting to a CONTRIBUTING.md note in a follow-up.
+
 ## [0.53.0] - 2026-05-15
 
 ### Added — Tempo S3 backend on AWS
