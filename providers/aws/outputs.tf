@@ -172,6 +172,11 @@ output "mimir_role_arn" {
   value       = aws_iam_role.mimir.arn
 }
 
+output "tempo_role_arn" {
+  description = "IAM role ARN for Tempo ServiceAccount."
+  value       = aws_iam_role.tempo.arn
+}
+
 output "velero_role_arn" {
   description = "IAM role ARN for Velero ServiceAccount."
   value       = module.velero_irsa.arn
