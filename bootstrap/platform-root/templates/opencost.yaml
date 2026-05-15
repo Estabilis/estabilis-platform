@@ -1,5 +1,16 @@
-{{- /* optional: downstream can disable via components.opencost: false */ -}}
-{{- if ne (index .Values.components "opencost") false }}
+{{- /* optional: downstream can disable via components.opencost: false
+
+       Precondition: requires cost_export_enabled=true in terraform.tfvars,
+       which provisions AWS CUR + Athena tables and populates global.curBucketName
+       in the platform-infrastructure ConfigMap. Without that, opencost runs but
+       can't compute meaningful costs AND its ExternalSecrets reference AWS
+       Secrets Manager paths terraform never created. We gate on both flags to
+       prevent half-configured opencost from polluting the cluster with Degraded
+       Applications and misleading dashboards.
+
+       Azure deployments don't write global.curBucketName (CUR is an AWS concept),
+       so opencost is naturally skipped on Azure even when explicitly enabled. */ -}}
+{{- if and (ne (index .Values.components "opencost") false) (not (empty .Values.global.curBucketName)) }}
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:

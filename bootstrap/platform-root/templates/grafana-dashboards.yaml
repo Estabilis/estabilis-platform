@@ -25,6 +25,13 @@ spec:
         # broken but dashboard still renders.
         - name: argocdUrl
           value: "{{ default "" .Values.global.argocdUrl }}"
+        {{- /* Gate the opencost dashboard ConfigMaps on the same precondition
+              as bootstrap/platform-root/templates/opencost.yaml:
+              both components.opencost!=false AND global.curBucketName!="".
+              Without CUR, opencost doesn't render — so its dashboards would
+              show empty panels that mislead the operator. */}}
+        - name: opencostEnabled
+          value: "{{ and (ne (index .Values.components "opencost") false) (not (empty .Values.global.curBucketName)) }}"
   destination:
     server: https://kubernetes.default.svc
     namespace: grafana

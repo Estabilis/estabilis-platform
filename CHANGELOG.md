@@ -1,5 +1,51 @@
 # Changelog
 
+## [0.53.4] - 2026-05-15
+
+### Fixed — opencost default flipped to `false` (was producing Degraded state without CUR)
+
+`bootstrap/platform-root/values.yaml` had `opencost: true` as default, but opencost **requires AWS CUR (Cost and Usage Reports) + Athena integration** to produce meaningful data. CUR is provisioned via terraform's `cost_export_enabled` tfvar (opt-in, default false). Clusters that didn't enable CUR were getting opencost deployed but with ExternalSecrets (`opencost-cloud-service-key`, `opencost-cloud-integration`) pointing to AWS Secrets Manager paths that terraform never created — resulting in permanent `Synced/Degraded` state.
+
+Observed during HML bootstrap on 2026-05-15.
+
+### Fix
+
+Four coordinated changes:
+
+1. **`bootstrap/platform-root/values.yaml`**: `opencost: true` → `opencost: false`. Updated comment to clarify the CUR dependency and the opt-in path.
+
+2. **`bootstrap/platform-root/templates/opencost.yaml`**: gate on BOTH `components.opencost != false` AND `global.curBucketName != ""`. Even if the operator explicitly opts in, the chart skips opencost when CUR isn't provisioned — defense in depth against half-configured opencost. Azure naturally skips because `global.curBucketName` is AWS-only.
+
+3. **`bootstrap/platform-root/templates/platform-secrets.yaml`**: updated `opencostEnabled` parameter to use the same precondition. Prevents the platform-secrets chart from creating opencost-related ExternalSecrets when the upstream AWS Secrets Manager entries don't exist.
+
+4. **Grafana dashboards** (`bootstrap/platform-root/templates/grafana-dashboards.yaml` + `core/components/grafana-dashboards/{values.yaml,templates/dashboards.yaml}`): propagated the same precondition as an `opencostEnabled` helm parameter to the grafana-dashboards chart, and gated the `opencost-overview` and `opencost-namespace` dashboard ConfigMaps on that flag. Operator no longer sees empty OpenCost dashboards on clusters where the feature is off.
+
+### Migration
+
+For clusters that DO want opencost AND have CUR configured:
+
+```yaml
+# overrides/platform-root/values.yaml
+components:
+  opencost: true   # opt-in explicit
+```
+
+Plus ensure in `terraform.tfvars`:
+
+```hcl
+cost_export_enabled = true
+```
+
+For clusters that DON'T have CUR: no action needed. opencost was producing Degraded state before; now it cleanly doesn't render. Operator dashboards get cleaner.
+
+### Risk + backward compat
+
+This is a behavior change for clusters relying on the previous default. Specifically: clusters that had `cost_export_enabled = true` in terraform AND no explicit `components.opencost` in their override file will lose opencost after this bump. Such clusters must add `components.opencost: true` explicitly to their override file before bumping.
+
+Estabilis-managed deployments audited (HML, cortex-prd): both have explicit `components.opencost: false` in their override files. Zero regression expected for these. Audit other clusters before bumping.
+
+Refs: HML troubleshooting session 2026-05-15.
+
 ## [0.53.3] - 2026-05-15
 
 ### Fixed — remaining null emissions on node-exporter + trivy-operator

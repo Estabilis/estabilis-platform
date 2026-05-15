@@ -36,6 +36,10 @@ metadata:
 data:
   velero.json: |
 {{ .Files.Get "files/velero.json" | indent 4 }}
+{{- /* Opencost dashboards — gated on opencostEnabled, set by platform-root from
+       (components.opencost!=false AND global.curBucketName!=""). Skipping
+       avoids empty dashboards on clusters without AWS CUR provisioning. */}}
+{{- if .Values.opencostEnabled }}
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -62,6 +66,7 @@ metadata:
 data:
   opencost-namespace.json: |
 {{ .Files.Get "files/opencost-namespace.json" | indent 4 }}
+{{- end }}
 ---
 apiVersion: v1
 kind: ConfigMap

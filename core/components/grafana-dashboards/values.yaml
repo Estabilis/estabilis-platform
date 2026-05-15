@@ -12,3 +12,11 @@
 # stays empty — the dashboard still renders but the data links remain
 # broken (acceptable opt-in degradation).
 argocdUrl: ""
+
+# Gate for opencost dashboards (opencost-overview, opencost-namespace).
+# Set by platform-root from `components.opencost && global.curBucketName`,
+# matching the precondition in bootstrap/platform-root/templates/opencost.yaml.
+# When opencost isn't deployed (no AWS CUR / cost_export_enabled = false), the
+# dashboards would have no data — skip rendering their ConfigMaps so the
+# operator's Grafana folder list stays clean.
+opencostEnabled: false

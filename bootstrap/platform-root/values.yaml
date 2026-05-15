@@ -164,7 +164,7 @@ components:
   network-policies: true     # optional: network segmentation (disable if using alternative)
   traefik: false             # optional: ingress controller — enable only when exposing apps (L7 ingress + NSG rules + LB)
   traefik-internal: false    # optional: second Traefik for VNet-only exposures (ADR 0014 internal class)
-  opencost: true             # optional: cost tracking (disable if not needed)
+  opencost: false            # optional: AWS cost tracking via opencost — REQUIRES cost_export_enabled=true in terraform.tfvars (provisions AWS CUR + Athena integration). Without CUR the chart still installs but its ExternalSecrets (opencost-cloud-service-key, opencost-cloud-integration) point to AWS Secrets Manager paths terraform never created, producing permanent Synced/Degraded state. Opt-in by setting `components.opencost: true` in overrides/platform-root/values.yaml AND `cost_export_enabled = true` in terraform.tfvars. opencost.yaml additionally gates on global.curBucketName (defense in depth) so an opt-in without CUR cleanly skips rather than degrading.
   trivy: true                # optional: vulnerability scanning (disable if using alternative)
   velero: true               # optional: backup/restore (disable if handled externally)
   external-dns: true         # optional: DNS record management (disable if manual DNS)
