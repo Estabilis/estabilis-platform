@@ -20,9 +20,15 @@ spec:
           {{- include "platform-root.overrideValueFile" (dict "component" "node-exporter" "root" $) | nindent 10 }}
           {{- include "platform-root.gitopsValueFile" (dict "component" "node-exporter" "root" $) | nindent 10 }}
         ignoreMissingValueFiles: true
+        {{- /* Scheduling (ADR 0012 — issue #97). DaemonSet: tolerations only.
+              valuesObject is only emitted when the provider actually contributes
+              a toleration; otherwise the chart would render `valuesObject: null`
+              and produce permanent OutOfSync drift (see v0.53.2 fix). */}}
+        {{- $nodeExporterTolerations := include "platform-root.schedulingTolerationsOnly" (dict "provider" .Values.global.provider) }}
+        {{- if $nodeExporterTolerations | trim }}
         valuesObject:
-          {{- /* Scheduling (ADR 0012 — issue #97). DaemonSet: tolerations only. */}}
-          {{- include "platform-root.schedulingTolerationsOnly" (dict "provider" .Values.global.provider) | nindent 10 }}
+          {{- $nodeExporterTolerations | nindent 10 }}
+        {{- end }}
         {{- include "platform-root.provenanceParametersBlock" $ | nindent 8 }}
     - repoURL: {{ .Values.platformGitopsRepoUrl }}
       targetRevision: {{ .Values.platformGitopsVersion }}
