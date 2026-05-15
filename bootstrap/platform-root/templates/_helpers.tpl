@@ -361,8 +361,10 @@ nodeAffinity:
 {{- $affinity := include "platform-root.schedulingAffinity" (dict "mode" $mode) -}}
 {{- range $comp := .paths }}
 {{ $comp }}:
+  {{- if $tolerations | trim }}
   tolerations:
     {{- $tolerations | nindent 4 }}
+  {{- end }}
   affinity:
     {{- $affinity | nindent 4 }}
 {{- end -}}
@@ -377,8 +379,11 @@ nodeAffinity:
 */ -}}
 {{- define "platform-root.schedulingValuesTopLevel" -}}
 {{- $mode := default "auto" .mode -}}
+{{- $tolerations := include "platform-root.schedulingTolerations" . -}}
+{{- if $tolerations | trim }}
 tolerations:
-  {{- include "platform-root.schedulingTolerations" . | nindent 2 }}
+  {{- $tolerations | nindent 2 }}
+{{- end }}
 affinity:
   {{- include "platform-root.schedulingAffinity" (dict "mode" $mode) | nindent 2 }}
 {{- end -}}
@@ -388,8 +393,11 @@ affinity:
   not applicable (DS always deploys to all nodes matching node selector).
 */ -}}
 {{- define "platform-root.schedulingTolerationsOnly" -}}
+{{- $tolerations := include "platform-root.schedulingTolerations" . -}}
+{{- if $tolerations | trim }}
 tolerations:
-  {{- include "platform-root.schedulingTolerations" . | nindent 2 }}
+  {{- $tolerations | nindent 2 }}
+{{- end }}
 {{- end -}}
 
 {{- /*

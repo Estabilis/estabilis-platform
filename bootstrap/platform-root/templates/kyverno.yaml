@@ -26,15 +26,20 @@ spec:
                 "mode" $mode
                 "paths" (list "admissionController" "backgroundController" "cleanupController" "reportsController")
                 "provider" .Values.global.provider) | nindent 10 }}
+          {{- $kyvernoTolerations := include "platform-root.schedulingTolerations" (dict "provider" .Values.global.provider) }}
           crds:
             migration:
+              {{- if $kyvernoTolerations | trim }}
               tolerations:
-                {{- include "platform-root.schedulingTolerations" (dict "provider" .Values.global.provider) | nindent 16 }}
+                {{- $kyvernoTolerations | nindent 16 }}
+              {{- end }}
               affinity:
                 {{- include "platform-root.schedulingAffinity" (dict "mode" $mode) | nindent 16 }}
           webhooksCleanup:
+            {{- if $kyvernoTolerations | trim }}
             tolerations:
-              {{- include "platform-root.schedulingTolerations" (dict "provider" .Values.global.provider) | nindent 14 }}
+              {{- $kyvernoTolerations | nindent 14 }}
+            {{- end }}
             affinity:
               {{- include "platform-root.schedulingAffinity" (dict "mode" $mode) | nindent 14 }}
         {{- include "platform-root.provenanceParametersBlock" $ | nindent 8 }}

@@ -34,8 +34,7 @@ spec:
               `platform-root.componentsForwarding` in _helpers.tpl. */}}
         valuesObject:
           {{- include "platform-root.componentsForwarding" . | nindent 10 }}
-        parameters:
-          {{- include "platform-root.provenanceParameters" $ | nindent 10 }}
+        {{- include "platform-root.provenanceParametersBlock" $ | nindent 8 }}
     - repoURL: {{ .Values.platformGitopsRepoUrl }}
       targetRevision: {{ .Values.platformGitopsVersion }}
       ref: values
