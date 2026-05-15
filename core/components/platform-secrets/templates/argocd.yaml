@@ -35,6 +35,7 @@ spec:
     - secretKey: token
       remoteRef:
         key: {{ .Values.kvSecrets.configRepoToken | quote }}
+        nullBytePolicy: Ignore
 {{- end }}
 ---
 {{- if and .Values.clientGitopsRepoUrl (not .Values.githubAppEnabled) }}
@@ -66,4 +67,5 @@ spec:
     - secretKey: token
       remoteRef:
         key: {{ .Values.kvSecrets.clientGitopsRepoToken | quote }}
+        nullBytePolicy: Ignore
 {{- end }}

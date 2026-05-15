@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.53.5] - 2026-05-15
+
+### Fixed
+
+- `platform-secrets`: emit `nullBytePolicy: Ignore` explicitly in all 10 `remoteRef` blocks across 6 ExternalSecret templates (`acr.yaml`, `argocd.yaml`, `argocd-redis.yaml`, `cnpg.yaml`, `grafana.yaml`, `opencost.yaml`). The `externalsecrets.external-secrets.io/v1` CRD has `default: Ignore` on this field, which the API server materializes into the live state. Chart omitting the field produced permanent drift (`OutOfSync`) in every consumer.
+
 ## [0.53.4] - 2026-05-15
 
 ### Fixed — opencost default flipped to `false` (was producing Degraded state without CUR)
