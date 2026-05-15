@@ -1,5 +1,37 @@
 # Changelog
 
+## [0.53.3] - 2026-05-15
+
+### Fixed — remaining null emissions on node-exporter + trivy-operator
+
+Follow-up to v0.53.2. The previous release wrapped `tolerations:` and `parameters:` emissions in the scheduling helpers + 3 templates, but a post-deploy audit on AWS caught two outer-level null cases the first pass missed:
+
+- `bootstrap/platform-root/templates/node-exporter.yaml` emitted bare `valuesObject:` followed only by the now-guarded `schedulingTolerationsOnly` include. On AWS the include returns empty, so `valuesObject:` itself rendered as `null`. (Pre-v0.53.2 the same line rendered `valuesObject.tolerations: null` — the v0.53.2 fix collapsed the null one level up.)
+- `bootstrap/platform-root/templates/trivy-operator.yaml` emitted bare `scanJobTolerations:` directly from `schedulingTolerations`, same pattern as the kyverno `crds.migration` / `webhooksCleanup` direct usages fixed in v0.53.2.
+
+### Fix
+
+- **node-exporter**: hoist the toleration include into `$nodeExporterTolerations`, then wrap the whole `valuesObject:` key in `{{- if $value | trim }}`. valuesObject is now only emitted when the provider actually contributes a toleration.
+- **trivy-operator**: same `{{- if $trivyScanTolerations | trim }}` guard around `scanJobTolerations:`. `scanJobAffinity:` stays unguarded — `schedulingAffinity` always returns content.
+
+### Validation
+
+Full audit via `yaml.safe_load_all` after fix:
+
+| Render | After v0.53.2 | After v0.53.3 |
+|---|---|---|
+| AWS — null-valued keys (any field) | 2 (valuesObject@node-exporter, scanJobTolerations@trivy-operator) | **0** |
+| Azure — null-valued keys (any field) | 0 | 0 |
+| Azure — `scalesetpriority` toleration occurrences | 48 | 48 (incl. `scanJobTolerations`) |
+
+`helm lint` passes for both providers.
+
+### Lessons
+
+v0.53.2's audit grep was scoped to `tolerations:` / `parameters:` literal bare lines. That missed `valuesObject:` going null when the only content was an unconditional include that itself became conditional in the same release. The post-fix audit now scans ALL null-valued keys in the rendered YAML tree via `yaml.safe_load_all`, not literal-line patterns. Worth adopting as the standard check on any future Helm-template drift work.
+
+Refs ADR 0012, v0.53.2 ([#167](https://github.com/Estabilis/estabilis-platform/pull/167)), [#168](https://github.com/Estabilis/estabilis-platform/pull/168).
+
 ## [0.53.2] - 2026-05-15
 
 ### Fixed — chart drift on platform-root (`tolerations`/`parameters` null)
