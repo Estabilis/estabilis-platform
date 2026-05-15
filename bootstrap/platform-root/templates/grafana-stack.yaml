@@ -316,6 +316,17 @@ spec:
           {{- include "platform-root.schedulingValuesTopLevel" (dict
                 "mode" (default "auto" (index .Values.scheduling "tempo"))
              ) | nindent 10 }}
+        {{- if eq .Values.global.provider "aws" }}
+        parameters:
+          - name: tempo.storage.trace.s3.bucket
+            value: "{{ .Values.global.observabilityBucketName }}"
+          - name: tempo.storage.trace.s3.endpoint
+            value: "s3.{{ .Values.global.region }}.amazonaws.com"
+          - name: tempo.storage.trace.s3.region
+            value: "{{ .Values.global.region }}"
+          - name: serviceAccount.annotations.eks\.amazonaws\.com/role-arn
+            value: "{{ .Values.identity.tempo.roleArn }}"
+        {{- end }}
     - repoURL: {{ .Values.platformRepoUrl }}
       targetRevision: {{ .Values.platformVersion }}
       ref: values
