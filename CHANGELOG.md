@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.53.6] - 2026-05-15
+
+### Fixed
+
+- `bootstrap/platform-root/values.yaml`: advance default `platformGitopsVersion` from `v0.39.3` to `v0.39.11`. The default had been pinned to a stale gitops release for 8 patch versions while every cluster operator wrote a downstream `overrides/platform-root/values.yaml` override to consume newer releases — duplicating the decision across clients and producing fragmentation. Most consequential improvement carried in: `components/karpenter-resources` NodePool defaults (Estabilis/estabilis-platform-gitops#42), which replaces the broken `instance-size: [medium, large, xlarge]` constraint with `instance-cpu Gt 1` (excludes mediums that have 8 max-pods under AWS VPC CNI without Prefix Delegation), sets `consolidationPolicy: WhenEmpty` and `consolidateAfter: 5m` (mitigates v1.3+ SpotToSpotConsolidation thrashing). Clients consuming this release of `estabilis-platform` can drop their redundant `platformGitopsVersion` override in `overrides/platform-root/values.yaml`.
+
 ## [0.53.5] - 2026-05-15
 
 ### Fixed
