@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.53.7] - 2026-05-15
+
+### Fixed
+
+- `bootstrap/platform-root/values.yaml`: advance default `platformGitopsVersion` from `v0.39.11` to `v0.39.12`. Carries the second Karpenter NodePool refinement (Estabilis/estabilis-platform-gitops#43): adds `karpenter.k8s.aws/instance-memory Gt 4096` (MiB) requirement. Combined with the `instance-cpu Gt 1` from v0.39.11, the default NodePool now guarantees any provisioned node has `≥ 2 vCPU AND > 4 GiB raw memory` (i.e., `xlarge+` minimum). Eliminates the "node slowly tightens as DaemonSets accumulate post-provisioning" failure mode observed on cortex HML 2026-05-15. Clusters consuming this release see Karpenter mark all `*.large` nodes as `Drifted` and replace them with `xlarge+` over the next disruption budget cycles.
+
 ## [0.53.6] - 2026-05-15
 
 ### Fixed
