@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.53.8] - 2026-05-17
+
+### Fixed
+
+- `bootstrap/platform-root/values.yaml`: advance default `platformGitopsVersion` from `v0.39.12` to `v0.39.13`. Carries the argocd namespace ResourceQuota bump (Estabilis/estabilis-platform-gitops#44): `limits.memory: 16Gi → 32Gi`. The 16Gi cap was sized for a single-replica control plane; operators following the HA baseline (`controller.replicas: 2`) saw `application-controller-1` blocked indefinitely on `exceeded quota`, with sharding silently breaking reconcile (cluster assigned to a shard whose pod doesn't exist). Observed on cortex HML: 18h of `platform-root` `OutOfSync` with no actionable error anywhere. The 32Gi default now accommodates HA with headroom.
+
 ## [0.53.7] - 2026-05-15
 
 ### Fixed
