@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.53.10] - 2026-05-17
+
+### Fixed
+
+- `core/components/grafana-stack/mimir-values.yaml`: promote cortex prd ingester override into upstream defaults. The chart's stock `512Mi` memory limit was insufficient for the WAL replay on restart — with hundreds of segments accumulated, the ingester OOMKills mid-replay before `/ready` returns 200 and the Mimir Application stays at `Synced/Progressing` indefinitely. cortex prd documented this on 2026-05-01 (corrupted WAL → split-brain → forced node drain); cortex hml reproduced the same failure 2026-05-17. Promoted defaults: `replicas: 2`, `requests.memory: 384Mi`, `limits.cpu: 500m`, `limits.memory: 2Gi`, `topologySpreadConstraints` with `whenUnsatisfiable: DoNotSchedule` (prevents bin-pack of both replicas onto the same node, preserving HA). The grafana namespace ResourceQuota in `estabilis-platform-gitops` already accommodates this (`limits.memory: 32Gi`, 18.9Gi free on a typical cluster). Total ingester budget rises from 512Mi to 4Gi (2 replicas × 2Gi).
+
 ## [0.53.9] - 2026-05-17
 
 ### Fixed

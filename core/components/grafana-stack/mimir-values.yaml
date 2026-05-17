@@ -166,7 +166,24 @@ distributor:
       effect: "NoSchedule"
 
 ingester:
-  replicas: 1
+  # HA write path: 2 replicas + hard topology spread.
+  #
+  # Promoted from cortex prd override 2026-05-17 after cortex hml hit the
+  # same failure prd had on 2026-05-01: the chart's stock 512Mi memory
+  # limit isn't enough to load the WAL on restart. With ~395 segments
+  # accumulated, the ingester OOMKills mid-replay before /ready returns
+  # 200, restart loops forever, and the Mimir Application sits at
+  # Synced+Progressing indefinitely.
+  #
+  # 2Gi limit covers WAL replay storms with ~3× headroom over the
+  # observed peak (krr 14d --use-oomkill-data put peak ~1Gi on a fleet
+  # carrying 500k active series under replay churn). Request stays at
+  # 384Mi so Karpenter reserves the steady-state working set accurately
+  # without over-allocating.
+  #
+  # CPU limit bumped 200m → 500m so WAL segments load in 2-3s each
+  # instead of 5-9s — shrinks the readiness-probe failure window.
+  replicas: 2
   zoneAwareReplication:
     enabled: false
   persistentVolume:
@@ -174,10 +191,20 @@ ingester:
   resources:
     requests:
       cpu: 50m
-      memory: 128Mi
+      memory: 384Mi
     limits:
-      cpu: 200m
-      memory: 512Mi
+      cpu: 500m
+      memory: 2Gi
+  # `DoNotSchedule` (hard) — the chart default is `ScheduleAnyway` (soft),
+  # which lets the scheduler bin-pack both ingester pods onto the same
+  # node under capacity pressure. With replication_factor: 2, co-location
+  # defeats the entire HA story: one node failure takes both ingesters
+  # down. cortex prd 2026-05-01 cascaded exactly this: bin-pack →
+  # OOMKill → corrupted WAL → split-brain → forced node drain.
+  topologySpreadConstraints:
+    maxSkew: 1
+    topologyKey: kubernetes.io/hostname
+    whenUnsatisfiable: DoNotSchedule
   tolerations:
     - key: "estabilis.io/workload-type"
       operator: "Equal"
