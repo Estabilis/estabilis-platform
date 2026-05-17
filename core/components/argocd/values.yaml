@@ -136,46 +136,88 @@ configs:
       hs.message = "Waiting for secret to sync"
       return hs
 
+# --------------------------------------------------------------------------
+# Resource sizing rationale (promoted from cortex HML override 2026-05-17)
+# --------------------------------------------------------------------------
+# Defaults sized for a ~40-Application platform-root deployment. The argo-cd
+# chart's stock floors (repo-server 512Mi, controller 256Mi) get OOMKilled
+# under that workload — observed live during v0.28.x rollout (4 OOMKills in
+# 5 minutes during bursty sync) and again 2026-05-07 (9 OOMs/day on
+# argocd-application-controller after the 2Gi → 3Gi bump; krr 14d
+# --use-oomkill-data put the peak at 3840Mi, so 5Gi gives ~30% headroom).
+#
+# `replicas: 2` + `pdb.minAvailable: 1` on every multi-replica component is
+# the HA baseline matching the legacy cortex-eks-prod fleet. PDB is the
+# reason replicas MUST stay at 2 — a Deployment of 1 replica with
+# `minAvailable: 1` makes the pod voluntarily-undisruptable: drain,
+# Karpenter consolidation, and node upgrades all block forever waiting for
+# a second replica that never exists. Components without a `pdb` block
+# (notifications, dex, redis) are chart-singleton-by-design and intentionally
+# skip the PDB to preserve drainability.
+#
+# Compatible with the argocd ResourceQuota in estabilis-platform-gitops
+# (>= v0.39.13, components/resource-quotas/values.yaml limits.memory: 32Gi);
+# total peak request budget with the values below is ~19Gi.
+# --------------------------------------------------------------------------
+
 server:
-  replicas: 1
-  resources:
-    requests:
-      cpu: 50m
-      memory: 128Mi
-    limits:
-      cpu: 200m
-      memory: 256Mi
-
-controller:
-  replicas: 1
-  # The argocd helm chart (9.5.x statefulset.yaml) only renders
-  # `controller.extraArgs`, NOT `controller.args` — the latter is a
-  # silent no-op. The platform set `args:` since 6c217ff (2026-04-25)
-  # but the intended 50/25 worker sizing has never reached any client
-  # cluster running this chart, so every bootstrap fell back to the
-  # binary defaults `--status-processors=20` and `--operation-processors=10`.
-  # Result: operation queue stalls during 30+ App reconcile waves
-  # (sync travando + UI argocd-server loading sem fim).
-  extraArgs:
-    - --status-processors=50
-    - --operation-processors=25
-  resources:
-    requests:
-      cpu: 500m
-      memory: 1Gi
-    limits:
-      cpu: 2
-      memory: 2Gi
-
-repoServer:
   replicas: 2
+  pdb:
+    enabled: true
+    minAvailable: 1
   resources:
     requests:
       cpu: 100m
       memory: 256Mi
     limits:
       cpu: 500m
+      memory: 1Gi
+
+controller:
+  replicas: 2
+  pdb:
+    enabled: true
+    minAvailable: 1
+  # The argocd helm chart (9.5.x statefulset.yaml) only renders
+  # `controller.extraArgs`, NOT `controller.args` — the latter is a
+  # silent no-op (chart 9.5.6 statefulset.yaml only renders extraArgs).
+  # The platform set `args:` since 6c217ff (2026-04-25) but the intended
+  # 50/25 worker sizing never reached any client cluster running this
+  # chart, so every bootstrap fell back to the binary defaults
+  # `--status-processors=20` and `--operation-processors=10`.
+  # Result: operation queue stalls during 30+ App reconcile waves
+  # (sync travando + UI argocd-server loading sem fim).
+  extraArgs:
+    - --status-processors=50
+    - --operation-processors=25
+  # Memory limit bumped 3Gi → 5Gi (2026-05-07). 9 additional OOMKills
+  # observed in a single day on argocd-application-controller-1 after the
+  # 2026-05-05 bump from 2Gi → 3Gi. krr (14d, --use-oomkill-data) puts
+  # the OOM-aware peak around 3840Mi; 5Gi gives ~30% headroom. Request
+  # stays at 1Gi (Burstable QoS) — working-set baseline is ~1.5Gi
+  # steady, so 1Gi is the right scheduling floor; surplus up to 5Gi is
+  # bursty bootstrap-storm headroom that does NOT need node reservation.
+  # Re-evaluate when peak working-set revisits 4Gi sustained.
+  resources:
+    requests:
+      cpu: 250m
+      memory: 1Gi
+    limits:
+      cpu: 1500m
+      memory: 5Gi
+
+repoServer:
+  replicas: 2
+  pdb:
+    enabled: true
+    minAvailable: 1
+  resources:
+    requests:
+      cpu: 200m
       memory: 512Mi
+    limits:
+      cpu: 1000m
+      memory: 2Gi
   copyutil:
     resources:
       requests:
@@ -223,40 +265,52 @@ repoServer:
 redis:
   serviceAccount:
     create: true
+  # redis is single-replica in the argo-cd chart (HA redis is the separate
+  # `redis-ha` subchart, disabled here). NO PDB — `minAvailable=1` on a
+  # single-replica Deployment makes the pod voluntarily-undisruptable
+  # (drain blocks forever waiting for a second replica that never exists).
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+applicationSet:
+  replicas: 2
+  pdb:
+    enabled: true
+    minAvailable: 1
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+dex:
+  # dex is singleton-by-design in the argo-cd chart (no `replicas` key
+  # exposed). NO PDB — same drainability reason as redis above.
   resources:
     requests:
       cpu: 50m
       memory: 64Mi
     limits:
-      cpu: 100m
-      memory: 128Mi
-
-applicationSet:
-  resources:
-    requests:
-      cpu: 20m
-      memory: 64Mi
-    limits:
-      cpu: 100m
-      memory: 256Mi
-
-dex:
-  resources:
-    requests:
-      cpu: 20m
-      memory: 64Mi
-    limits:
-      cpu: 100m
+      cpu: 200m
       memory: 256Mi
 
 notifications:
   enabled: true
+  # notifications is singleton-by-design in the argo-cd chart (no `replicas`
+  # key exposed). NO PDB — same drainability reason as redis above.
   resources:
     requests:
-      cpu: 20m
-      memory: 64Mi
+      cpu: 50m
+      memory: 128Mi
     limits:
-      cpu: 100m
+      cpu: 200m
       memory: 256Mi
 
 tolerations:

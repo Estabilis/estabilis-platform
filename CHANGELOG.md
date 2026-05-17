@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.53.9] - 2026-05-17
+
+### Fixed
+
+- `core/components/argocd/values.yaml`: promote HML override values into the upstream defaults. Two-part change: (1) **resources** bumped to sizes that match a `~40-Application platform-root` deployment (avoids the chart's stock floors that OOMKill the controller/repo-server under that workload — observed live multiple times); (2) **HA baseline**: `replicas: 2` + `pdb.minAvailable: 1` on every multi-replica component (`server`, `controller`, `repoServer`, `applicationSet`). Single-replica chart components (`redis`, `dex`, `notifications`) intentionally remain without PDB to preserve drainability — a Deployment of 1 replica with `minAvailable: 1` makes the pod voluntarily-undisruptable (drain, Karpenter consolidation, and node upgrades block forever waiting for a second replica that never exists). Requires `estabilis-platform-gitops >= v0.39.13` for the argocd ResourceQuota `limits.memory: 32Gi`; default `platformGitopsVersion` is already at `v0.39.13` from v0.53.8. Total peak memory request with the new defaults is ~19Gi, well within the 32Gi cap.
+
 ## [0.53.8] - 2026-05-17
 
 ### Fixed
