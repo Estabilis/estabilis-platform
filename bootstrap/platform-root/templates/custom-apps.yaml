@@ -22,6 +22,9 @@ spec:
     server: https://kubernetes.default.svc
     namespace: app-{{ $name }}
   syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
     managedNamespaceMetadata:
       labels:
         estabilis.io/managed-by: client

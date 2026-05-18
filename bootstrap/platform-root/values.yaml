@@ -38,7 +38,7 @@ configRepoVersion: ""       # DEPRECATED: use configRepoRevision
 # See ADR 0001 (estabilis-platform-tools/docs/adr/0001-workload-bootstrap-strategy.md).
 # Default values below; downstream can override via overrides/platform-root/values.yaml.
 platformGitopsRepoUrl: "https://github.com/Estabilis/estabilis-platform-gitops.git"
-platformGitopsVersion: "v0.39.13"
+platformGitopsVersion: "v0.39.14"
 
 global:
   # Provenance — injected at runtime by the CLI (see block above).
