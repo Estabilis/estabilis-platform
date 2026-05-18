@@ -29,6 +29,9 @@ spec:
     server: https://kubernetes.default.svc
     namespace: kyverno
   syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
     retry:
       limit: 10
       backoff:

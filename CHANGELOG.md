@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.53.12] - 2026-05-18
+
+### Fixed
+
+- `bootstrap/platform-root/templates/`: four Application templates were out of compliance with [ADR 0029 — Auto-prune policy](https://github.com/Estabilis/estabilis-platform-tools/blob/main/docs/adr/0029-auto-prune-policy.md). All four emit only CR instances or Kubernetes-native resources consumed by other operators — Safe class per ADR 0029. Added `automated.{prune,selfHeal}: true`:
+  - `custom-apps.yaml` — generic AppSet that renders client custom Applications (`app-<name>`).
+  - `grafana-dashboards.yaml` — ConfigMap dashboards consumed by Grafana sidecar.
+  - `kube-state-metrics.yaml` — Deployment + Service emitting metrics scraped by Alloy.
+  - `kyverno-exceptions.yaml` — PolicyException CRs + namespace labels.
+
+  Behavioral impact: gate flips and template cleanups in these four Apps now reconcile orphan resources automatically. `selfHeal: true` reverts out-of-band `kubectl patch` operations — operators with active incident debugging should be aware.
+
+- `bootstrap/platform-root/values.yaml`: advance default `platformGitopsVersion` from `v0.39.13` to `v0.39.14`. Carries the parallel ADR 0029 compliance fixes in `estabilis-platform-gitops/workload-bootstrap/templates/` (Estabilis/estabilis-platform-gitops#45): six ApplicationSet templates (`hubble-ui`, `kube-state-metrics`, `kyverno-exceptions`, `kyverno-policies`, `network-policies`, `resource-quotas`) now emit `automated.{prune,selfHeal}: true` for workload clusters.
+
 ## [0.53.11] - 2026-05-17
 
 ### Fixed
