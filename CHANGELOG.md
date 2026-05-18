@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.53.11] - 2026-05-17
+
+### Fixed
+
+- `spec/upstart/upstart.yaml`: two bootstrap-spec fixes surfaced by the cortex hml audit 2026-05-17.
+  - Wave 8 "Networking & Ingress": swap order so `external-dns-config` syncs **before** `external-dns`. The config app renders the `external-dns-cloudflare-config` Secret (hub path: direct from `cloudflareApiToken`; workload path: ExternalSecret from AWS SM) that the `external-dns` pod mounts as `CF_API_TOKEN` env var with `Optional: false`. In manual sequential bootstrap, syncing `external-dns` first leaves the pod in `CreateContainerConfigError` until `external-dns-config` catches up. Auto-sync clusters converge via retry (both Apps are sync-wave 7 in the chart) but manual runs hit the symptom every time.
+  - Wave 10 "Post-Deploy": remove `loki-ingress` (kept only in the AWS overlay `Ingresses` wave). Was duplicated across base + overlay, causing a no-op double-sync.
+
 ## [0.53.10] - 2026-05-17
 
 ### Fixed

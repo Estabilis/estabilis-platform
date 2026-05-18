@@ -226,8 +226,22 @@ waves:
   - name: Networking & Ingress
     timeout: 300
     apps:
-      - { name: external-dns, optional: true }
+      # external-dns-config MUST sync before external-dns.
+      # external-dns-config renders the Secret `external-dns-cloudflare-config`
+      # (hub path: direct Secret with stringData.api-token from the
+      # cloudflareApiToken helm parameter; workload path: ExternalSecret
+      # pointing to AWS SM). The external-dns pod mounts that Secret as
+      # CF_API_TOKEN env var (Optional: false). Without the Secret present
+      # at pod start, kubelet returns CreateContainerConfigError and the
+      # pod restart-loops until external-dns-config catches up.
+      #
+      # Both Apps are sync-wave 7 in the chart upstream
+      # (bootstrap/platform-root/templates/external-dns.yaml renders both),
+      # so auto-sync runs them in parallel and converges via retry. In
+      # manual sequential bootstrap (this spec), the ordering becomes
+      # operational — keep config first.
       - { name: external-dns-config, optional: true }
+      - { name: external-dns, optional: true }
       - { name: traefik, optional: true }
       - { name: velero, optional: true }
 
@@ -252,7 +266,12 @@ waves:
       - { name: grafana-dashboards, optional: true }
       - { name: alloy-rbac, optional: true }
       - { name: mimir-rules, optional: true }
-      - { name: loki-ingress, optional: true }
+      # loki-ingress moved to the AWS overlay "Ingresses" wave
+      # (upstart.aws.yaml). It belonged here historically alongside
+      # other Post-Deploy items, but conceptually it's an ingress and
+      # the AWS overlay already lists it. Keeping it in both waves
+      # caused a no-op duplicate sync. Reference: cortex hml audit
+      # 2026-05-17.
 
   - name: Policies
     apps:
