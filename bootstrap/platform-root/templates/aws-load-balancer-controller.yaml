@@ -55,6 +55,22 @@ spec:
                 "mode" (default "auto" (index .Values.scheduling "aws-load-balancer-controller"))
              "provider" .Values.global.provider
              ) | nindent 10 }}
+          {{- /* Terraform-managed webhook TLS (opt-in via tfvar
+                `alb_controller_webhook_tls_managed_by = "terraform"`).
+                When all three values are present the chart's
+                webhookCerts helper (see chart _helpers.tpl) skips its
+                genSignedCert path and uses these PEMs instead — same CA
+                across every render, no race with running pods. When the
+                tfvar stays at the default "chart", these values are
+                unset and the chart auto-generates as before. */}}
+          {{- with .Values.albControllerWebhookTLS }}
+          {{- if and .caCert .cert .key }}
+          webhookTLS:
+            caCert: |-{{ .caCert | nindent 14 }}
+            cert: |-{{ .cert | nindent 14 }}
+            key: |-{{ .key | nindent 14 }}
+          {{- end }}
+          {{- end }}
     - repoURL: {{ .Values.platformGitopsRepoUrl }}
       targetRevision: {{ .Values.platformGitopsVersion }}
       ref: values
@@ -63,12 +79,25 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: aws-load-balancer-controller
-  {{- /* Ignore drift on fields the chart's webhook self-signing logic
-        populates at install time (caBundle / TLS Secret data) and on
-        the IngressClassParams body which the chart leaves empty for the
-        operator to fill in. Without this, the App reports OutOfSync on
-        every reconcile despite the controller working correctly. */}}
+  {{- /* IngressClassParams /spec is always ignored — the chart leaves
+        the body empty for the operator to fill in.
+
+        The caBundle / TLS Secret data ignore entries are gated on the
+        chart auto-gen path. When `webhookTLS` is set via valuesObject
+        (TF-managed mode), the chart's webhookCerts helper produces the
+        same deterministic content every render, so the ignore entries
+        would actively block migration on existing clusters (ArgoCD
+        wouldn't push the new TF-provided cert to the live Secret /
+        webhook config). Dropping them in TF mode lets ArgoCD reconcile
+        the cert into the cluster as expected. */}}
   ignoreDifferences:
+    {{- $tfManagedTLS := false }}
+    {{- with .Values.albControllerWebhookTLS }}
+    {{- if and .caCert .cert .key }}
+    {{- $tfManagedTLS = true }}
+    {{- end }}
+    {{- end }}
+    {{- if not $tfManagedTLS }}
     - group: admissionregistration.k8s.io
       kind: MutatingWebhookConfiguration
       name: aws-load-balancer-webhook
@@ -84,6 +113,7 @@ spec:
       name: aws-load-balancer-tls
       jsonPointers:
         - /data
+    {{- end }}
     - group: elbv2.k8s.aws
       kind: IngressClassParams
       name: alb

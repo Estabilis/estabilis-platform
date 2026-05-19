@@ -1,5 +1,46 @@
 # Changelog
 
+## [0.54.0] - 2026-05-18
+
+### Added — Terraform-managed ALB Controller webhook TLS (opt-in)
+
+New tfvar `alb_controller_webhook_tls_managed_by` (default `"chart"`, opt-in `"terraform"`) controls how the aws-load-balancer-controller webhook TLS cert is provisioned.
+
+**Why.** The `eks-charts/aws-load-balancer-controller` chart auto-generates the webhook TLS cert via the Helm `genSignedCert` helper. The helper is non-deterministic — each render produces a new cert. Combined with the chart's Deployment template lacking a `checksum/secret` annotation, this creates a race: after a re-sync, the chart updates the Secret + the MutatingWebhookConfiguration CABundle, but the ALB Controller pods keep serving the previous cert from memory. The API server validates the webhook against the new CABundle while the pod responds with the old cert, producing `x509: certificate signed by unknown authority` errors that block every Service creation in the cluster.
+
+Observed in production during bootstrap of `eks-cortex-platform-hml-us-east-1` on 2026-05-15. Manual workaround: `kubectl rollout restart deployment/aws-load-balancer-controller -n aws-load-balancer-controller`.
+
+**Fix.** When `alb_controller_webhook_tls_managed_by = "terraform"`, the module generates a stable CA (10-year validity) and webhook cert (5-year validity) via the `tls` provider, then passes them to the chart through `webhookTLS.{caCert,cert,key}` helm values. The chart's `webhookCerts` helper takes the operator-provided values branch and skips `genSignedCert` entirely — no regen on re-renders, no race.
+
+**Backward compat.** Default remains `"chart"` (existing behavior). Existing deployments stay unchanged unless the operator explicitly opts in. Default render is byte-identical to v0.53.3 for any cluster that doesn't set the new tfvar.
+
+### Migration path for existing deployments
+
+> **Brief migration window — plan for ~30s of webhook errors.** Between step 4 (ArgoCD syncs the chart re-render that now carries the TF-provided cert) and step 5 (rollout restart loads the new cert into pod memory), the cluster has the new CABundle on the webhook config but the old cert in the running pods. Service creations in that window will fail with `x509: certificate signed by unknown authority` until the rollout completes. Run steps 4–5 back-to-back. After this one-time migration, the feature eliminates the race permanently.
+
+Per-deployment, when ready:
+
+1. Edit `terraform.tfvars`: add `alb_controller_webhook_tls_managed_by = "terraform"`.
+2. `terraform apply` — creates 4 new TLS resources and populates 3 new keys (`albControllerWebhookTLS.{caCert,cert,key}`) on Secret `platform-infrastructure-sensitive`.
+3. `estabilis promote` (or manual re-resolve+apply of platform-root) so ArgoCD picks up the new `helm.parameters`.
+4. Watch ArgoCD reconcile the ALB Controller Application — when the chart re-renders, the rendered Secret `aws-load-balancer-tls` and webhook `caBundle` carry the new TF-provided values. With `webhookTLS` set, the Application drops the `ignoreDifferences` entries that previously blocked these fields, so ArgoCD pushes them to the cluster.
+5. Immediately run `kubectl rollout restart deployment/aws-load-balancer-controller -n aws-load-balancer-controller` to load the new cert into the running pods.
+6. Verify with `kubectl get pod -n aws-load-balancer-controller` (all `1/1 Ready`) and a sanity `kubectl create service clusterip dummy --tcp=80:80` in a temp namespace — should succeed without webhook errors.
+
+For **fresh clusters** bootstrapped with `alb_controller_webhook_tls_managed_by = "terraform"` from the start, there is no migration window — the TF cert is in place before pods come up.
+
+### Files changed
+
+- `providers/aws/alb-controller-webhook-tls.tf` — NEW, conditional CA + webhook cert resources gated on the new tfvar.
+- `providers/aws/variables.tf` — declared `alb_controller_webhook_tls_managed_by` with detailed description + validation.
+- `providers/aws/platform-outputs.tf` — conditional injection of `albControllerWebhookTLS.*` keys into `platform-infrastructure-sensitive`.
+- `bootstrap/platform-root/templates/aws-load-balancer-controller.yaml` — conditional `webhookTLS` block in `valuesObject` when keys are present.
+- `providers/aws/terraform.tfvars.example` — documented opt-in syntax.
+
+### Out-of-scope (future work — separate ADR)
+
+Migration to `cert-manager.io/Certificate` with cert-manager CAInjector. That removes the manual rotation but requires wave reordering (cert-manager must run before ALB Controller; today it runs after).
+
 ## [0.53.12] - 2026-05-18
 
 ### Fixed

@@ -177,40 +177,53 @@ resource "kubernetes_secret_v1" "platform_infrastructure" {
     }
   }
 
-  data = {
-    # Identity
-    "global.accountId" = data.aws_caller_identity.current.account_id
-    "global.region"    = var.region
+  data = merge(
+    {
+      # Identity
+      "global.accountId" = data.aws_caller_identity.current.account_id
+      "global.region"    = var.region
 
-    # Secrets Manager path prefix — ESO ClusterSecretStore scopes to this.
-    "global.secretsPathPrefix" = local.secrets_path_prefix
+      # Secrets Manager path prefix — ESO ClusterSecretStore scopes to this.
+      "global.secretsPathPrefix" = local.secrets_path_prefix
 
-    # IRSA role ARNs — consumed by ArgoCD Application parameters to annotate
-    # each ServiceAccount with eks.amazonaws.com/role-arn.
-    "identity.certManager.roleArn"      = var.dns_provider == "route53" ? module.cert_manager_irsa[0].arn : ""
-    "identity.externalDns.roleArn"      = var.dns_provider == "route53" ? module.external_dns_irsa[0].arn : ""
-    "identity.externalSecrets.roleArn"  = module.external_secrets_irsa.arn
-    "identity.loki.roleArn"             = aws_iam_role.loki.arn
-    "identity.mimir.roleArn"            = aws_iam_role.mimir.arn
-    "identity.tempo.roleArn"            = aws_iam_role.tempo.arn
-    "identity.cnpg.roleArn"             = aws_iam_role.cnpg.arn
-    "identity.velero.roleArn"           = module.velero_irsa.arn
-    "identity.albController.roleArn"    = var.ingress_controller == "alb" ? module.alb_controller_irsa[0].arn : ""
-    "identity.workloadOperator.roleArn" = var.shared_hub_secrets_enabled ? aws_iam_role.workload_operator[0].arn : ""
-    "identity.opencost.roleArn"         = var.cost_export_enabled ? aws_iam_role.opencost[0].arn : ""
+      # IRSA role ARNs — consumed by ArgoCD Application parameters to annotate
+      # each ServiceAccount with eks.amazonaws.com/role-arn.
+      "identity.certManager.roleArn"      = var.dns_provider == "route53" ? module.cert_manager_irsa[0].arn : ""
+      "identity.externalDns.roleArn"      = var.dns_provider == "route53" ? module.external_dns_irsa[0].arn : ""
+      "identity.externalSecrets.roleArn"  = module.external_secrets_irsa.arn
+      "identity.loki.roleArn"             = aws_iam_role.loki.arn
+      "identity.mimir.roleArn"            = aws_iam_role.mimir.arn
+      "identity.tempo.roleArn"            = aws_iam_role.tempo.arn
+      "identity.cnpg.roleArn"             = aws_iam_role.cnpg.arn
+      "identity.velero.roleArn"           = module.velero_irsa.arn
+      "identity.albController.roleArn"    = var.ingress_controller == "alb" ? module.alb_controller_irsa[0].arn : ""
+      "identity.workloadOperator.roleArn" = var.shared_hub_secrets_enabled ? aws_iam_role.workload_operator[0].arn : ""
+      "identity.opencost.roleArn"         = var.cost_export_enabled ? aws_iam_role.opencost[0].arn : ""
 
-    # Cloudflare API token — only populated when dns_provider = "cloudflare".
-    "global.cloudflareApiToken" = var.dns_provider == "cloudflare" ? var.cloudflare_api_token : ""
+      # Cloudflare API token — only populated when dns_provider = "cloudflare".
+      "global.cloudflareApiToken" = var.dns_provider == "cloudflare" ? var.cloudflare_api_token : ""
 
-    # Vault (v0.27.0+) — populated only when vault_enabled=true.
-    # vault.exposuresJson moved to ConfigMap as global.vaultExposures (ADR 0014
-    # convention; non-sensitive). The Secret keeps the identity + KMS key id
-    # which ARE sensitive.
-    "identity.vault.roleArn" = var.vault_enabled ? module.vault_irsa[0].arn : ""
-    "vault.kmsKeyId"         = var.vault_enabled ? aws_kms_key.vault[0].key_id : ""
-    "vault.kmsRegion"        = var.vault_enabled ? var.region : ""
-    "vault.backupBucketName" = var.vault_enabled ? aws_s3_bucket.vault_backup[0].id : ""
-  }
+      # Vault (v0.27.0+) — populated only when vault_enabled=true.
+      # vault.exposuresJson moved to ConfigMap as global.vaultExposures (ADR 0014
+      # convention; non-sensitive). The Secret keeps the identity + KMS key id
+      # which ARE sensitive.
+      "identity.vault.roleArn" = var.vault_enabled ? module.vault_irsa[0].arn : ""
+      "vault.kmsKeyId"         = var.vault_enabled ? aws_kms_key.vault[0].key_id : ""
+      "vault.kmsRegion"        = var.vault_enabled ? var.region : ""
+      "vault.backupBucketName" = var.vault_enabled ? aws_s3_bucket.vault_backup[0].id : ""
+    },
+    # ALB Controller webhook TLS — populated only when Terraform manages the
+    # cert (see alb-controller-webhook-tls.tf). Keys are intentionally absent
+    # when var.alb_controller_webhook_tls_managed_by = "chart" so the chart
+    # falls back to its built-in genSignedCert path. Dotted keys (literal `.`
+    # in the data field) become nested values at helm `--set` time:
+    # `.Values.albControllerWebhookTLS.{caCert,cert,key}` in platform-root.
+    local.alb_controller_webhook_tls_tf_managed ? {
+      "albControllerWebhookTLS.caCert" = tls_self_signed_cert.alb_controller_ca[0].cert_pem
+      "albControllerWebhookTLS.cert"   = tls_locally_signed_cert.alb_controller_webhook[0].cert_pem
+      "albControllerWebhookTLS.key"    = tls_private_key.alb_controller_webhook[0].private_key_pem
+    } : {},
+  )
 }
 
 # ---------------------------------------------------------------------------
