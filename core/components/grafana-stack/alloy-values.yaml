@@ -1095,6 +1095,9 @@ alloy:
       prometheus.scrape "alloy_self" {
         targets    = discovery.relabel.alloy_self.output
         forward_to = [prometheus.relabel.alloy_self.receiver]
+        clustering {
+          enabled = true
+        }
       }
 
       prometheus.relabel "alloy_self" {
