@@ -152,6 +152,33 @@ vault:
 #   loki        → loki-ingress
 #   traefik     → loki-ingress
 #   observability (group) → grafana, loki, mimir, alloy, tempo, dashboards, mimir-rules
+# ---------------------------------------------------------------------------
+# Component Configuration — per-component overridable settings (chart
+# versions, install flags, etc.). Separate from `components.<name>: bool`
+# above, which only toggles deployment.
+#
+# Downstream overrides via `overrides/platform-root/values.yaml` deep-merge
+# with the defaults below — set only the keys you need to override.
+# ---------------------------------------------------------------------------
+componentConfig:
+  externalSecrets:
+    # ESO Helm chart version (charts.external-secrets.io). Bump in lockstep
+    # with the CRD version applied by the upstart pipeline
+    # (`externalSecretsCrdVersion` in spec/upstart/upstart.yaml — they must
+    # match or be compatible to avoid schema/controller drift like the
+    # cortex-prd incident on 2026-05-20, where chart was at 2.1.0 but
+    # platform-secrets emitted `nullBytePolicy: Ignore` which the
+    # cluster's old CRD didn't declare → ArgoCD ComparisonError).
+    chartVersion: "2.1.0"
+    # When `true`, the ESO Helm chart installs/upgrades the CRDs alongside
+    # the controller. When `false` (default), CRDs are managed out-of-band
+    # by the upstart `Operator CRDs` wave so the lifecycle is decoupled
+    # from the controller upgrade. Flip to `true` only if downstream
+    # explicitly wants Helm to take ownership of the CRDs (be aware that
+    # CRDs pre-applied by the upstart pipeline will have a `kubectl
+    # kube-apiserver` field manager that Helm will need to override).
+    installCRDs: false
+
 components:
   # --- core (do not disable) ---
   cert-manager: true         # core: TLS for all services
