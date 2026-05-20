@@ -1,5 +1,31 @@
 # Changelog
 
+## [0.54.1] - 2026-05-20
+
+### Fixed — `alloy`: enable clustering on `alloy_self` scrape job
+
+The `prometheus.scrape "alloy_self"` block in `core/components/grafana-stack/alloy-values.yaml` was the only one of 27 `prometheus.scrape` jobs in the upstream Alloy config that did not carry a `clustering { enabled = true }` block. That gap predates the bulk clustering fix shipped in v0.37.0 (commit d0d2843, March 2026) — `alloy_self` was never included in the original migration.
+
+**Symptom.** `discovery.relabel "alloy_self"` reads from `discovery.kubernetes.grafana_ns.targets` and keeps every pod with label `app.kubernetes.io/name=alloy`. On a multi-node cluster the DaemonSet has one Alloy pod per node; without clustering, every Alloy pod independently discovers and scrapes every other Alloy pod's `/metrics`. That produces N copies of each Alloy-internal series (`prometheus_target_interval_length_seconds`, `alloy_build_info`, etc.) with identical labels and very close timestamps. Mimir's distributor accepts the first sample and rejects the remaining N-1 with `err-mimir-sample-out-of-order` (HTTP 400).
+
+Observed on a 4-node production deployment: ~2 000 samples/min rejected steadily, alloy logging `non-recoverable error` from `prometheus.remote_write.mimir` on every batch.
+
+**Fix.** Add the standard clustering block to the scrape job. Alloy's built-in hash ring then assigns each discovered target to exactly one Alloy instance, eliminating the duplication.
+
+```hcl
+prometheus.scrape "alloy_self" {
+  targets    = discovery.relabel.alloy_self.output
+  forward_to = [prometheus.relabel.alloy_self.receiver]
+  clustering {
+    enabled = true
+  }
+}
+```
+
+No schema change, no breaking change. After the next ConfigMap roll, Alloy applies clustering automatically (no pod restart required — Alloy hot-reloads `config.alloy`).
+
+**Verification post-deploy.** The Mimir distributor metric `cortex_distributor_samples_in_total{status="rejected", reason="sample-out-of-order"}` should drop. Alloy's `non-recoverable error` log lines from `prometheus.remote_write.mimir` should stop. Per-Alloy-pod `prometheus_target_sync_length_seconds` for `job="alloy_self"` will show only a SHARD of the discovered targets being scraped (instead of all of them).
+
 ## [0.54.0] - 2026-05-18
 
 ### Added — Terraform-managed ALB Controller webhook TLS (opt-in)
