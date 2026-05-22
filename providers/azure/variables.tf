@@ -593,9 +593,64 @@ variable "hubble_ui_exposures" {
 }
 
 variable "authorized_ip_ranges" {
-  description = "List of authorized IP ranges for AKS API server access. Empty list makes API server private."
+  description = "List of authorized IP ranges for AKS API server access. Empty list makes API server private. IGNORED quando enable_private_cluster = true (Azure exige um OU outro)."
   type        = list(string)
   default     = []
+}
+
+# ---------------------------------------------------------------------------
+# AKS Private Cluster (opt-in) — API server via Private Endpoint apenas
+# ---------------------------------------------------------------------------
+
+variable "enable_private_cluster" {
+  description = <<-EOT
+    Enable AKS private cluster mode. API server fica acessível APENAS via
+    Private Endpoint na VNet (sem IP público).
+
+    Quando true:
+      - kubelet conecta ao API server via PE privado (resolução via PDZ)
+      - var.authorized_ip_ranges é IGNORADO (mutually exclusive)
+      - private_dns_zone_id determina onde a PDZ vive
+      - Plus, var.private_cluster_public_fqdn_enabled controla FQDN público (debug)
+
+    Padrão: false (preserva comportamento legado: cluster público + IP allowlist).
+
+    Use case: hub-spoke com NVA externo (FortiGate, Palo Alto, etc.) — egress
+    do AKS sai com PIP do NVA, que não está no authorized_ip_ranges; PE
+    privado resolve isso (não precisa allowlist).
+  EOT
+  type        = bool
+  default     = false
+}
+
+variable "private_dns_zone_id" {
+  description = <<-EOT
+    Resource ID da Private DNS Zone para resolução do API server (apenas se
+    enable_private_cluster = true).
+
+    Valores aceitos:
+      - "System" (default): AKS gerencia uma PDZ
+        `privatelink.<region>.azmk8s.io` no MC_<rg> shadow resource group.
+      - "/subscriptions/.../privateDnsZones/privatelink.<region>.azmk8s.io":
+        Usa PDZ EXISTENTE no hub network (recomendado para hub-spoke).
+        Caller deve ter criado vnet_link da VNet platform na PDZ antes.
+
+    Ignorado quando enable_private_cluster = false.
+  EOT
+  type        = string
+  default     = "System"
+}
+
+variable "private_cluster_public_fqdn_enabled" {
+  description = <<-EOT
+    Expõe FQDN público ADICIONAL ao private FQDN quando enable_private_cluster
+    = true. Apenas DNS — tráfego continua restrito ao PE privado.
+
+    Útil para troubleshooting via Azure Portal sem precisar de jumphost.
+    Padrão: false (somente private FQDN).
+  EOT
+  type        = bool
+  default     = false
 }
 
 # ---------------------------------------------------------------------------

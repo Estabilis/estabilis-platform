@@ -23,6 +23,27 @@ resource "azurerm_kubernetes_cluster" "platform" {
   oidc_issuer_enabled       = true
   local_account_disabled    = var.local_account_disabled
 
+  # --- Private Cluster (opt-in) ----------------------------------------------
+  # Quando `enable_private_cluster = true`, API server fica acessível APENAS
+  # via Private Endpoint na VNet (resolução via PDZ). kubelet conecta via PE
+  # privado (sem ir pela Internet), eliminando a necessidade de
+  # `authorized_ip_ranges`.
+  #
+  # `private_dns_zone_id`:
+  #   - "System" (default): AKS gerencia uma PDZ `privatelink.<region>.azmk8s.io`
+  #     dentro do MC_<rg> shadow resource group.
+  #   - "/subscriptions/.../privateDnsZones/privatelink.<region>.azmk8s.io":
+  #     usa PDZ canonical EXISTENTE (recomendado para hub-spoke onde PDZ
+  #     vive no hub network repo — caller deve ter criado vnet_link da
+  #     VNet platform na PDZ antes do apply).
+  #
+  # `private_cluster_public_fqdn_enabled = true` expõe ADICIONALMENTE um
+  # FQDN público (apenas DNS — não permite tráfego). Útil para troubleshooting
+  # via Azure Portal.
+  private_cluster_enabled             = var.enable_private_cluster
+  private_dns_zone_id                 = var.enable_private_cluster ? var.private_dns_zone_id : null
+  private_cluster_public_fqdn_enabled = var.enable_private_cluster ? var.private_cluster_public_fqdn_enabled : false
+
   # --- Azure AD integration -----------------------------------------------
   dynamic "azure_active_directory_role_based_access_control" {
     for_each = var.aad_managed_enabled ? [1] : []
@@ -73,11 +94,16 @@ resource "azurerm_kubernetes_cluster" "platform" {
     }
   }
 
-  api_server_access_profile {
-    authorized_ip_ranges = var.nat_gateway_enabled ? concat(
-      local.authorized_ips,
-      ["${azurerm_public_ip.nat_gateway[0].ip_address}/32"]
-    ) : local.authorized_ips
+  # `api_server_access_profile.authorized_ip_ranges` é EXCLUSIVO com
+  # `private_cluster_enabled = true` (Azure API rejeita ambos no mesmo cluster).
+  dynamic "api_server_access_profile" {
+    for_each = var.enable_private_cluster ? [] : [1]
+    content {
+      authorized_ip_ranges = var.nat_gateway_enabled ? concat(
+        local.authorized_ips,
+        ["${azurerm_public_ip.nat_gateway[0].ip_address}/32"]
+      ) : local.authorized_ips
+    }
   }
 
   dynamic "monitor_metrics" {
