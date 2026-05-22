@@ -23,6 +23,16 @@ output "aks_oidc_issuer_url" {
   value       = azurerm_kubernetes_cluster.platform.oidc_issuer_url
 }
 
+output "aks_private_fqdn" {
+  description = "Private FQDN do API server (apenas se enable_private_cluster = true). Vazio caso contrário."
+  value       = azurerm_kubernetes_cluster.platform.private_fqdn
+}
+
+output "aks_private_cluster_enabled" {
+  description = "Flag indicando se o cluster está em modo private cluster."
+  value       = var.enable_private_cluster
+}
+
 output "keyvault_name" {
   description = "Name of the Key Vault."
   value       = azurerm_key_vault.platform.name
