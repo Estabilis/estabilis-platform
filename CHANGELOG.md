@@ -1,5 +1,44 @@
 # Changelog
 
+## [0.55.0] - 2026-05-22
+
+### Added — `azure/aks`: AKS Private Cluster support (opt-in)
+
+Three new variables enable AKS private cluster mode where the API server is reachable only via a Private Endpoint inside the VNet:
+
+- `enable_private_cluster` (`bool`, default `false`)
+- `private_dns_zone_id` (`string`, default `"System"`)
+- `private_cluster_public_fqdn_enabled` (`bool`, default `false`)
+
+**Why.** Hub-spoke topologies with an external NVA (FortiGate, Palo Alto, etc.) cannot reliably whitelist the AKS egress SNAT IP in `authorized_ip_ranges` — the NVA's public IP can change on destroy/recreate, and on every change the operator has to update every downstream `authorized_ip_ranges`. Private cluster sidesteps the problem: `kubelet → API server` traverses the Private Endpoint intra-VNet, so the egress IP is irrelevant.
+
+**Behavior matrix:**
+
+| `enable_private_cluster` | API server | `authorized_ip_ranges` | `private_dns_zone_id` |
+|---|---|---|---|
+| `false` (default) | Public | Applied | Ignored |
+| `true` | Private (PE only) | Ignored (Azure rejects both) | Applied |
+
+When `enable_private_cluster = true`:
+- `azurerm_kubernetes_cluster.platform` receives `private_cluster_enabled = true` plus `private_dns_zone_id` (either `"System"` for AKS-managed PDZ in the `MC_<rg>` shadow RG, or the ARM ID of an external canonical PDZ in a hub network).
+- `api_server_access_profile` becomes a `dynamic` block that emits **zero blocks** (Azure rejects `authorized_ip_ranges` together with `private_cluster_enabled`).
+- Optional `private_cluster_public_fqdn_enabled` exposes an additional DNS-only public FQDN (no traffic) for troubleshooting via Azure Portal.
+
+**Backward compatibility.** All defaults preserve v0.54.x behavior (public cluster + `authorized_ip_ranges`). Existing downstreams (Cortex AWS, etc.) are unaffected — no plan diff on terraform apply.
+
+**Outputs added:**
+- `aks_private_fqdn` — private FQDN string, empty when `enable_private_cluster = false`.
+- `aks_private_cluster_enabled` — bool flag mirroring the variable.
+
+### Added — `platform-root`: parametrize external-secrets chart version + installCRDs
+
+Two values previously hardcoded in `bootstrap/platform-root/templates/external-secrets.yaml` are now configurable via Helm values:
+
+- `externalSecrets.chartVersion` (default `"2.1.0"`)
+- `externalSecrets.installCRDs` (default `false`)
+
+**Why.** When the upstream chart updates the manifest schema (e.g. `nullBytePolicy` field introduced in 2.2.x), downstream environments tied to the older 2.1.0 CRD enter `ComparisonError`. Operators previously had to fork the platform repo to bump the chart; now a single value override solves it. Symptom observed on cortex-prd 2026-05-20.
+
 ## [0.54.1] - 2026-05-20
 
 ### Fixed — `alloy`: enable clustering on `alloy_self` scrape job
