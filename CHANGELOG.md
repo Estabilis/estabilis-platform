@@ -1,5 +1,40 @@
 # Changelog
 
+## [0.56.0] - 2026-05-26
+
+### Added — `azure`: Private Endpoint toggles for Key Vaults and Storage Accounts
+
+Two new opt-in variables gate PE creation, PDZ + vnet_link, and `public_network_access_enabled = false` on all firewalled resources:
+
+- `keyvault_private_endpoint_enabled` (`bool`, default `false`) — covers KV platform + KV hub. Creates PDZ `privatelink.vaultcore.azure.net` shared between both KVs.
+- `storage_private_endpoint_enabled` (`bool`, default `false`) — covers SA tfstate, cnpg, velero, observability, cost-exports. Reuses existing PDZ `privatelink.blob.core.windows.net`.
+
+When enabled, firewall rules (`network_acls` / `network_rules`) are removed (mutually exclusive with PE-only). When disabled (default), behavior is identical to v0.55.0.
+
+**SA observability** was previously hardcoded PE-only; now gated by the toggle — gets `network_rules { default_action = "Deny" }` when PE is off.
+
+**SA cost-exports** was previously a PE + firewall hybrid (the Allow→Deny dance for Cost Management export creation); when PE is enabled, the SA goes PE-only — Cost Management uses trusted services bypass (`AzureServices`).
+
+### Added — `azure`: diagnostic settings for Key Vaults, Storage Accounts, and ACR
+
+Previously only AKS had a `azurerm_monitor_diagnostic_setting`. Now all firewalled resources send logs to the local LAW:
+
+| Resource | Log categories | Metrics |
+|---|---|---|
+| KV platform, KV hub | `AuditEvent`, `AzurePolicyEvaluationDetails` | `AllMetrics` |
+| SA tfstate, observability, cnpg, velero, cost-exports (blob service) | `StorageRead`, `StorageWrite`, `StorageDelete` | `Transaction` |
+| ACR | `ContainerRegistryRepositoryEvents`, `ContainerRegistryLoginEvents` | — |
+
+All gated by `diagnostics_enabled` (default `true`) + resource-specific toggles (`acr_enabled`, `shared_hub_kv_enabled`, `cost_export_enabled`).
+
+### Added — `azure`: optional external Log Analytics Workspace
+
+New variable `external_log_analytics_workspace_id` (string, default `""`) sends logs to an external LAW **in parallel** with the local LAW. Each resource gets a second `azurerm_monitor_diagnostic_setting` with `-external` suffix. The external diag settings are independent of `diagnostics_enabled` — setting only the external LAW ID (with `diagnostics_enabled = false`) creates external-only diagnostic settings without provisioning a local LAW.
+
+### Added — outputs: `log_analytics_workspace_id`, `log_analytics_workspace_name`
+
+Exposes the local LAW ARM ID and name (null when `diagnostics_enabled = false`).
+
 ## [0.55.0] - 2026-05-22
 
 ### Added — `azure/aks`: AKS Private Cluster support (opt-in)
