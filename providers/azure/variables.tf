@@ -941,6 +941,28 @@ variable "storage_private_endpoint_enabled" {
   default     = false
 }
 
+# ---------------------------------------------------------------------------
+# Private DNS Zones — external (hub-spoke) vs local (standalone)
+# ---------------------------------------------------------------------------
+
+variable "external_pdz_blob_id" {
+  description = "ARM resource ID of an external Private DNS Zone for privatelink.blob.core.windows.net (e.g., from a hub). When set, the module skips creating a local blob PDZ and uses this one for all blob PE dns_zone_groups. Leave empty to create a local PDZ (default, standalone mode)."
+  type        = string
+  default     = ""
+}
+
+variable "external_pdz_acr_id" {
+  description = "ARM resource ID of an external Private DNS Zone for privatelink.azurecr.io. When set, skips local ACR PDZ. Leave empty for local (default)."
+  type        = string
+  default     = ""
+}
+
+variable "external_pdz_vaultcore_id" {
+  description = "ARM resource ID of an external Private DNS Zone for privatelink.vaultcore.azure.net. When set, skips local vaultcore PDZ. Leave empty for local (default)."
+  type        = string
+  default     = ""
+}
+
 variable "storage_soft_delete_enabled" {
   description = "Enable blob and container soft delete on all storage accounts."
   type        = bool

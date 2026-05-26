@@ -93,7 +93,7 @@ resource "azurerm_private_endpoint" "cost_exports_blob" {
 
   private_dns_zone_group {
     name                 = "default"
-    private_dns_zone_ids = [azurerm_private_dns_zone.blob.id]
+    private_dns_zone_ids = [local.blob_pdz_id]
   }
 }
 

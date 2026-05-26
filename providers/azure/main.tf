@@ -158,6 +158,17 @@ locals {
   # Storage accounts require IPs without /32 (max /30 or bare IP)
   firewall_base_ips_bare = [for ip in local.firewall_base_ips : replace(ip, "/32", "")]
 
+  # ---------------------------------------------------------------------------
+  # Private DNS Zone resolution — external (hub) vs local (standalone)
+  # ---------------------------------------------------------------------------
+  create_local_blob_pdz      = var.external_pdz_blob_id == ""
+  create_local_acr_pdz       = var.external_pdz_acr_id == ""
+  create_local_vaultcore_pdz = var.external_pdz_vaultcore_id == ""
+
+  blob_pdz_id      = var.external_pdz_blob_id != "" ? var.external_pdz_blob_id : azurerm_private_dns_zone.blob[0].id
+  acr_pdz_id       = var.external_pdz_acr_id != "" ? var.external_pdz_acr_id : azurerm_private_dns_zone.acr[0].id
+  vaultcore_pdz_id = var.external_pdz_vaultcore_id != "" ? var.external_pdz_vaultcore_id : azurerm_private_dns_zone.vaultcore[0].id
+
   # Per-resource firewall IPs (base + extras)
   firewall_keyvault_ips = distinct(concat(local.firewall_base_ips, var.keyvault_extra_allowed_ips))
   firewall_acr_ips      = distinct(concat(local.firewall_base_ips, var.acr_extra_allowed_ips))

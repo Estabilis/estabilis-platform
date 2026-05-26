@@ -59,20 +59,22 @@ resource "azurerm_private_endpoint" "observability_blob" {
 
   private_dns_zone_group {
     name                 = "default"
-    private_dns_zone_ids = [azurerm_private_dns_zone.blob.id]
+    private_dns_zone_ids = [local.blob_pdz_id]
   }
 }
 
 resource "azurerm_private_dns_zone" "blob" {
+  count               = local.create_local_blob_pdz ? 1 : 0
   name                = "privatelink.blob.core.windows.net"
   resource_group_name = azurerm_resource_group.platform.name
   tags                = local.tags
 }
 
 resource "azurerm_private_dns_zone_virtual_network_link" "blob" {
+  count                 = local.create_local_blob_pdz ? 1 : 0
   name                  = "vnetlink-${local.base_name}-blob"
   resource_group_name   = azurerm_resource_group.platform.name
-  private_dns_zone_name = azurerm_private_dns_zone.blob.name
+  private_dns_zone_name = azurerm_private_dns_zone.blob[0].name
   virtual_network_id    = azurerm_virtual_network.platform.id
 }
 
@@ -161,7 +163,7 @@ resource "azurerm_private_endpoint" "cnpg_blob" {
 
   private_dns_zone_group {
     name                 = "default"
-    private_dns_zone_ids = [azurerm_private_dns_zone.blob.id]
+    private_dns_zone_ids = [local.blob_pdz_id]
   }
 }
 
@@ -228,6 +230,6 @@ resource "azurerm_private_endpoint" "velero_blob" {
 
   private_dns_zone_group {
     name                 = "default"
-    private_dns_zone_ids = [azurerm_private_dns_zone.blob.id]
+    private_dns_zone_ids = [local.blob_pdz_id]
   }
 }
