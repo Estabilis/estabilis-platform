@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.57.0] - 2026-05-26
+
+### Added — `azure`: external Private DNS Zone support for hub-spoke topologies
+
+Three new variables allow consumers to pass ARM IDs of centralized hub PDZs instead of the module creating local ones:
+
+- `external_pdz_blob_id` — `privatelink.blob.core.windows.net`
+- `external_pdz_acr_id` — `privatelink.azurecr.io`
+- `external_pdz_vaultcore_id` — `privatelink.vaultcore.azure.net`
+
+**Why.** Hub-spoke architectures (CAF) centralize Private DNS Zones in a connectivity subscription and link all spoke VNets to them. When the platform module also creates its own local PDZs for the same namespaces, Azure rejects the second `vnet_link` with _"A virtual network cannot be linked to multiple zones with overlapping namespaces."_ This was blocking PE adoption for any client already using hub canonical PDZs.
+
+**Behavior.** When any `external_pdz_*_id` is set, the module skips creating the corresponding local PDZ + vnet_link and uses the external ID in all PE `dns_zone_groups`. When empty (default), behavior is identical to v0.56.0 — local PDZs are created as before.
+
+**Migration note.** Existing deployments switching from local to external PDZs will see a destroy of local PDZ resources + in-place update of PE dns_zone_groups. Brief DNS resolution gap during apply — plan a maintenance window or pre-create hub vnet_links before flipping.
+
 ## [0.56.0] - 2026-05-26
 
 ### Added — `azure`: Private Endpoint toggles for Key Vaults and Storage Accounts
