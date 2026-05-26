@@ -157,14 +157,14 @@ resource "azurerm_key_vault_secret" "openai_api_key" {
 # ---------------------------------------------------------------------------
 
 resource "azurerm_private_dns_zone" "vaultcore" {
-  count               = var.keyvault_private_endpoint_enabled ? 1 : 0
+  count               = var.keyvault_private_endpoint_enabled && local.create_local_vaultcore_pdz ? 1 : 0
   name                = "privatelink.vaultcore.azure.net"
   resource_group_name = azurerm_resource_group.platform.name
   tags                = local.tags
 }
 
 resource "azurerm_private_dns_zone_virtual_network_link" "vaultcore" {
-  count                 = var.keyvault_private_endpoint_enabled ? 1 : 0
+  count                 = var.keyvault_private_endpoint_enabled && local.create_local_vaultcore_pdz ? 1 : 0
   name                  = "vnetlink-${local.base_name}-vaultcore"
   resource_group_name   = azurerm_resource_group.platform.name
   private_dns_zone_name = azurerm_private_dns_zone.vaultcore[0].name
@@ -188,6 +188,6 @@ resource "azurerm_private_endpoint" "keyvault_platform" {
 
   private_dns_zone_group {
     name                 = "default"
-    private_dns_zone_ids = [azurerm_private_dns_zone.vaultcore[0].id]
+    private_dns_zone_ids = [local.vaultcore_pdz_id]
   }
 }

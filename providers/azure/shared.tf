@@ -123,6 +123,6 @@ resource "azurerm_private_endpoint" "keyvault_hub" {
 
   private_dns_zone_group {
     name                 = "default"
-    private_dns_zone_ids = [azurerm_private_dns_zone.vaultcore[0].id]
+    private_dns_zone_ids = [local.vaultcore_pdz_id]
   }
 }

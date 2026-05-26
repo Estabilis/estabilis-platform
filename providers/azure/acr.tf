@@ -174,14 +174,14 @@ resource "azurerm_container_registry_cache_rule" "dockerhub" {
 # ---------------------------------------------------------------------------
 
 resource "azurerm_private_dns_zone" "acr" {
-  count               = var.acr_enabled && local.acr_is_premium && var.acr_private_endpoint_enabled ? 1 : 0
+  count               = var.acr_enabled && local.acr_is_premium && var.acr_private_endpoint_enabled && local.create_local_acr_pdz ? 1 : 0
   name                = "privatelink.azurecr.io"
   resource_group_name = azurerm_resource_group.platform.name
   tags                = local.tags
 }
 
 resource "azurerm_private_dns_zone_virtual_network_link" "acr" {
-  count                 = var.acr_enabled && local.acr_is_premium && var.acr_private_endpoint_enabled ? 1 : 0
+  count                 = var.acr_enabled && local.acr_is_premium && var.acr_private_endpoint_enabled && local.create_local_acr_pdz ? 1 : 0
   name                  = "acr-dns-link"
   resource_group_name   = azurerm_resource_group.platform.name
   private_dns_zone_name = azurerm_private_dns_zone.acr[0].name
@@ -206,7 +206,7 @@ resource "azurerm_private_endpoint" "acr" {
 
   private_dns_zone_group {
     name                 = "acr-dns-group"
-    private_dns_zone_ids = [azurerm_private_dns_zone.acr[0].id]
+    private_dns_zone_ids = [local.acr_pdz_id]
   }
 }
 
