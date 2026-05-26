@@ -130,6 +130,18 @@ output "acr_ci_client_id" {
   value       = var.acr_enabled && var.acr_ci_identity_enabled ? azurerm_user_assigned_identity.acr_ci[0].client_id : ""
 }
 
+# --- Diagnostics ---
+
+output "log_analytics_workspace_id" {
+  description = "Resource ID of the local Log Analytics Workspace (null if diagnostics_enabled=false)."
+  value       = var.diagnostics_enabled ? azurerm_log_analytics_workspace.platform[0].id : null
+}
+
+output "log_analytics_workspace_name" {
+  description = "Name of the local Log Analytics Workspace (null if diagnostics_enabled=false)."
+  value       = var.diagnostics_enabled ? azurerm_log_analytics_workspace.platform[0].name : null
+}
+
 # --- Network ---
 
 output "nat_gateway_public_ip" {

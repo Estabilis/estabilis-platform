@@ -3,17 +3,18 @@
 # ---------------------------------------------------------------------------
 
 resource "azurerm_key_vault" "platform" {
-  name                       = "kv-${var.name_prefix}-${local.env_code}-${random_string.storage_suffix.result}"
-  location                   = azurerm_resource_group.platform.location
-  resource_group_name        = azurerm_resource_group.platform.name
-  tenant_id                  = var.tenant_id
-  sku_name                   = "standard"
-  rbac_authorization_enabled = true
-  soft_delete_retention_days = var.keyvault_soft_delete_days
-  purge_protection_enabled   = var.keyvault_purge_protection
+  name                          = "kv-${var.name_prefix}-${local.env_code}-${random_string.storage_suffix.result}"
+  location                      = azurerm_resource_group.platform.location
+  resource_group_name           = azurerm_resource_group.platform.name
+  tenant_id                     = var.tenant_id
+  sku_name                      = "standard"
+  rbac_authorization_enabled    = true
+  soft_delete_retention_days    = var.keyvault_soft_delete_days
+  purge_protection_enabled      = var.keyvault_purge_protection
+  public_network_access_enabled = var.keyvault_private_endpoint_enabled ? false : true
 
   dynamic "network_acls" {
-    for_each = var.firewall_enabled ? [1] : []
+    for_each = !var.keyvault_private_endpoint_enabled && var.firewall_enabled ? [1] : []
     content {
       default_action             = "Deny"
       bypass                     = "AzureServices"
@@ -148,4 +149,45 @@ resource "azurerm_key_vault_secret" "openai_api_key" {
   key_vault_id = azurerm_key_vault.platform.id
 
   depends_on = [azurerm_role_assignment.terraform_kv_officer]
+}
+
+# ---------------------------------------------------------------------------
+# Private Endpoint — Key Vault (platform) via VNet
+# PDZ vaultcore is shared with the hub KV in shared.tf
+# ---------------------------------------------------------------------------
+
+resource "azurerm_private_dns_zone" "vaultcore" {
+  count               = var.keyvault_private_endpoint_enabled ? 1 : 0
+  name                = "privatelink.vaultcore.azure.net"
+  resource_group_name = azurerm_resource_group.platform.name
+  tags                = local.tags
+}
+
+resource "azurerm_private_dns_zone_virtual_network_link" "vaultcore" {
+  count                 = var.keyvault_private_endpoint_enabled ? 1 : 0
+  name                  = "vnetlink-${local.base_name}-vaultcore"
+  resource_group_name   = azurerm_resource_group.platform.name
+  private_dns_zone_name = azurerm_private_dns_zone.vaultcore[0].name
+  virtual_network_id    = azurerm_virtual_network.platform.id
+}
+
+resource "azurerm_private_endpoint" "keyvault_platform" {
+  count               = var.keyvault_private_endpoint_enabled ? 1 : 0
+  name                = "pe-${local.base_name}-kv-vault"
+  location            = azurerm_resource_group.platform.location
+  resource_group_name = azurerm_resource_group.platform.name
+  subnet_id           = azurerm_subnet.aks_nodes.id
+  tags                = local.tags
+
+  private_service_connection {
+    name                           = "psc-${local.base_name}-kv-vault"
+    private_connection_resource_id = azurerm_key_vault.platform.id
+    subresource_names              = ["vault"]
+    is_manual_connection           = false
+  }
+
+  private_dns_zone_group {
+    name                 = "default"
+    private_dns_zone_ids = [azurerm_private_dns_zone.vaultcore[0].id]
+  }
 }

@@ -925,6 +925,22 @@ variable "storage_velero_extra_allowed_ips" {
   default     = []
 }
 
+# ---------------------------------------------------------------------------
+# Private Endpoints (opt-in — zero public access + VNet-only connectivity)
+# ---------------------------------------------------------------------------
+
+variable "keyvault_private_endpoint_enabled" {
+  description = "Enable Private Endpoint for Key Vaults (platform + hub). When true, public access is disabled and firewall rules are removed."
+  type        = bool
+  default     = false
+}
+
+variable "storage_private_endpoint_enabled" {
+  description = "Enable Private Endpoint for Storage Accounts (tfstate, cnpg, velero, observability, cost-exports). When true, public access is disabled and firewall rules are removed."
+  type        = bool
+  default     = false
+}
+
 variable "storage_soft_delete_enabled" {
   description = "Enable blob and container soft delete on all storage accounts."
   type        = bool
@@ -957,6 +973,12 @@ variable "log_analytics_retention_days" {
   description = "Retention days for Log Analytics Workspace (AKS audit logs)."
   type        = number
   default     = 30
+}
+
+variable "external_log_analytics_workspace_id" {
+  description = "Optional ARM resource ID of an external Log Analytics Workspace. When set, all diagnostic settings send logs to BOTH the local LAW and this external LAW. Useful for centralized logging (hub LAW, SIEM, compliance). The local LAW continues to exist for OMS agent and local queries."
+  type        = string
+  default     = ""
 }
 
 # ---------------------------------------------------------------------------
