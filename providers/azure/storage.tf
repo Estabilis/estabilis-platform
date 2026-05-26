@@ -11,8 +11,7 @@ resource "azurerm_storage_account" "observability" {
   min_tls_version                 = "TLS1_2"
   shared_access_key_enabled       = false
   allow_nested_items_to_be_public = false
-
-  public_network_access_enabled = false
+  public_network_access_enabled   = var.storage_private_endpoint_enabled ? false : true
 
   dynamic "blob_properties" {
     for_each = var.storage_soft_delete_enabled ? [1] : []
@@ -25,14 +24,26 @@ resource "azurerm_storage_account" "observability" {
       }
     }
   }
+
+  dynamic "network_rules" {
+    for_each = !var.storage_private_endpoint_enabled && var.firewall_enabled ? [1] : []
+    content {
+      default_action             = "Deny"
+      bypass                     = ["AzureServices"]
+      ip_rules                   = local.firewall_base_ips_bare
+      virtual_network_subnet_ids = local.firewall_base_subnet_ids
+    }
+  }
+
   tags = local.tags
 }
 
 # ---------------------------------------------------------------------------
-# Private Endpoint — blob access only via VNet
+# Private Endpoint — observability blob access via VNet
 # ---------------------------------------------------------------------------
 
 resource "azurerm_private_endpoint" "observability_blob" {
+  count               = var.storage_private_endpoint_enabled ? 1 : 0
   name                = "pe-${local.base_name}-obs-blob"
   location            = azurerm_resource_group.platform.location
   resource_group_name = azurerm_resource_group.platform.name
@@ -100,6 +111,7 @@ resource "azurerm_storage_account" "cnpg_backup" {
   min_tls_version                 = "TLS1_2"
   shared_access_key_enabled       = false
   allow_nested_items_to_be_public = false
+  public_network_access_enabled   = var.storage_private_endpoint_enabled ? false : true
 
   dynamic "blob_properties" {
     for_each = var.storage_soft_delete_enabled ? [1] : []
@@ -114,7 +126,7 @@ resource "azurerm_storage_account" "cnpg_backup" {
   }
 
   dynamic "network_rules" {
-    for_each = var.firewall_enabled ? [1] : []
+    for_each = !var.storage_private_endpoint_enabled && var.firewall_enabled ? [1] : []
     content {
       default_action             = "Deny"
       bypass                     = ["AzureServices"]
@@ -132,6 +144,27 @@ resource "azurerm_storage_container" "cnpg_backup" {
   container_access_type = "private"
 }
 
+resource "azurerm_private_endpoint" "cnpg_blob" {
+  count               = var.storage_private_endpoint_enabled ? 1 : 0
+  name                = "pe-${local.base_name}-cnpg-blob"
+  location            = azurerm_resource_group.platform.location
+  resource_group_name = azurerm_resource_group.platform.name
+  subnet_id           = azurerm_subnet.aks_nodes.id
+  tags                = local.tags
+
+  private_service_connection {
+    name                           = "psc-${local.base_name}-cnpg-blob"
+    private_connection_resource_id = azurerm_storage_account.cnpg_backup.id
+    subresource_names              = ["blob"]
+    is_manual_connection           = false
+  }
+
+  private_dns_zone_group {
+    name                 = "default"
+    private_dns_zone_ids = [azurerm_private_dns_zone.blob.id]
+  }
+}
+
 # ---------------------------------------------------------------------------
 # Storage Account – Velero Backup (Kubernetes disaster recovery)
 # ---------------------------------------------------------------------------
@@ -145,6 +178,7 @@ resource "azurerm_storage_account" "velero_backup" {
   min_tls_version                 = "TLS1_2"
   shared_access_key_enabled       = false
   allow_nested_items_to_be_public = false
+  public_network_access_enabled   = var.storage_private_endpoint_enabled ? false : true
 
   dynamic "blob_properties" {
     for_each = var.storage_soft_delete_enabled ? [1] : []
@@ -159,7 +193,7 @@ resource "azurerm_storage_account" "velero_backup" {
   }
 
   dynamic "network_rules" {
-    for_each = var.firewall_enabled ? [1] : []
+    for_each = !var.storage_private_endpoint_enabled && var.firewall_enabled ? [1] : []
     content {
       default_action             = "Deny"
       bypass                     = ["AzureServices"]
@@ -175,4 +209,25 @@ resource "azurerm_storage_container" "velero_backup" {
   name                  = "velero-backup"
   storage_account_id    = azurerm_storage_account.velero_backup.id
   container_access_type = "private"
+}
+
+resource "azurerm_private_endpoint" "velero_blob" {
+  count               = var.storage_private_endpoint_enabled ? 1 : 0
+  name                = "pe-${local.base_name}-velero-blob"
+  location            = azurerm_resource_group.platform.location
+  resource_group_name = azurerm_resource_group.platform.name
+  subnet_id           = azurerm_subnet.aks_nodes.id
+  tags                = local.tags
+
+  private_service_connection {
+    name                           = "psc-${local.base_name}-velero-blob"
+    private_connection_resource_id = azurerm_storage_account.velero_backup.id
+    subresource_names              = ["blob"]
+    is_manual_connection           = false
+  }
+
+  private_dns_zone_group {
+    name                 = "default"
+    private_dns_zone_ids = [azurerm_private_dns_zone.blob.id]
+  }
 }

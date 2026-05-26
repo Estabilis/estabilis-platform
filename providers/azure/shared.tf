@@ -27,17 +27,18 @@ resource "azurerm_key_vault" "hub" {
   # 24-char Key Vault name limit. The dashed form "kv-{prefix}-hub-{env}-{suffix}"
   # exceeds 24 chars for most prefixes. Matches the storage account naming
   # convention used elsewhere in the codebase (st{prefix}{env}obs{suffix}).
-  name                       = "kv${var.name_prefix}hub${local.env_code}${random_string.storage_suffix.result}"
-  resource_group_name        = azurerm_resource_group.shared[0].name
-  location                   = azurerm_resource_group.shared[0].location
-  sku_name                   = "standard"
-  tenant_id                  = var.tenant_id
-  rbac_authorization_enabled = true
-  purge_protection_enabled   = var.keyvault_purge_protection
-  soft_delete_retention_days = var.keyvault_soft_delete_days
+  name                          = "kv${var.name_prefix}hub${local.env_code}${random_string.storage_suffix.result}"
+  resource_group_name           = azurerm_resource_group.shared[0].name
+  location                      = azurerm_resource_group.shared[0].location
+  sku_name                      = "standard"
+  tenant_id                     = var.tenant_id
+  rbac_authorization_enabled    = true
+  purge_protection_enabled      = var.keyvault_purge_protection
+  soft_delete_retention_days    = var.keyvault_soft_delete_days
+  public_network_access_enabled = var.keyvault_private_endpoint_enabled ? false : true
 
   dynamic "network_acls" {
-    for_each = var.firewall_enabled ? [1] : []
+    for_each = !var.keyvault_private_endpoint_enabled && var.firewall_enabled ? [1] : []
     content {
       default_action             = "Deny"
       bypass                     = "AzureServices"
@@ -99,3 +100,29 @@ resource "azurerm_key_vault_secret" "hub_egress_ip" {
 # estabilis CLI during `estabilis upstart`, after the workload-operator
 # chart is synced and the ServiceAccount token exists in Kubernetes.
 # See: estabilis-platform-tools issue #69.
+
+# ---------------------------------------------------------------------------
+# Private Endpoint — Key Vault (hub) via VNet
+# Shares the PDZ vaultcore declared in keyvault.tf
+# ---------------------------------------------------------------------------
+
+resource "azurerm_private_endpoint" "keyvault_hub" {
+  count               = var.shared_hub_kv_enabled && var.keyvault_private_endpoint_enabled ? 1 : 0
+  name                = "pe-${local.base_name}-hub-vault"
+  location            = azurerm_resource_group.shared[0].location
+  resource_group_name = azurerm_resource_group.shared[0].name
+  subnet_id           = azurerm_subnet.aks_nodes.id
+  tags                = local.tags
+
+  private_service_connection {
+    name                           = "psc-${local.base_name}-hub-vault"
+    private_connection_resource_id = azurerm_key_vault.hub[0].id
+    subresource_names              = ["vault"]
+    is_manual_connection           = false
+  }
+
+  private_dns_zone_group {
+    name                 = "default"
+    private_dns_zone_ids = [azurerm_private_dns_zone.vaultcore[0].id]
+  }
+}
