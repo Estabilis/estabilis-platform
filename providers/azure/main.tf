@@ -159,6 +159,11 @@ locals {
   firewall_base_ips_bare = [for ip in local.firewall_base_ips : replace(ip, "/32", "")]
 
   # ---------------------------------------------------------------------------
+  # AKS identity — UAMI when private_dns_zone_id is an ARM resource ID
+  # ---------------------------------------------------------------------------
+  use_uami = var.enable_private_cluster && !contains(["System", "None", ""], var.private_dns_zone_id)
+
+  # ---------------------------------------------------------------------------
   # Private DNS Zone resolution — external (hub) vs local (standalone)
   # ---------------------------------------------------------------------------
   create_local_blob_pdz      = var.external_pdz_blob_id == ""
