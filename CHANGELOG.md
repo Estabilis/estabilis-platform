@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.60.1] - 2026-05-27
+
+### Fixed — `azure`: ACR network_rule_set + SP tags perpetual drift
+
+- **ACR `network_rule_set`**: replaced attribute assignment (`= []`) with `dynamic` block. When conditions are false (private endpoint enabled, firewall off, or non-Premium SKU), the block is omitted entirely. Azure API always returns a default `Allow` ruleset; setting `[]` caused perpetual plan diff.
+- **ACR push SP tags**: added `local.base_name` to `azuread_service_principal.acr_push_azdo` tags, aligning with the `azuread_application` which already includes it. The missing tag caused Terraform to remove the deployment-specific identifier on every apply.
+
 ## [0.60.0] - 2026-05-27
 
 ### Added — `traefik`: migrate values to gitops + fix platform-root override + fix namespace
