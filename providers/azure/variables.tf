@@ -441,6 +441,17 @@ variable "nat_gateway_idle_timeout" {
   default     = 4
 }
 
+variable "outbound_type" {
+  description = "AKS outbound type. 'loadBalancer' (Azure-managed PIP+LB), 'userAssignedNATGateway' (when nat_gateway_enabled=true), 'userDefinedRouting' (egress via NVA/FortiGate UDR). Empty string auto-detects from nat_gateway_enabled. When 'userDefinedRouting', a UDR with 0.0.0.0/0 pointing to the NVA must exist on the node subnet BEFORE cluster creation."
+  type        = string
+  default     = ""
+
+  validation {
+    condition     = var.outbound_type == "" || contains(["loadBalancer", "userAssignedNATGateway", "userDefinedRouting"], var.outbound_type)
+    error_message = "outbound_type must be one of: loadBalancer, userAssignedNATGateway, userDefinedRouting (or empty for auto-detection)."
+  }
+}
+
 variable "nsg_enabled" {
   description = "Enable Network Security Group on AKS node subnet for defense in depth."
   type        = bool
