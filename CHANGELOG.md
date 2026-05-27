@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.59.1] - 2026-05-27
+
+### Added — `azure`: hub-cluster bridge annotations (ADR 0023 Etapa B parity)
+
+Adds 5 annotations to the `hub-cluster` Secret that the AWS provider already publishes, enabling client ApplicationSets to inject cluster-level metadata as helm parameters:
+
+- `bridge.region` — Azure region (`var.location`)
+- `bridge.cluster-name` — `{name_prefix}-{deployment_id}`, used to compose app FQDNs
+- `bridge.domain` — DNS zone root, used to compose app FQDNs
+- `bridge.tier` — normalized environment (`prd`/`prod` → `"production"`, others keep name)
+- `bridge.secret-path-template` — Vault path template for ExternalSecret resolution (empty when `vault_enabled = false`, fail-loud)
+- `bridge.hub-secrets-path-prefix` — shared hub secrets path in HashiCorp Vault for workload-operator (empty when `vault_enabled = false`)
+- `bridge.internal-domain` — internal DNS domain for dual-FQDN Ingress
+
+The `bridge_tier`, `bridge_secret_path_template`, and `shared_hub_secrets_prefix_effective` locals replicate the exact AWS logic — provider-agnostic, not Azure-specific.
+
+New variables:
+- `shared_hub_secrets_prefix` (string, default `""`) — customizable Vault path prefix, defaults to `estabilis/shared/{name_prefix}`
+- `internal_domain` (string, default `""`) — internal DNS domain for VNet-scoped access
+
+- `bridge.ingress-group-name` — empty string (ALB concept, no Azure equivalent; keeps interface symmetry with AWS)
+
 ## [0.59.0] - 2026-05-27
 
 ### Changed — `azure`: bump kubernetes provider v2 → v3
