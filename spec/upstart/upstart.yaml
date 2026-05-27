@@ -118,6 +118,7 @@ bootstrap:
           helm:
             valueFiles:
               - $values/bootstrap/platform-root/values.yaml
+              - $overrides/overrides/platform-root/values.yaml
             ignoreMissingValueFiles: true
             # 'auto' is a renderer directive: inject every resolved key from
             # params.resolve_platform_params (minus internals prefixed `_`)

@@ -15,18 +15,18 @@ spec:
       targetRevision: "39.0.5"
       helm:
         valueFiles:
-          - $values/core/components/traefik/values.yaml
-          - $values/core/components/traefik/values-{{ .Values.global.provider }}.yaml
+          - $values/values/platform/traefik.yaml
+          - $values/values/platform/traefik-{{ .Values.global.provider }}.yaml
           {{- include "platform-root.overrideValueFile" (dict "component" "traefik" "root" $) | nindent 10 }}
-        {{- include "platform-root.ignoreMissingValueFiles" $ | nindent 8 }}
+        ignoreMissingValueFiles: true
         valuesObject:
           {{- /* Scheduling (ADR 0012 — issue #97) */}}
           {{- include "platform-root.schedulingValuesTopLevel" (dict
                 "mode" (default "auto" (index .Values.scheduling "traefik"))
              "provider" .Values.global.provider
              ) | nindent 10 }}
-    - repoURL: {{ .Values.platformRepoUrl }}
-      targetRevision: {{ .Values.platformVersion }}
+    - repoURL: {{ .Values.platformGitopsRepoUrl }}
+      targetRevision: {{ .Values.platformGitopsVersion }}
       ref: values
     {{- include "platform-root.overrideSource" . | nindent 4 }}
   destination:
