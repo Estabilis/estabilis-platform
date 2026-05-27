@@ -11,7 +11,7 @@
 # Issue: https://github.com/Estabilis/estabilis-platform/issues/57
 # ---------------------------------------------------------------------------
 
-resource "kubernetes_namespace" "argocd" {
+resource "kubernetes_namespace_v1" "argocd" {
   count = var.platform_outputs_enabled ? 1 : 0
 
   metadata {
@@ -23,16 +23,21 @@ resource "kubernetes_namespace" "argocd" {
   }
 }
 
+moved {
+  from = kubernetes_namespace.argocd
+  to   = kubernetes_namespace_v1.argocd
+}
+
 # ---------------------------------------------------------------------------
 # ConfigMap — non-sensitive platform infrastructure values
 # ---------------------------------------------------------------------------
 
-resource "kubernetes_config_map" "platform_infrastructure" {
+resource "kubernetes_config_map_v1" "platform_infrastructure" {
   count = var.platform_outputs_enabled ? 1 : 0
 
   metadata {
     name      = "platform-infrastructure"
-    namespace = kubernetes_namespace.argocd[0].metadata[0].name
+    namespace = kubernetes_namespace_v1.argocd[0].metadata[0].name
     labels = {
       "app.kubernetes.io/managed-by" = "terraform"
       "app.kubernetes.io/part-of"    = "estabilis-platform"
@@ -40,15 +45,17 @@ resource "kubernetes_config_map" "platform_infrastructure" {
   }
 
   data = {
-    # Platform versions
-    "platformRepoUrl"   = var.platform_repo_url
-    "platformVersion"   = local.platform_version_effective
-    "configRepoUrl"     = var.config_repo_url
-    "configRepoVersion" = var.config_repo_version
-
-    # Client GitOps (structural — version lives in overrides YAML)
-    "clientGitopsRepoUrl" = var.client_gitops_repo_url
-    "deploymentId"        = var.deployment_id
+    # Platform versions + revisions (ADR 0020)
+    "platformRepoUrl"          = var.platform_repo_url
+    "platformVersion"          = local.platform_revision_effective
+    "platformRevision"         = local.platform_revision_effective
+    "configRepoUrl"            = var.config_repo_url
+    "configRepoVersion"        = var.config_repo_version
+    "configRepoRevision"       = local.config_repo_revision_effective
+    "clientGitopsRepoUrl"      = var.client_gitops_repo_url
+    "clientGitopsRepoVersion"  = var.client_gitops_repo_version
+    "clientGitopsRepoRevision" = local.client_gitops_revision_effective
+    "deploymentId"             = var.deployment_id
 
     # Global
     "global.provider"         = "azure"
@@ -62,6 +69,8 @@ resource "kubernetes_config_map" "platform_infrastructure" {
 
     # Azure resources
     "global.clusterName"               = azurerm_kubernetes_cluster.platform.name
+    "global.region"                    = var.location
+    "global.oidcIssuerUrl"             = azurerm_kubernetes_cluster.platform.oidc_issuer_url
     "global.resourceGroup"             = azurerm_resource_group.platform.name
     "global.storageAccountName"        = azurerm_storage_account.observability.name
     "global.cnpgStorageAccountName"    = azurerm_storage_account.cnpg_backup.name
@@ -108,6 +117,14 @@ resource "kubernetes_config_map" "platform_infrastructure" {
     # continuous "Secret does not exist" reconcile errors.
     "global.openaiApiKeyEnabled" = tostring(var.openai_api_key != "")
 
+    # Mimir Alertmanager Slack pipeline
+    "global.slackAlertingEnabled" = tostring(var.slack_alerting_enabled)
+
+    # Ingress controller — derived from toggle state (Azure has no
+    # freeform ingress_controller var; AWS does).
+    "global.ingressController" = var.traefik_enabled ? "traefik" : (var.traefik_internal_enabled ? "traefik-internal" : "none")
+    "global.traefikInternal"   = tostring(var.traefik_internal_enabled)
+
     # Cost
     "global.azureOfferId" = local.azure_offer_id
 
@@ -117,16 +134,21 @@ resource "kubernetes_config_map" "platform_infrastructure" {
   }
 }
 
+moved {
+  from = kubernetes_config_map.platform_infrastructure
+  to   = kubernetes_config_map_v1.platform_infrastructure
+}
+
 # ---------------------------------------------------------------------------
 # Secret — sensitive platform infrastructure values
 # ---------------------------------------------------------------------------
 
-resource "kubernetes_secret" "platform_infrastructure" {
+resource "kubernetes_secret_v1" "platform_infrastructure" {
   count = var.platform_outputs_enabled ? 1 : 0
 
   metadata {
     name      = "platform-infrastructure-sensitive"
-    namespace = kubernetes_namespace.argocd[0].metadata[0].name
+    namespace = kubernetes_namespace_v1.argocd[0].metadata[0].name
     labels = {
       "app.kubernetes.io/managed-by" = "terraform"
       "app.kubernetes.io/part-of"    = "estabilis-platform"
@@ -172,6 +194,11 @@ resource "kubernetes_secret" "platform_infrastructure" {
   }
 }
 
+moved {
+  from = kubernetes_secret.platform_infrastructure
+  to   = kubernetes_secret_v1.platform_infrastructure
+}
+
 # ---------------------------------------------------------------------------
 # ArgoCD Cluster Secret — hub cluster (GitOps Bridge, ADR 0010)
 # ---------------------------------------------------------------------------
@@ -187,12 +214,12 @@ resource "kubernetes_secret" "platform_infrastructure" {
 # treats both as distinct clusters pointing at the same server (selector
 # disambiguates).
 
-resource "kubernetes_secret" "hub_cluster" {
+resource "kubernetes_secret_v1" "hub_cluster" {
   count = var.platform_outputs_enabled ? 1 : 0
 
   metadata {
     name      = "hub-cluster"
-    namespace = kubernetes_namespace.argocd[0].metadata[0].name
+    namespace = kubernetes_namespace_v1.argocd[0].metadata[0].name
     labels = {
       "argocd.argoproj.io/secret-type" = "cluster"
       # ADR 0003 S4 vocabulary
@@ -218,4 +245,9 @@ resource "kubernetes_secret" "hub_cluster" {
       tlsClientConfig = { insecure = false }
     })
   }
+}
+
+moved {
+  from = kubernetes_secret.hub_cluster
+  to   = kubernetes_secret_v1.hub_cluster
 }

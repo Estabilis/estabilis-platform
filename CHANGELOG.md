@@ -1,5 +1,41 @@
 # Changelog
 
+## [0.59.0] - 2026-05-27
+
+### Changed — `azure`: bump kubernetes provider v2 → v3
+
+Upgrades `hashicorp/kubernetes` from `~> 2.37` to `~> 3.1`, renaming all resource types to the `_v1` suffix required by v3. Four `moved` blocks ensure zero-downtime migration (no destroy+recreate) for existing deployments:
+
+- `kubernetes_namespace.argocd` → `kubernetes_namespace_v1.argocd`
+- `kubernetes_config_map.platform_infrastructure` → `kubernetes_config_map_v1.platform_infrastructure`
+- `kubernetes_secret.platform_infrastructure` → `kubernetes_secret_v1.platform_infrastructure`
+- `kubernetes_secret.hub_cluster` → `kubernetes_secret_v1.hub_cluster`
+
+The `moved` blocks can be removed after all deployments have applied at least once with v0.59.0+.
+
+### Added — `azure`: ConfigMap parity with AWS (ADR 0020 revision tracking)
+
+Brings the Azure `platform-infrastructure` ConfigMap to parity with AWS by adding revision tracking keys and infrastructure signals consumed by downstream GitOps:
+
+**Revision tracking (ADR 0020):**
+- `platformRevision` — enables branch tracking; falls back to `platformVersion` → VERSION file
+- `configRepoRevision` — falls back to `configRepoVersion`
+- `clientGitopsRepoVersion` / `clientGitopsRepoRevision` — client GitOps repo pinning
+
+**Infrastructure signals:**
+- `global.region` — Azure region (`var.location`)
+- `global.oidcIssuerUrl` — AKS OIDC issuer URL for workload identity federation
+- `global.ingressController` — derived from `traefik_enabled` / `traefik_internal_enabled` toggles
+- `global.traefikInternal` — explicit flag for internal Traefik instance
+- `global.slackAlertingEnabled` — Mimir Alertmanager Slack pipeline gate
+
+**New variables (all with backwards-compatible defaults):**
+- `platform_revision` (string, default `""`)
+- `config_repo_revision` (string, default `""`)
+- `client_gitops_repo_version` (string, default `""`)
+- `client_gitops_repo_revision` (string, default `""`)
+- `slack_alerting_enabled` (bool, default `false`)
+
 ## [0.58.1] - 2026-05-26
 
 ### Fixed — `azure/aks`: UAMI missing Network Contributor on VNet

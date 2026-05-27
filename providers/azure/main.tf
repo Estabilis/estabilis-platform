@@ -197,9 +197,19 @@ locals {
   # from the repo root; the VERSION file lives at the root.
   # ---------------------------------------------------------------------------
   module_version = trimspace(file("${path.module}/../../VERSION"))
-  platform_version_effective = (
-    length(var.platform_version) > 0 ? var.platform_version : local.module_version
+
+  # ADR 0020 — revision-aware derivation (parity with AWS).
+  # Both `platformVersion` and `platformRevision` ConfigMap keys get the
+  # same effective value — preserves backward compat where child
+  # Applications read `.Values.platformVersion` directly.
+  platform_revision_effective = (
+    length(var.platform_revision) > 0 ? var.platform_revision :
+    length(var.platform_version) > 0 ? var.platform_version :
+    local.module_version
   )
+
+  config_repo_revision_effective   = length(var.config_repo_revision) > 0 ? var.config_repo_revision : var.config_repo_version
+  client_gitops_revision_effective = length(var.client_gitops_repo_revision) > 0 ? var.client_gitops_repo_revision : var.client_gitops_repo_version
 }
 
 # ---------------------------------------------------------------------------
