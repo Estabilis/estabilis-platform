@@ -102,6 +102,22 @@ variable "config_repo_version" {
   }
 }
 
+variable "platform_revision" {
+  description = <<-EOT
+    [OVERRIDE] Git revision (tag OR branch) for the platform source.
+    Leave empty (default) — falls back to platform_version, then VERSION file.
+    ADR 0020: enables branch tracking for continuous reconciliation.
+  EOT
+  type        = string
+  default     = ""
+}
+
+variable "config_repo_revision" {
+  description = "Git revision (tag OR branch) for the config repo. Defaults to config_repo_version when empty. ADR 0020."
+  type        = string
+  default     = ""
+}
+
 variable "config_repo_token" {
   description = "Git access token for the config repository. Pass via secrets.auto.tfvars or TF_VAR_config_repo_token. Required if config_repo_url is a private repo."
   type        = string
@@ -127,6 +143,18 @@ variable "deployment_id" {
     condition     = length(var.deployment_id) > 0
     error_message = "deployment_id is required (e.g., platform-azure-eastus2-hml)."
   }
+}
+
+variable "client_gitops_repo_version" {
+  description = "Git tag for the client GitOps repo. ADR 0020: prefer client_gitops_repo_revision for branch tracking."
+  type        = string
+  default     = ""
+}
+
+variable "client_gitops_repo_revision" {
+  description = "Git revision (tag OR branch) for the client GitOps repo. Defaults to client_gitops_repo_version when empty. ADR 0020."
+  type        = string
+  default     = ""
 }
 
 variable "client_gitops_repo_token" {
@@ -1066,6 +1094,12 @@ variable "openai_api_key" {
   type        = string
   default     = ""
   sensitive   = true
+}
+
+variable "slack_alerting_enabled" {
+  description = "Enable Mimir Alertmanager Slack pipeline. When true, mimir-alertmanager-config chart renders ExternalSecret + ConfigMap + upload Job."
+  type        = bool
+  default     = false
 }
 
 # ---------------------------------------------------------------------------

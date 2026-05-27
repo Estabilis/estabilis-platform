@@ -24,7 +24,7 @@ terraform {
     }
     kubernetes = {
       source  = "hashicorp/kubernetes"
-      version = "~> 2.37"
+      version = "~> 3.1"
     }
     azuredevops = {
       source  = "microsoft/azuredevops"
