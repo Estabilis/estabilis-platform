@@ -19,12 +19,17 @@ resource "azurerm_container_registry" "platform" {
   # Retention for untagged manifests — Premium SKU only (0 = disabled)
   retention_policy_in_days = local.acr_is_premium && var.acr_retention_days > 0 ? var.acr_retention_days : null
 
-  # Network rules — Premium SKU only (disabled when using private endpoint)
-  # Uses centralized firewall rules + ACR-specific extras
-  network_rule_set = local.acr_is_premium && var.firewall_enabled && var.acr_firewall_enabled && !var.acr_private_endpoint_enabled ? [{
-    default_action = "Deny"
-    ip_rule        = [for ip in local.firewall_acr_ips : { action = "Allow", ip_range = ip }]
-  }] : []
+  # Network rules — Premium SKU only (disabled when using private endpoint).
+  # Omitted entirely when not applicable so Azure keeps its default Allow
+  # without causing perpetual drift (Azure API always returns a default
+  # network_rule_set even when Terraform tries to clear it with []).
+  dynamic "network_rule_set" {
+    for_each = local.acr_is_premium && var.firewall_enabled && var.acr_firewall_enabled && !var.acr_private_endpoint_enabled ? [1] : []
+    content {
+      default_action = "Deny"
+      ip_rule        = [for ip in local.firewall_acr_ips : { action = "Allow", ip_range = ip }]
+    }
+  }
 
   # Disable public access when private endpoint is enabled
   public_network_access_enabled = local.acr_is_premium && var.acr_private_endpoint_enabled ? false : true

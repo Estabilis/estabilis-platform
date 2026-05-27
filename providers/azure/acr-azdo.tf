@@ -30,7 +30,7 @@ resource "azuread_application" "acr_push_azdo" {
 resource "azuread_service_principal" "acr_push_azdo" {
   count     = var.acr_enabled && var.azdo_push_automation_enabled ? 1 : 0
   client_id = azuread_application.acr_push_azdo[0].client_id
-  tags      = ["estabilis-platform", "acr-push"]
+  tags      = ["estabilis-platform", "acr-push", local.base_name]
 }
 
 resource "azurerm_role_assignment" "acr_push_azdo_sp" {
