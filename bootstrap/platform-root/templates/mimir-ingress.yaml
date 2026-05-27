@@ -17,7 +17,7 @@
 {{- $hasEnabled := false -}}
 {{- $hasTraefikExposure := false -}}
 {{- range $_, $exp := $exposures }}{{- if $exp.enabled }}{{- $hasEnabled = true }}{{- if ne $exp.ingress_class "alb" }}{{- $hasTraefikExposure = true }}{{- end }}{{- end }}{{- end }}
-{{- $traefikGate := or (eq $hasTraefikExposure false) (ne (index .Values.components "traefik") false) }}
+{{- $traefikGate := or (eq $hasTraefikExposure false) (ne (index .Values.components "traefik") false) (eq (index .Values.components "traefik-internal" | default false) true) }}
 {{- if and $traefikGate $hasEnabled }}
 apiVersion: argoproj.io/v1alpha1
 kind: Application
