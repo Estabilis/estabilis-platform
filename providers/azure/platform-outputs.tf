@@ -72,6 +72,10 @@ resource "kubernetes_config_map_v1" "platform_infrastructure" {
     "global.region"                    = var.location
     "global.oidcIssuerUrl"             = azurerm_kubernetes_cluster.platform.oidc_issuer_url
     "global.resourceGroup"             = azurerm_resource_group.platform.name
+    "global.privateFqdn"               = azurerm_kubernetes_cluster.platform.private_fqdn
+    "global.nodeResourceGroup"         = azurerm_kubernetes_cluster.platform.node_resource_group
+    "global.kubernetesVersion"         = azurerm_kubernetes_cluster.platform.kubernetes_version
+    "global.internalDomain"            = var.internal_domain
     "global.storageAccountName"        = azurerm_storage_account.observability.name
     "global.cnpgStorageAccountName"    = azurerm_storage_account.cnpg_backup.name
     "global.cnpgBackupContainerName"   = "cnpg-backup"
@@ -105,9 +109,17 @@ resource "kubernetes_config_map_v1" "platform_infrastructure" {
     # Gate for hubble-ui-ingress rendering (Hubble UI only exists in ACNS)
     "global.networkDataplane" = var.network_dataplane
 
-    # ACR
-    "global.acrLoginServer"       = var.acr_enabled ? azurerm_container_registry.platform[0].login_server : ""
-    "global.sharedAcrLoginServer" = var.shared_acr_login_server
+    # Container Registry
+    "global.containerRegistryName" = var.acr_enabled ? azurerm_container_registry.platform[0].name : ""
+    "global.acrLoginServer"        = var.acr_enabled ? azurerm_container_registry.platform[0].login_server : ""
+    "global.sharedAcrLoginServer"  = var.shared_acr_login_server
+
+    # Tfstate storage — downstream workload clusters consume via data source
+    "global.tfstateStorageAccountName" = azurerm_storage_account.tfstate.name
+
+    # Log Analytics Workspace
+    "global.logAnalyticsWorkspaceId"   = var.diagnostics_enabled ? azurerm_log_analytics_workspace.platform[0].id : ""
+    "global.logAnalyticsWorkspaceName" = var.diagnostics_enabled ? azurerm_log_analytics_workspace.platform[0].name : ""
 
     # Optional integrations — boolean flags only (never the secret value).
     # platform-secrets chart uses these to gate ExternalSecrets that
