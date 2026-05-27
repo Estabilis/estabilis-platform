@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.58.0] - 2026-05-26
+
+### Added — `azure/aks`: auto-create UAMI when private_dns_zone_id is external
+
+When `private_dns_zone_id` is an ARM resource ID (not `"System"` or `"None"`), AKS with `SystemAssigned` identity cannot write A records to Private DNS Zones outside the `MC_*` shadow RG. The module now automatically:
+
+1. Creates a User Assigned Managed Identity (`mi-{base_name}-aks`)
+2. Assigns `Private DNS Zone Contributor` on the target PDZ
+3. Switches the AKS `identity` block from `SystemAssigned` to `UserAssigned`
+4. Updates the `Network Contributor` role assignment to use the UAMI principal
+
+**No new variables.** The trigger is implicit — `local.use_uami` evaluates to `true` when `enable_private_cluster = true` and `private_dns_zone_id` is not `"System"`, `"None"`, or empty.
+
+**Backward compatibility.** All defaults preserve v0.57.0 behavior. `private_dns_zone_id = "System"` (default) keeps `SystemAssigned` identity.
+
+**Migration note.** Switching an existing cluster from `SystemAssigned + "System"` to `UserAssigned + external PDZ` **recreates the AKS cluster** (identity type change is a force-new). Plan a maintenance window.
+
 ## [0.57.0] - 2026-05-26
 
 ### Added — `azure`: external Private DNS Zone support for hub-spoke topologies
