@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.59.2] - 2026-05-27
+
+### Added — `azure`: ConfigMap missing keys
+
+Adds 8 keys to the `platform-infrastructure` ConfigMap that Terraform already knows but were not published:
+
+- `global.internalDomain` — internal DNS domain for dual-FQDN Ingress (VNet-scoped access)
+- `global.privateFqdn` — AKS API server private FQDN (cross-cluster kubectl, ArgoCD cluster registration)
+- `global.nodeResourceGroup` — MC_ RG for Velero disk snapshots and node troubleshooting
+- `global.kubernetesVersion` — effective K8s version (may differ from requested during upgrade)
+- `global.containerRegistryName` — provider-agnostic registry name (complements existing `acrLoginServer`)
+- `global.tfstateStorageAccountName` — tfstate SA for downstream workload cluster data sources
+- `global.logAnalyticsWorkspaceId` — ARM ID for workload diagnostic settings
+- `global.logAnalyticsWorkspaceName` — LAW name for queries and troubleshooting
+
+All keys are additive with proper conditional guards (`acr_enabled`, `diagnostics_enabled`).
+
 ## [0.59.1] - 2026-05-27
 
 ### Added — `azure`: hub-cluster bridge annotations (ADR 0023 Etapa B parity)
