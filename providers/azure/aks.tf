@@ -1,4 +1,24 @@
 # ---------------------------------------------------------------------------
+# UAMI for AKS — required when private_dns_zone_id is an external ARM ID
+# AKS with SystemAssigned cannot write A records to PDZs outside the MC_ RG.
+# ---------------------------------------------------------------------------
+
+resource "azurerm_user_assigned_identity" "aks" {
+  count               = local.use_uami ? 1 : 0
+  name                = "mi-${local.base_name}-aks"
+  location            = azurerm_resource_group.platform.location
+  resource_group_name = azurerm_resource_group.platform.name
+  tags                = local.tags
+}
+
+resource "azurerm_role_assignment" "aks_pdz_contributor" {
+  count                = local.use_uami ? 1 : 0
+  scope                = var.private_dns_zone_id
+  role_definition_name = "Private DNS Zone Contributor"
+  principal_id         = azurerm_user_assigned_identity.aks[0].principal_id
+}
+
+# ---------------------------------------------------------------------------
 # AKS Cluster
 # ---------------------------------------------------------------------------
 
@@ -16,7 +36,8 @@ resource "azurerm_kubernetes_cluster" "platform" {
 
   # --- Identity ----------------------------------------------------------
   identity {
-    type = "SystemAssigned"
+    type         = local.use_uami ? "UserAssigned" : "SystemAssigned"
+    identity_ids = local.use_uami ? [azurerm_user_assigned_identity.aks[0].id] : null
   }
 
   workload_identity_enabled = true

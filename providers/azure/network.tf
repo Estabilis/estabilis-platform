@@ -30,7 +30,7 @@ resource "azurerm_subnet" "aks_nodes" {
 resource "azurerm_role_assignment" "aks_network_contributor" {
   scope                = azurerm_subnet.aks_nodes.id
   role_definition_name = "Network Contributor"
-  principal_id         = azurerm_kubernetes_cluster.platform.identity[0].principal_id
+  principal_id         = local.use_uami ? azurerm_user_assigned_identity.aks[0].principal_id : azurerm_kubernetes_cluster.platform.identity[0].principal_id
 }
 
 resource "azurerm_subnet" "aks_pods" {
