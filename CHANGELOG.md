@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.58.1] - 2026-05-26
+
+### Fixed — `azure/aks`: UAMI missing Network Contributor on VNet
+
+The UAMI introduced in v0.58.0 had `Private DNS Zone Contributor` on the PDZ but lacked `Network Contributor` on the VNet. AKS needs `virtualNetworks/join/action` to create the vnet_link from VNet to external PDZ. Also adds `depends_on` for both UAMI role assignments to ensure propagation before cluster creation.
+
+### Added — `azure/aks`: `outbound_type` variable
+
+New variable `outbound_type` (string, default `""`) allows explicit control over AKS egress type. Supports `"userDefinedRouting"` for NVA/FortiGate deployments where egress is via UDR `0.0.0.0/0 → NVA`, avoiding the unnecessary PIP + Load Balancer that Azure creates in the MC_ RG with `loadBalancer` mode.
+
+When empty (default): auto-detects from `nat_gateway_enabled` (current behavior preserved).
+
 ## [0.58.0] - 2026-05-26
 
 ### Added — `azure/aks`: auto-create UAMI when private_dns_zone_id is external
