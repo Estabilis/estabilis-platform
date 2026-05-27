@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.60.0] - 2026-05-27
+
+### Added — `traefik`: migrate values to gitops + fix platform-root override + fix namespace
+
+Three changes shipped together:
+
+1. **platform-root override loading**: `upstart.yaml` now includes `$overrides/overrides/platform-root/values.yaml` in the platform-root Application's valueFiles. Downstream config repos can now toggle `components.*` (traefik, traefik-internal, etc.) via override — previously silently ignored.
+2. **traefik-internal namespace fix**: destination namespace changed from `traefik-internal` to `traefik`. `releaseName: traefik-internal` already isolates k8s resources; the separate namespace broke AppProject destinations and was not pre-created by upstart.
+3. **traefik values migrated to gitops**: `$values` ref in traefik.yaml and traefik-internal.yaml switched from `platformRepoUrl`/`platformVersion` to `platformGitopsRepoUrl`/`platformGitopsVersion`. Value files now at `values/platform/traefik*.yaml` in estabilis-platform-gitops (v0.40.0+). Old `core/components/traefik/` and `core/components/traefik-internal/` deleted. `ignoreMissingValueFiles: true` set unconditionally (vault pattern).
+
+**Requires**: estabilis-platform-gitops v0.40.0 tagged first (values must exist before templates reference them).
+
 ## [0.59.2] - 2026-05-27
 
 ### Added — `azure`: ConfigMap missing keys
