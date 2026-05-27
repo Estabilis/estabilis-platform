@@ -18,6 +18,13 @@ resource "azurerm_role_assignment" "aks_pdz_contributor" {
   principal_id         = azurerm_user_assigned_identity.aks[0].principal_id
 }
 
+resource "azurerm_role_assignment" "aks_uami_vnet_contributor" {
+  count                = local.use_uami ? 1 : 0
+  scope                = azurerm_virtual_network.platform.id
+  role_definition_name = "Network Contributor"
+  principal_id         = azurerm_user_assigned_identity.aks[0].principal_id
+}
+
 # ---------------------------------------------------------------------------
 # AKS Cluster
 # ---------------------------------------------------------------------------
@@ -100,7 +107,7 @@ resource "azurerm_kubernetes_cluster" "platform" {
     network_plugin_mode = "overlay"
     network_data_plane  = var.network_dataplane == "cilium" || var.network_dataplane == "cilium-acns" ? "cilium" : "azure"
     network_policy      = var.network_dataplane == "cilium" || var.network_dataplane == "cilium-acns" ? "cilium" : null
-    outbound_type       = var.nat_gateway_enabled ? "userAssignedNATGateway" : "loadBalancer"
+    outbound_type       = var.outbound_type != "" ? var.outbound_type : (var.nat_gateway_enabled ? "userAssignedNATGateway" : "loadBalancer")
     service_cidr        = var.service_cidr
     dns_service_ip      = var.dns_service_ip
     pod_cidr            = var.pod_cidr
@@ -160,6 +167,8 @@ resource "azurerm_kubernetes_cluster" "platform" {
   depends_on = [
     azurerm_subnet_nat_gateway_association.aks_nodes,
     azurerm_subnet_network_security_group_association.aks_nodes,
+    azurerm_role_assignment.aks_pdz_contributor,
+    azurerm_role_assignment.aks_uami_vnet_contributor,
   ]
 
   tags = local.tags
