@@ -230,11 +230,28 @@ resource "kubernetes_secret_v1" "hub_cluster" {
     }
     annotations = {
       # ADR 0010 v1 bridge registry
-      "estabilis.io/bridge.tenant-id"                   = var.tenant_id
-      "estabilis.io/bridge.subscription-id"             = var.subscription_id
+      "estabilis.io/bridge.tenant-id"       = var.tenant_id
+      "estabilis.io/bridge.subscription-id" = var.subscription_id
+      "estabilis.io/bridge.region"          = var.location
+
+      # ADR 0023 Etapa B — cluster-level metadata consumed by client
+      # gitops ApplicationSets via the `clusters` generator.
+      "estabilis.io/bridge.cluster-name"       = "${var.name_prefix}-${var.deployment_id}"
+      "estabilis.io/bridge.domain"             = var.domain
+      "estabilis.io/bridge.ingress-group-name" = ""
+
       "estabilis.io/bridge.hub-key-vault-name"          = var.shared_hub_kv_enabled ? azurerm_key_vault.hub[0].name : ""
       "estabilis.io/bridge.hub-resource-group"          = var.shared_hub_kv_enabled ? azurerm_resource_group.shared[0].name : ""
+      "estabilis.io/bridge.hub-secrets-path-prefix"     = var.vault_enabled ? local.shared_hub_secrets_prefix_effective : ""
       "estabilis.io/bridge.workload-operator-client-id" = var.shared_hub_kv_enabled ? azurerm_user_assigned_identity.workload_operator[0].client_id : ""
+
+      # ExternalSecret path resolution — consumed by client ApplicationSets
+      # to inject helm parameters into the common-app chart (>= v0.2.0).
+      "estabilis.io/bridge.tier"                 = local.bridge_tier
+      "estabilis.io/bridge.secret-path-template" = local.bridge_secret_path_template
+
+      # Dual-domain — internal FQDN for VNet-scoped access
+      "estabilis.io/bridge.internal-domain" = var.internal_domain
     }
   }
 

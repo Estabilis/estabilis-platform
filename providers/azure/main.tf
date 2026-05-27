@@ -210,6 +210,29 @@ locals {
 
   config_repo_revision_effective   = length(var.config_repo_revision) > 0 ? var.config_repo_revision : var.config_repo_version
   client_gitops_revision_effective = length(var.client_gitops_repo_revision) > 0 ? var.client_gitops_repo_revision : var.client_gitops_repo_version
+
+  # ---------------------------------------------------------------------------
+  # ExternalSecret path resolution — provider-agnostic (parity with AWS).
+  #
+  # Published as hub-cluster Secret annotations so client ApplicationSets
+  # can inject them as helm parameters into the common-app chart (>= v0.2.0).
+  #
+  # Provider mapping (only the template string changes):
+  #   Vault              "secret/data/org/{tier}/{app}"
+  #   Azure Key Vault    "{app}-{tier}"
+  #   AWS Secrets Manager "estabilis/{tier}/{app}"
+  #
+  # When vault_enabled = false, template is empty — chart's `required`
+  # check on `pathTemplate` raises a clear error (fail loud).
+  # ---------------------------------------------------------------------------
+  bridge_tier                 = contains(["prd", "prod"], var.environment) ? "production" : var.environment
+  bridge_secret_path_template = var.vault_enabled ? "secret/data/org/{tier}/{app}" : ""
+
+  # Hub shared secrets prefix — same pattern as AWS (Secrets Manager path).
+  # When vault_enabled, workload-operator uses this path inside HashiCorp
+  # Vault to publish/read hub-registrar-token and shared secrets between
+  # hub and workload clusters.
+  shared_hub_secrets_prefix_effective = length(var.shared_hub_secrets_prefix) > 0 ? var.shared_hub_secrets_prefix : "estabilis/shared/${var.name_prefix}"
 }
 
 # ---------------------------------------------------------------------------

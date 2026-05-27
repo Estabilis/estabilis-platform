@@ -512,6 +512,18 @@ variable "traefik_internal_enabled" {
   default     = false
 }
 
+variable "shared_hub_secrets_prefix" {
+  description = "Prefix for shared hub secrets in HashiCorp Vault. Defaults to 'estabilis/shared/{name_prefix}' when empty. Only relevant when vault_enabled = true."
+  type        = string
+  default     = ""
+}
+
+variable "internal_domain" {
+  description = "Internal DNS domain for in-VNet access (e.g. Azure Private DNS Zone). Published as bridge.internal-domain annotation so ApplicationSets can inject dual-FQDN Ingress hosts."
+  type        = string
+  default     = ""
+}
+
 # ---------------------------------------------------------------------------
 # App exposures — map(object) model (ADR 0014). Each entry is a separate
 # K8s Ingress + Traefik Middleware(s) + Certificate. Operator chooses
