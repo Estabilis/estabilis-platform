@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.60.1] - 2026-05-27
+## [0.60.2] - 2026-05-27
 
 ### Fixed — `azure`: ACR network_rule_set + SP tags perpetual drift
 
