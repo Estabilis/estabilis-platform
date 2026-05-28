@@ -1,5 +1,31 @@
 # Changelog
 
+## [0.61.0] - 2026-05-28
+
+### Added — `exposures`: auto-derive internal hosts from `internal_domain`
+
+Exposure profiles keyed `internal` now auto-derive their host as
+`{app}.{cluster_name}.{internal_domain}` when `var.internal_domain` is set.
+All other profile keys (`external`, `push`, etc.) continue using `var.domain`.
+Explicit `host` values always win over auto-derivation.
+
+- **Azure**: uses existing `var.internal_domain` (no variable change)
+- **AWS**: gains `var.internal_domain` (default `""`, no-op when unset)
+
+Usage example in `terraform.tfvars`:
+
+```hcl
+domain          = "example.dev"
+internal_domain = "azure.example.dev"
+
+grafana_exposures = {
+  external = { enabled = true, ingress_class = "traefik-internal" }
+  internal = { enabled = true, ingress_class = "traefik-internal" }
+}
+# external → grafana.{cluster}.example.dev
+# internal → grafana.{cluster}.azure.example.dev
+```
+
 ## [0.60.2] - 2026-05-27
 
 ### Fixed — `azure`: ACR network_rule_set + SP tags perpetual drift
