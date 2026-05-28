@@ -18,11 +18,11 @@
 {{- $hasEnabled := false -}}
 {{- $hasTraefikExposure := false -}}
 {{- range $_, $exp := $exposures }}{{- if $exp.enabled }}{{- $hasEnabled = true }}{{- if ne $exp.ingress_class "alb" }}{{- $hasTraefikExposure = true }}{{- end }}{{- end }}{{- end }}
-{{- $traefikGate := or (eq $hasTraefikExposure false) (ne (index .Values.components "traefik") false) (eq (index .Values.components "traefik-internal" | default false) true) }}
+{{- $traefikGate := or (eq $hasTraefikExposure false) (ne (index .Values.components "traefik" | toString) "false") (eq (index .Values.components "traefik-internal" | default false | toString) "true") }}
 {{- $dataplane := index .Values.global "networkDataplane" | default "" -}}
 {{- if and
       $traefikGate
-      (eq (index .Values.components "hubble-ui" | default false) true)
+      (or (eq (index .Values.components "hubble-ui" | default false | toString) "true") (eq $dataplane "cilium-acns"))
       (eq $dataplane "cilium-acns")
       $hasEnabled }}
 apiVersion: argoproj.io/v1alpha1
