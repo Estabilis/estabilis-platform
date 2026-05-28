@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.61.1] - 2026-05-28
+
+### Fixed — `platform-root`: read bridge params for component gates
+
+Three component gates relied on `overrides/platform-root/values.yaml`
+instead of consuming Terraform-injected helm parameters:
+
+- **traefik-internal**: now reads `global.traefikInternal` (bridge)
+- **traefik**: auto-disables when `global.ingressController != "traefik"`
+- **hubble-ui**: auto-enables when `global.networkDataplane == "cilium-acns"`
+
+Eliminates the need for manual `overrides/platform-root/values.yaml` to
+toggle these components — Terraform controls everything via the gitops bridge.
+
 ## [0.61.0] - 2026-05-28
 
 ### Added — `exposures`: auto-derive internal hosts from `internal_domain`
