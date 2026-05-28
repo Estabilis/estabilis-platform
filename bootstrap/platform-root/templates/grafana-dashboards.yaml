@@ -31,7 +31,7 @@ spec:
               Without CUR, opencost doesn't render — so its dashboards would
               show empty panels that mislead the operator. */}}
         - name: opencostEnabled
-          value: "{{ and (ne (index .Values.components "opencost") false) (not (empty .Values.global.curBucketName)) }}"
+          value: "{{ and (ne (index .Values.components "opencost" | toString) "false") (not (empty .Values.global.curBucketName)) }}"
   destination:
     server: https://kubernetes.default.svc
     namespace: grafana
