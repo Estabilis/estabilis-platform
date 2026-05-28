@@ -6,7 +6,7 @@
 
   Gated by components.traefik-internal OR global.traefikInternal (bridge).
 */ -}}
-{{- if or (eq (index .Values.components "traefik-internal" | default false) true) (eq (index .Values.global "traefikInternal" | default "false") "true") }}
+{{- if or (eq (index .Values.components "traefik-internal" | default false | toString) "true") (eq (index .Values.global "traefikInternal" | default false | toString) "true") }}
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:

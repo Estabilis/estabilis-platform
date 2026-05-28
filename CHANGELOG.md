@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.61.2] - 2026-05-28
+
+### Fixed — `platform-root`: toString in component gate comparisons
+
+Helm `--set` injects booleans but template `eq` fails with
+"incompatible types for comparison" when comparing bool to string.
+All three component gates now use `| toString` before comparison.
+
 ## [0.61.1] - 2026-05-28
 
 ### Fixed — `platform-root`: read bridge params for component gates
