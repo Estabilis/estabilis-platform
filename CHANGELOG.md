@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.61.3] - 2026-05-28
+
+### Fixed — ingress templates: toString + bridge gates
+
+Same `toString` fix as v0.61.2 applied to all 5 ingress templates
+(argocd, grafana, loki, mimir, hubble-ui). Also adds the
+`networkDataplane == cilium-acns` bridge to `hubble-ui-ingress`
+gate (was only in `hubble-ui`).
+
 ## [0.61.2] - 2026-05-28
 
 ### Fixed — `platform-root`: toString in component gate comparisons
