@@ -10,7 +10,7 @@
   live in `estabilis-platform-gitops`, this repo only carries the bootstrap
   Application template that references them.
 */ -}}
-{{- if and (or (eq .Values.global.provider "aws") (eq .Values.global.provider "azure")) (ne (index .Values.components "vault") false) }}
+{{- if and (or (eq .Values.global.provider "aws") (eq .Values.global.provider "azure")) (ne (index .Values.components "vault" | toString) "false") }}
 {{- /* Source of truth: terraform's `vault.exposuresJson` field on
       platform-infrastructure-sensitive Secret, surfaced into helm values
       as global.vaultExposures by the upstart parameter wiring. */ -}}
@@ -27,7 +27,7 @@
 {{- $hasEnabled := false -}}
 {{- $hasTraefikExposure := false -}}
 {{- range $_, $exp := $exposures }}{{- if $exp.enabled }}{{- $hasEnabled = true }}{{- if ne $exp.ingress_class "alb" }}{{- $hasTraefikExposure = true }}{{- end }}{{- end }}{{- end }}
-{{- $traefikGate := or (eq $hasTraefikExposure false) (ne (index .Values.components "traefik") false) }}
+{{- $traefikGate := or (eq $hasTraefikExposure false) (ne (index .Values.components "traefik" | toString) "false") }}
 {{- if and $traefikGate $hasEnabled }}
 apiVersion: argoproj.io/v1alpha1
 kind: Application

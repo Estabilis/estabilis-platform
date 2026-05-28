@@ -22,7 +22,7 @@
   manually after this Application syncs, then proceeds with downstream
   / runbook procedures.
 */ -}}
-{{- if and (or (eq .Values.global.provider "aws") (eq .Values.global.provider "azure")) (ne (index .Values.components "vault") false) }}
+{{- if and (or (eq .Values.global.provider "aws") (eq .Values.global.provider "azure")) (ne (index .Values.components "vault" | toString) "false") }}
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:

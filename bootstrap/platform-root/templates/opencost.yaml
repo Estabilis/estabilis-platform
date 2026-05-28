@@ -10,7 +10,7 @@
 
        Azure deployments don't write global.curBucketName (CUR is an AWS concept),
        so opencost is naturally skipped on Azure even when explicitly enabled. */ -}}
-{{- if and (ne (index .Values.components "opencost") false) (not (empty .Values.global.curBucketName)) }}
+{{- if and (ne (index .Values.components "opencost" | toString) "false") (not (empty .Values.global.curBucketName)) }}
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:

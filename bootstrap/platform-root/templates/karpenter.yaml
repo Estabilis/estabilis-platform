@@ -27,7 +27,7 @@
   skipped — Terraform leaves the IAM/SQS resources unprovisioned
   in those modes.
 */ -}}
-{{- if and (eq .Values.global.provider "aws") (ne (index .Values.components "karpenter") false) (or (eq .Values.global.autoscaler "karpenter") (eq .Values.global.autoscaler "hybrid")) }}
+{{- if and (eq .Values.global.provider "aws") (ne (index .Values.components "karpenter" | toString) "false") (or (eq .Values.global.autoscaler "karpenter") (eq .Values.global.autoscaler "hybrid")) }}
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:

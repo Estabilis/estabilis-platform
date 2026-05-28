@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.61.4] - 2026-05-28
+
+### Fixed — complete toString in remaining templates
+
+Applies `| toString` to ALL remaining component gates: opencost,
+vault, vault-ingress, karpenter, platform-secrets, grafana-dashboards.
+Completes the sweep started in v0.61.2/v0.61.3.
+
 ## [0.61.3] - 2026-05-28
 
 ### Fixed — ingress templates: toString + bridge gates
