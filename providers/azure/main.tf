@@ -53,38 +53,68 @@ locals {
     for app in ["grafana", "argocd", "loki", "mimir", "hubble", "vault"] : app =>
     "${app}.${azurerm_kubernetes_cluster.platform.name}.${var.domain}"
   }
+  _app_host_internal = {
+    for app in ["grafana", "argocd", "loki", "mimir", "hubble", "vault"] : app =>
+    "${app}.${azurerm_kubernetes_cluster.platform.name}.${var.internal_domain}"
+  }
+  _use_internal_domain = var.internal_domain != ""
 
   # Resolved exposures — applies the auto-derived host when the user left
-  # it empty in tfvars. Explicit values always win. Downstream outputs
-  # (platform-outputs.tf, outputs.tf) consume these, not var.*_exposures.
+  # it empty in tfvars. Profile key "internal" uses internal_domain;
+  # all other keys use domain. Explicit host always wins.
+  # Downstream outputs consume these, not var.*_exposures.
   grafana_exposures_resolved = {
     for k, v in var.grafana_exposures : k => merge(v, {
-      host = length(v.host) > 0 ? v.host : local._app_host.grafana
+      host = length(v.host) > 0 ? v.host : (
+        local._use_internal_domain && k == "internal"
+        ? local._app_host_internal.grafana
+        : local._app_host.grafana
+      )
     })
   }
   loki_exposures_resolved = {
     for k, v in var.loki_exposures : k => merge(v, {
-      host = length(v.host) > 0 ? v.host : local._app_host.loki
+      host = length(v.host) > 0 ? v.host : (
+        local._use_internal_domain && k == "internal"
+        ? local._app_host_internal.loki
+        : local._app_host.loki
+      )
     })
   }
   mimir_exposures_resolved = {
     for k, v in var.mimir_exposures : k => merge(v, {
-      host = length(v.host) > 0 ? v.host : local._app_host.mimir
+      host = length(v.host) > 0 ? v.host : (
+        local._use_internal_domain && k == "internal"
+        ? local._app_host_internal.mimir
+        : local._app_host.mimir
+      )
     })
   }
   argocd_exposures_resolved = {
     for k, v in var.argocd_exposures : k => merge(v, {
-      host = length(v.host) > 0 ? v.host : local._app_host.argocd
+      host = length(v.host) > 0 ? v.host : (
+        local._use_internal_domain && k == "internal"
+        ? local._app_host_internal.argocd
+        : local._app_host.argocd
+      )
     })
   }
   hubble_ui_exposures_resolved = {
     for k, v in var.hubble_ui_exposures : k => merge(v, {
-      host = length(v.host) > 0 ? v.host : local._app_host.hubble
+      host = length(v.host) > 0 ? v.host : (
+        local._use_internal_domain && k == "internal"
+        ? local._app_host_internal.hubble
+        : local._app_host.hubble
+      )
     })
   }
   vault_exposures_resolved = {
     for k, v in var.vault_exposures : k => merge(v, {
-      host = length(v.host) > 0 ? v.host : local._app_host.vault
+      host = length(v.host) > 0 ? v.host : (
+        local._use_internal_domain && k == "internal"
+        ? local._app_host_internal.vault
+        : local._app_host.vault
+      )
     })
   }
 

@@ -19,6 +19,12 @@ variable "domain" {
   type        = string
 }
 
+variable "internal_domain" {
+  description = "Internal DNS domain for in-VPC access (e.g. Route53 Private Hosted Zone). When set, exposure profiles keyed 'internal' auto-derive hosts as {app}.{cluster_name}.{internal_domain}."
+  type        = string
+  default     = ""
+}
+
 variable "environment" {
   description = "Deployment environment identifier."
   type        = string
