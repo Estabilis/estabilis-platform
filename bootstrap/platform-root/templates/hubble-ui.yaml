@@ -1,6 +1,6 @@
 {{- /* optional: downstream can enable via components.hubble-ui: true (ACNS only).
   Also auto-enabled when global.networkDataplane == "cilium-acns" (bridge). */ -}}
-{{- if or (eq (index .Values.components "hubble-ui") true) (eq (index .Values.global "networkDataplane" | default "") "cilium-acns") }}
+{{- if or (eq (index .Values.components "hubble-ui" | default false | toString) "true") (eq (index .Values.global "networkDataplane" | default "") "cilium-acns") }}
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:

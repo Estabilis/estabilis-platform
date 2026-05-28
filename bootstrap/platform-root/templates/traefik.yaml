@@ -3,7 +3,7 @@
   other than "traefik" (e.g. "traefik-internal" for ILB-only clusters). */ -}}
 {{- $icOverride := index .Values.global "ingressController" | default "" -}}
 {{- $trafikDisabledByIC := and (ne $icOverride "") (ne $icOverride "traefik") -}}
-{{- if and (ne (index .Values.components "traefik") false) (not $trafikDisabledByIC) }}
+{{- if and (ne (index .Values.components "traefik" | toString) "false") (not $trafikDisabledByIC) }}
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
