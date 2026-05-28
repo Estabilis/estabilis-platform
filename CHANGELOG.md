@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.61.5] - 2026-05-28
+
+### Fixed — ingress `$traefikGate` reads `global.traefikInternal` bridge
+
+All 6 ingress templates (argocd, grafana, loki, mimir, hubble-ui,
+vault) now include `global.traefikInternal == "true"` in their
+`$traefikGate` OR-chain. Previously, when `components.traefik = false`
+and `components.traefik-internal` defaulted to `false`, the gate
+evaluated to false even though the Terraform bridge correctly
+injected `global.traefikInternal = true`. Result: no ingress apps
+rendered.
+
+After this fix, an ILB-only cluster (traefik disabled, traefik-internal
+enabled via bridge) correctly renders all ingress apps without any
+`overrides/platform-root/values.yaml`.
+
 ## [0.61.4] - 2026-05-28
 
 ### Fixed — complete toString in remaining templates

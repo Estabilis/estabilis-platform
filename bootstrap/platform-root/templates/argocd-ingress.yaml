@@ -21,7 +21,7 @@
 {{- /* Require components.traefik only when at least one exposure
        actually targets a Traefik-style class. ALB-only exposures are
        allowed when components.traefik is false. */}}
-{{- $traefikGate := or (eq $hasTraefikExposure false) (ne (index .Values.components "traefik" | toString) "false") (eq (index .Values.components "traefik-internal" | default false | toString) "true") }}
+{{- $traefikGate := or (eq $hasTraefikExposure false) (ne (index .Values.components "traefik" | toString) "false") (eq (index .Values.components "traefik-internal" | default false | toString) "true") (eq (index .Values.global "traefikInternal" | default false | toString) "true") }}
 {{- if and $traefikGate $hasEnabled }}
 apiVersion: argoproj.io/v1alpha1
 kind: Application
