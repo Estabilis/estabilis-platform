@@ -79,8 +79,8 @@ resource "kubernetes_config_map_v1" "platform_infrastructure" {
     "global.storageAccountName"        = azurerm_storage_account.observability.name
     "global.cnpgStorageAccountName"    = azurerm_storage_account.cnpg_backup.name
     "global.cnpgBackupContainerName"   = "cnpg-backup"
-    "global.veleroStorageAccountName"  = azurerm_storage_account.velero_backup.name
-    "global.veleroBackupContainerName" = "velero-backup"
+    "global.veleroStorageAccountName"  = var.velero_enabled ? azurerm_storage_account.velero_backup[0].name : ""
+    "global.veleroBackupContainerName" = var.velero_enabled ? "velero-backup" : ""
 
     # Backup & Observability
     "global.veleroBackupSchedule"       = var.velero_backup_schedule
@@ -173,8 +173,8 @@ resource "kubernetes_secret_v1" "platform_infrastructure" {
     "global.subscriptionId" = var.subscription_id
 
     # Key Vault
-    "global.keyVaultName" = azurerm_key_vault.platform.name
-    "global.keyVaultUri"  = azurerm_key_vault.platform.vault_uri
+    "global.keyVaultName" = var.keyvault_enabled ? azurerm_key_vault.platform[0].name : ""
+    "global.keyVaultUri"  = var.keyvault_enabled ? azurerm_key_vault.platform[0].vault_uri : ""
 
     # Workload Identity client IDs
     "identity.certManager.clientId"     = azurerm_user_assigned_identity.cert_manager.client_id
@@ -188,7 +188,7 @@ resource "kubernetes_secret_v1" "platform_infrastructure" {
     "identity.loki.clientId"    = azurerm_user_assigned_identity.loki.client_id
     "identity.mimir.clientId"   = azurerm_user_assigned_identity.mimir.client_id
     "identity.cnpg.clientId"    = azurerm_user_assigned_identity.cnpg.client_id
-    "identity.velero.clientId"  = azurerm_user_assigned_identity.velero.client_id
+    "identity.velero.clientId"  = var.velero_enabled ? azurerm_user_assigned_identity.velero[0].client_id : ""
 
     # Workload-operator (publishes hub-registrar-token to hub Key Vault)
     "identity.workloadOperator.clientId" = var.shared_hub_kv_enabled ? azurerm_user_assigned_identity.workload_operator[0].client_id : ""

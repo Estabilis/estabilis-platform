@@ -27,9 +27,9 @@ variable "environment" {
 }
 
 variable "kubernetes_version" {
-  description = "Kubernetes version for the AKS cluster."
+  description = "Kubernetes version for the AKS cluster. v0.62.0: default bumped from 1.34 → 1.35 (workload parity)."
   type        = string
-  default     = "1.34"
+  default     = "1.35"
 }
 
 variable "auto_upgrade_channel" {
@@ -345,14 +345,60 @@ variable "pod_cidr" {
 }
 
 variable "network_dataplane" {
-  description = "Network dataplane for AKS. Options: default (Azure), cilium (managed Cilium, no Hubble), cilium-acns (managed Cilium + Hubble/FQDN, ~$70/mo)."
+  description = "Network dataplane for AKS. Options: default (Azure CNI, no Cilium, no Hubble), cilium (managed Cilium, no Hubble), cilium-acns (managed Cilium + Hubble/FQDN, ~$70/mo), byo-cni (self-managed Cilium + Hubble, DESTROYS AND RECREATES CLUSTER). v0.62.0 BREAKING: default changed from 'default' to 'cilium-acns'. Set explicitly to 'default' to preserve legacy behavior."
   type        = string
-  default     = "default"
+  default     = "cilium-acns"
 
   validation {
-    condition     = contains(["default", "cilium", "cilium-acns"], var.network_dataplane)
-    error_message = "Network dataplane must be one of: default, cilium, cilium-acns."
+    condition     = contains(["default", "cilium", "cilium-acns", "byo-cni"], var.network_dataplane)
+    error_message = "Network dataplane must be one of: default, cilium, cilium-acns, byo-cni."
   }
+}
+
+variable "network_plugin_mode" {
+  description = "Azure CNI plugin mode. Options: 'overlay' (default — pods from pod_cidr, single nodes subnet), 'pod-subnet' (Azure CNI Pod Subnet — pods from dedicated pod_subnet_id, GA per Microsoft Learn 2026-05-13), null (BYO CNI — automatic when network_dataplane='byo-cni'). v0.62.0: default 'overlay' preserves backward compat."
+  type        = string
+  default     = "overlay"
+
+  validation {
+    condition     = var.network_plugin_mode == null || contains(["overlay", "pod-subnet"], var.network_plugin_mode)
+    error_message = "network_plugin_mode must be 'overlay', 'pod-subnet', or null."
+  }
+}
+
+variable "acns_observability_enabled" {
+  description = "Enable Advanced Container Networking Services (ACNS) observability (Hubble flow logs + metrics). Only applies when network_dataplane=cilium-acns. Disabling reduces visibility but saves ~30% of ACNS cost."
+  type        = bool
+  default     = true
+}
+
+variable "acns_security_enabled" {
+  description = "Enable Advanced Container Networking Services (ACNS) security (FQDN filtering via Cilium NetworkPolicies). Only applies when network_dataplane=cilium-acns. Disabling removes FQDN-based egress control."
+  type        = bool
+  default     = true
+}
+
+variable "byo_cni_i_understand_this_destroys_the_cluster" {
+  description = "Safety flag: byo-cni can only be used on initial cluster creation. Switching an existing cluster to byo-cni DESTROYS and RECREATES it. Set to true only if creating a new cluster or you accept full cluster destruction."
+  type        = bool
+  default     = false
+
+  validation {
+    condition     = var.network_dataplane != "byo-cni" || var.byo_cni_i_understand_this_destroys_the_cluster
+    error_message = "byo-cni DESTROYS and RECREATES the cluster. This should only be used on initial creation. If you understand the risk, set byo_cni_i_understand_this_destroys_the_cluster = true."
+  }
+}
+
+variable "cilium_version" {
+  description = "Cilium Helm chart version for byo-cni mode. Ignored for managed dataplanes (cilium, cilium-acns)."
+  type        = string
+  default     = "1.19.2"
+}
+
+variable "external_nat_gateway_egress_ips" {
+  description = "List of NAT Gateway public IPs (from an external network repo, no /32 suffix). When non-empty, these IPs are added to local.firewall_base_ips (so PaaS firewall rules accept traffic from the external egress path) and to the AKS API server's authorized_ip_ranges. Use when the cluster's egress is owned by another Terraform repo (e.g. hub-spoke topology where the NAT GW lives on the hub)."
+  type        = list(string)
+  default     = []
 }
 
 variable "system_os_disk_type" {
@@ -987,9 +1033,44 @@ variable "keyvault_private_endpoint_enabled" {
 }
 
 variable "storage_private_endpoint_enabled" {
-  description = "Enable Private Endpoint for Storage Accounts (tfstate, cnpg, velero, observability, cost-exports). When true, public access is disabled and firewall rules are removed."
+  description = "[DEPRECATED — kept for backward compat] Enable Private Endpoint for ALL Storage Accounts (tfstate, cnpg, velero, observability, cost-exports). Prefer the per-resource granular toggles (tfstate_private_endpoint_enabled, cnpg_private_endpoint_enabled, velero_private_endpoint_enabled, observability_private_endpoint_enabled, cost_exports_private_endpoint_enabled) introduced in v0.62.0. When this var is true, it acts as a FALLBACK for any granular toggle still at its default. Will be removed in v1.0.0."
   type        = bool
   default     = false
+}
+
+# v0.62.0 — granular Storage PE toggles (workload parity).
+# Each one falls back to var.storage_private_endpoint_enabled when not set
+# (preserves the legacy single-toggle behavior). Operators bumping to v0.62.0
+# without changing tfvars see zero diff in plan.
+
+variable "tfstate_private_endpoint_enabled" {
+  description = "Enable Private Endpoint for the tfstate Storage Account. When null (default), inherits from var.storage_private_endpoint_enabled. Requires external_pdz_blob_id when true and no local blob PDZ exists."
+  type        = bool
+  default     = null
+}
+
+variable "cnpg_private_endpoint_enabled" {
+  description = "Enable Private Endpoint for the CNPG backup Storage Account. When null (default), inherits from var.storage_private_endpoint_enabled."
+  type        = bool
+  default     = null
+}
+
+variable "velero_private_endpoint_enabled" {
+  description = "Enable Private Endpoint for the Velero backup Storage Account. When null (default), inherits from var.storage_private_endpoint_enabled. Requires velero_enabled=true."
+  type        = bool
+  default     = null
+}
+
+variable "observability_private_endpoint_enabled" {
+  description = "Enable Private Endpoint for the observability (Loki/Mimir) Storage Account. When null (default), inherits from var.storage_private_endpoint_enabled."
+  type        = bool
+  default     = null
+}
+
+variable "cost_exports_private_endpoint_enabled" {
+  description = "Enable Private Endpoint for the cost exports Storage Account. When null (default), inherits from var.storage_private_endpoint_enabled. Requires cost_export_enabled=true."
+  type        = bool
+  default     = null
 }
 
 # ---------------------------------------------------------------------------
@@ -1320,4 +1401,96 @@ variable "vault_exposures" {
     alb_cloudflare_proxied = optional(bool, false)
   }))
   default = {}
+}
+
+# ===========================================================================
+# v0.62.0 — Workload parity: feature toggles + diagnostic categories
+# ===========================================================================
+#
+# These variables port to the platform module the same surface the workload
+# module already exposes (Batches A + C from the parity audit). Defaults
+# preserve existing platform behavior: no diff in plan for consumers that
+# don't change tfvars.
+# ===========================================================================
+
+# --- Feature toggles previously hardcoded on (workload parity) ----------------
+
+variable "keyvault_enabled" {
+  description = "Provision the platform Key Vault (azurerm_key_vault.platform + secrets + diagnostic settings). Default true preserves the historical always-on behavior. Set to false for stripped-down clusters that source all secrets externally — note the platform currently REQUIRES the KV for its own random_password secrets (argocd_redis, grafana_admin/db), so disabling needs an accompanying override that supplies those secrets elsewhere."
+  type        = bool
+  default     = true
+}
+
+variable "velero_enabled" {
+  description = "Provision Velero infrastructure (azurerm_storage_account.velero_backup + workload identity + role assignments + diagnostic settings + lock). Default true preserves the historical always-on behavior. Set to false to skip Velero (no backup target installed)."
+  type        = bool
+  default     = true
+}
+
+# --- AKS diagnostic categories (operator-tunable) ----------------------------
+
+variable "aks_diagnostic_log_categories" {
+  description = "Log categories enabled on the AKS local diagnostic setting. Default mirrors the previously-hardcoded list (zero diff for existing consumers)."
+  type        = list(string)
+  default     = ["kube-audit-admin", "kube-controller-manager", "kube-scheduler", "cluster-autoscaler", "guard"]
+}
+
+variable "aks_diagnostic_log_categories_external_extra" {
+  description = "Extra log categories enabled ONLY on the external AKS diagnostic setting (in addition to aks_diagnostic_log_categories). Empty by default — platform v0.61.x emitted the same list to both LAW; pass [\"kube-apiserver\"] to start sending the heavyweight API audit only to the central LAW."
+  type        = list(string)
+  default     = []
+}
+
+variable "aks_diagnostic_metric_categories" {
+  description = "Metric categories enabled on the AKS external diagnostic setting. Default empty (parity with prior behavior: external pair shipped only logs)."
+  type        = list(string)
+  default     = []
+}
+
+variable "aks_diagnostic_metric_categories_local" {
+  description = "Metric categories on the AKS LOCAL diagnostic setting. Default empty (parity with prior behavior)."
+  type        = list(string)
+  default     = []
+}
+
+# --- Key Vault diagnostic categories ----------------------------------------
+
+variable "keyvault_diagnostic_log_categories" {
+  description = "Log categories on Key Vault diagnostic settings (platform + hub, local + external pairs)."
+  type        = list(string)
+  default     = ["AuditEvent", "AzurePolicyEvaluationDetails"]
+}
+
+variable "keyvault_diagnostic_metric_categories" {
+  description = "Metric categories on Key Vault diagnostic settings (platform + hub, local + external pairs)."
+  type        = list(string)
+  default     = ["AllMetrics"]
+}
+
+# --- Storage diagnostic categories (shared across tfstate / observability / cnpg / velero / cost) ---
+
+variable "storage_diagnostic_log_categories" {
+  description = "Log categories applied to ALL Storage Account blob diagnostic settings (tfstate, observability, cnpg, velero, cost-exports). Both local and external pairs use the same list."
+  type        = list(string)
+  default     = ["StorageRead", "StorageWrite", "StorageDelete"]
+}
+
+variable "storage_diagnostic_metric_categories" {
+  description = "Metric categories applied to ALL Storage Account blob diagnostic settings."
+  type        = list(string)
+  default     = ["Transaction"]
+}
+
+# --- ACR diagnostic categories ----------------------------------------------
+
+variable "acr_diagnostic_log_categories" {
+  description = "Log categories on ACR diagnostic settings (local + external pairs)."
+  type        = list(string)
+  default     = ["ContainerRegistryRepositoryEvents", "ContainerRegistryLoginEvents"]
+}
+
+variable "acr_diagnostic_metric_categories" {
+  description = "Metric categories on ACR diagnostic settings. Default empty preserves prior behavior — platform v0.61.x did NOT emit ACR metrics. Pass [\"AllMetrics\"] to start collecting."
+  type        = list(string)
+  default     = []
 }

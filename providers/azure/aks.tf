@@ -87,6 +87,7 @@ resource "azurerm_kubernetes_cluster" "platform" {
     node_count                   = var.system_auto_scaling_enabled ? null : var.system_node_count
     vm_size                      = var.system_vm_size
     vnet_subnet_id               = azurerm_subnet.aks_nodes.id
+    pod_subnet_id                = var.network_plugin_mode == "pod-subnet" ? azurerm_subnet.aks_pods.id : null
     os_disk_size_gb              = var.system_os_disk_size_gb
     os_disk_type                 = var.system_os_disk_type
     zones                        = var.system_availability_zones
@@ -102,35 +103,44 @@ resource "azurerm_kubernetes_cluster" "platform" {
   }
 
   # --- Network profile ---------------------------------------------------
+  # v0.62.0 (workload parity):
+  #   - network_dataplane="byo-cni" → network_plugin="none" + Cilium installed via helm_release (cilium.tf)
+  #   - network_plugin_mode enum: "overlay" (Azure CNI Overlay) | "pod-subnet" (Azure CNI Pod Subnet, GA) | null (BYO CNI)
+  #   - ACNS observability/security exposed as toggles (was hardcoded true)
   network_profile {
-    network_plugin      = "azure"
-    network_plugin_mode = "overlay"
-    network_data_plane  = var.network_dataplane == "cilium" || var.network_dataplane == "cilium-acns" ? "cilium" : "azure"
-    network_policy      = var.network_dataplane == "cilium" || var.network_dataplane == "cilium-acns" ? "cilium" : null
-    outbound_type       = var.outbound_type != "" ? var.outbound_type : (var.nat_gateway_enabled ? "userAssignedNATGateway" : "loadBalancer")
-    service_cidr        = var.service_cidr
-    dns_service_ip      = var.dns_service_ip
-    pod_cidr            = var.pod_cidr
+    network_plugin = var.network_dataplane == "byo-cni" ? "none" : "azure"
+    network_plugin_mode = var.network_dataplane == "byo-cni" ? null : (
+      var.network_plugin_mode == "overlay" ? "overlay" : null
+    )
+    network_data_plane = var.network_dataplane == "cilium" || var.network_dataplane == "cilium-acns" ? "cilium" : var.network_dataplane == "byo-cni" ? null : "azure"
+    network_policy     = var.network_dataplane == "cilium" || var.network_dataplane == "cilium-acns" ? "cilium" : null
+    outbound_type      = var.outbound_type != "" ? var.outbound_type : (var.nat_gateway_enabled ? "userAssignedNATGateway" : "loadBalancer")
+    service_cidr       = var.service_cidr
+    dns_service_ip     = var.dns_service_ip
+    pod_cidr           = var.pod_cidr
 
     # ACNS — Advanced Container Networking Services (Hubble + FQDN filtering)
     dynamic "advanced_networking" {
       for_each = var.network_dataplane == "cilium-acns" ? [1] : []
       content {
-        observability_enabled = true
-        security_enabled      = true
+        observability_enabled = var.acns_observability_enabled
+        security_enabled      = var.acns_security_enabled
       }
     }
   }
 
   # `api_server_access_profile.authorized_ip_ranges` é EXCLUSIVO com
   # `private_cluster_enabled = true` (Azure API rejeita ambos no mesmo cluster).
+  # v0.62.0: appends external NAT GW egress IPs (workload parity) when caller
+  # owns the NAT GW in another repo (e.g. hub-spoke topology).
   dynamic "api_server_access_profile" {
     for_each = var.enable_private_cluster ? [] : [1]
     content {
-      authorized_ip_ranges = var.nat_gateway_enabled ? concat(
+      authorized_ip_ranges = distinct(concat(
         local.authorized_ips,
-        ["${azurerm_public_ip.nat_gateway[0].ip_address}/32"]
-      ) : local.authorized_ips
+        var.nat_gateway_enabled ? ["${azurerm_public_ip.nat_gateway[0].ip_address}/32"] : [],
+        [for ip in var.external_nat_gateway_egress_ips : "${ip}/32"],
+      ))
     }
   }
 
@@ -171,7 +181,23 @@ resource "azurerm_kubernetes_cluster" "platform" {
     azurerm_role_assignment.aks_uami_vnet_contributor,
   ]
 
+  # v0.62.0 (workload parity): BYO CNI nodes stay NotReady until Cilium installs,
+  # but the provider polls waiting for Ready. Reduce create timeout to fail fast.
+  timeouts {
+    create = var.network_dataplane == "byo-cni" ? "15m" : "30m"
+    update = "30m"
+    delete = "30m"
+  }
+
   tags = local.tags
+
+  # v0.62.0 (workload parity) — catch invalid combos at plan time.
+  lifecycle {
+    precondition {
+      condition     = !var.enable_private_cluster || var.private_dns_zone_id != ""
+      error_message = "enable_private_cluster=true requires private_dns_zone_id (use 'System' for AKS-managed PDZ in MC_ RG, or an ARM ID of an external canonical PDZ)."
+    }
+  }
 }
 
 # ---------------------------------------------------------------------------

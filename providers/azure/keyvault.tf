@@ -2,7 +2,13 @@
 # Key Vault
 # ---------------------------------------------------------------------------
 
+# v0.62.0 (workload parity): keyvault_enabled toggle. Default true preserves
+# the historical always-on behavior. When false, NO platform KV is created
+# and downstream secret-writing resources are skipped — the operator must
+# supply the platform secrets (argocd_redis, grafana_admin/db, opencost
+# integration, repo tokens) via another mechanism.
 resource "azurerm_key_vault" "platform" {
+  count                         = var.keyvault_enabled ? 1 : 0
   name                          = "kv-${var.name_prefix}-${local.env_code}-${random_string.storage_suffix.result}"
   location                      = azurerm_resource_group.platform.location
   resource_group_name           = azurerm_resource_group.platform.name
@@ -35,7 +41,8 @@ resource "azurerm_key_vault" "platform" {
 data "azurerm_client_config" "current" {}
 
 resource "azurerm_role_assignment" "terraform_kv_officer" {
-  scope                = azurerm_key_vault.platform.id
+  count                = var.keyvault_enabled ? 1 : 0
+  scope                = azurerm_key_vault.platform[0].id
   role_definition_name = "Key Vault Secrets Officer"
   principal_id         = data.azurerm_client_config.current.object_id
 }
@@ -61,31 +68,34 @@ resource "random_password" "grafana_db" {
 }
 
 resource "azurerm_key_vault_secret" "argocd_redis_password" {
+  count        = var.keyvault_enabled ? 1 : 0
   name         = "platform-argocd-redis-password"
   value        = random_password.argocd_redis.result
-  key_vault_id = azurerm_key_vault.platform.id
+  key_vault_id = azurerm_key_vault.platform[0].id
 
   depends_on = [azurerm_role_assignment.terraform_kv_officer]
 }
 
 resource "azurerm_key_vault_secret" "grafana_admin_password" {
+  count        = var.keyvault_enabled ? 1 : 0
   name         = "platform-grafana-admin-password"
   value        = random_password.grafana_admin.result
-  key_vault_id = azurerm_key_vault.platform.id
+  key_vault_id = azurerm_key_vault.platform[0].id
 
   depends_on = [azurerm_role_assignment.terraform_kv_officer]
 }
 
 resource "azurerm_key_vault_secret" "grafana_db_password" {
+  count        = var.keyvault_enabled ? 1 : 0
   name         = "platform-grafana-db-password"
   value        = random_password.grafana_db.result
-  key_vault_id = azurerm_key_vault.platform.id
+  key_vault_id = azurerm_key_vault.platform[0].id
 
   depends_on = [azurerm_role_assignment.terraform_kv_officer]
 }
 
 resource "azurerm_key_vault_secret" "opencost_cloud_integration" {
-  count = var.cost_export_enabled ? 1 : 0
+  count = var.keyvault_enabled && var.cost_export_enabled ? 1 : 0
   name  = "platform-opencost-cloud-integration"
   value = jsonencode({
     azure = {
@@ -103,13 +113,13 @@ resource "azurerm_key_vault_secret" "opencost_cloud_integration" {
       }]
     }
   })
-  key_vault_id = azurerm_key_vault.platform.id
+  key_vault_id = azurerm_key_vault.platform[0].id
 
   depends_on = [azurerm_role_assignment.terraform_kv_officer]
 }
 
 resource "azurerm_key_vault_secret" "opencost_service_key" {
-  count = var.cost_export_enabled ? 1 : 0
+  count = var.keyvault_enabled && var.cost_export_enabled ? 1 : 0
   name  = "platform-opencost-service-key"
   value = jsonencode({
     subscriptionId = var.subscription_id
@@ -119,34 +129,34 @@ resource "azurerm_key_vault_secret" "opencost_service_key" {
       tenant   = var.tenant_id
     }
   })
-  key_vault_id = azurerm_key_vault.platform.id
+  key_vault_id = azurerm_key_vault.platform[0].id
 
   depends_on = [azurerm_role_assignment.terraform_kv_officer]
 }
 
 resource "azurerm_key_vault_secret" "config_repo_token" {
-  count        = var.config_repo_token != "" ? 1 : 0
+  count        = var.keyvault_enabled && var.config_repo_token != "" ? 1 : 0
   name         = "platform-config-repo-token"
   value        = var.config_repo_token
-  key_vault_id = azurerm_key_vault.platform.id
+  key_vault_id = azurerm_key_vault.platform[0].id
 
   depends_on = [azurerm_role_assignment.terraform_kv_officer]
 }
 
 resource "azurerm_key_vault_secret" "client_gitops_repo_token" {
-  count        = var.client_gitops_repo_token != "" ? 1 : 0
+  count        = var.keyvault_enabled && var.client_gitops_repo_token != "" ? 1 : 0
   name         = "platform-client-gitops-repo-token"
   value        = var.client_gitops_repo_token
-  key_vault_id = azurerm_key_vault.platform.id
+  key_vault_id = azurerm_key_vault.platform[0].id
 
   depends_on = [azurerm_role_assignment.terraform_kv_officer]
 }
 
 resource "azurerm_key_vault_secret" "openai_api_key" {
-  count        = var.openai_api_key != "" ? 1 : 0
+  count        = var.keyvault_enabled && var.openai_api_key != "" ? 1 : 0
   name         = "platform-openai-api-key"
   value        = var.openai_api_key
-  key_vault_id = azurerm_key_vault.platform.id
+  key_vault_id = azurerm_key_vault.platform[0].id
 
   depends_on = [azurerm_role_assignment.terraform_kv_officer]
 }
@@ -172,7 +182,7 @@ resource "azurerm_private_dns_zone_virtual_network_link" "vaultcore" {
 }
 
 resource "azurerm_private_endpoint" "keyvault_platform" {
-  count               = var.keyvault_private_endpoint_enabled ? 1 : 0
+  count               = var.keyvault_enabled && var.keyvault_private_endpoint_enabled ? 1 : 0
   name                = "pe-${local.base_name}-kv-vault"
   location            = azurerm_resource_group.platform.location
   resource_group_name = azurerm_resource_group.platform.name
@@ -181,7 +191,7 @@ resource "azurerm_private_endpoint" "keyvault_platform" {
 
   private_service_connection {
     name                           = "psc-${local.base_name}-kv-vault"
-    private_connection_resource_id = azurerm_key_vault.platform.id
+    private_connection_resource_id = azurerm_key_vault.platform[0].id
     subresource_names              = ["vault"]
     is_manual_connection           = false
   }

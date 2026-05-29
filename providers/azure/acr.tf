@@ -131,19 +131,19 @@ resource "azurerm_container_registry_cache_rule" "mcr" {
 
 # Store Docker Hub credentials in Key Vault
 resource "azurerm_key_vault_secret" "dockerhub_username" {
-  count        = var.acr_enabled && var.acr_cache_dockerhub_enabled ? 1 : 0
+  count        = var.keyvault_enabled && var.acr_enabled && var.acr_cache_dockerhub_enabled ? 1 : 0
   name         = "acr-dockerhub-username"
   value        = var.acr_dockerhub_username
-  key_vault_id = azurerm_key_vault.platform.id
+  key_vault_id = azurerm_key_vault.platform[0].id
 
   depends_on = [azurerm_role_assignment.terraform_kv_officer]
 }
 
 resource "azurerm_key_vault_secret" "dockerhub_token" {
-  count        = var.acr_enabled && var.acr_cache_dockerhub_enabled ? 1 : 0
+  count        = var.keyvault_enabled && var.acr_enabled && var.acr_cache_dockerhub_enabled ? 1 : 0
   name         = "acr-dockerhub-token"
   value        = var.acr_dockerhub_token
-  key_vault_id = azurerm_key_vault.platform.id
+  key_vault_id = azurerm_key_vault.platform[0].id
 
   depends_on = [azurerm_role_assignment.terraform_kv_officer]
 }
@@ -247,10 +247,10 @@ resource "azurerm_container_registry_token_password" "argocd_pull" {
 }
 
 resource "azurerm_key_vault_secret" "acr_argocd_token" {
-  count        = var.acr_enabled ? 1 : 0
+  count        = var.keyvault_enabled && var.acr_enabled ? 1 : 0
   name         = "platform-acr-argocd-token"
   value        = azurerm_container_registry_token_password.argocd_pull[0].password1[0].value
-  key_vault_id = azurerm_key_vault.platform.id
+  key_vault_id = azurerm_key_vault.platform[0].id
 
   depends_on = [azurerm_role_assignment.terraform_kv_officer]
 }

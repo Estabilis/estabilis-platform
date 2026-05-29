@@ -26,6 +26,12 @@ terraform {
       source  = "hashicorp/kubernetes"
       version = "~> 3.1"
     }
+    # v0.62.0 — required by cilium.tf (BYO Cilium install when network_dataplane="byo-cni").
+    # Hard-pinned to align with workload module (no minor drift across managed clusters).
+    helm = {
+      source  = "hashicorp/helm"
+      version = "2.17.0"
+    }
     azuredevops = {
       source  = "microsoft/azuredevops"
       version = "~> 1.5"

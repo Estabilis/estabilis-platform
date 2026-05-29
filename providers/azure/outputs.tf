@@ -34,13 +34,13 @@ output "aks_private_cluster_enabled" {
 }
 
 output "keyvault_name" {
-  description = "Name of the Key Vault."
-  value       = azurerm_key_vault.platform.name
+  description = "Name of the platform Key Vault (empty when keyvault_enabled=false)."
+  value       = var.keyvault_enabled ? azurerm_key_vault.platform[0].name : ""
 }
 
 output "keyvault_uri" {
-  description = "URI of the Key Vault."
-  value       = azurerm_key_vault.platform.vault_uri
+  description = "URI of the platform Key Vault (empty when keyvault_enabled=false)."
+  value       = var.keyvault_enabled ? azurerm_key_vault.platform[0].vault_uri : ""
 }
 
 output "storage_account_name" {
@@ -59,8 +59,8 @@ output "cnpg_backup_storage_account_name" {
 }
 
 output "velero_backup_storage_account_name" {
-  description = "Storage account name for Velero Kubernetes cluster backups. Injected into ArgoCD as global.veleroStorageAccountName."
-  value       = azurerm_storage_account.velero_backup.name
+  description = "Storage account name for Velero Kubernetes cluster backups (empty when velero_enabled=false). Injected into ArgoCD as global.veleroStorageAccountName."
+  value       = var.velero_enabled ? azurerm_storage_account.velero_backup[0].name : ""
 }
 
 output "dns_zone_name" {
@@ -109,8 +109,8 @@ output "cnpg_client_id" {
 }
 
 output "velero_client_id" {
-  description = "Client ID of the Velero managed identity."
-  value       = azurerm_user_assigned_identity.velero.client_id
+  description = "Client ID of the Velero managed identity (empty when velero_enabled=false)."
+  value       = var.velero_enabled ? azurerm_user_assigned_identity.velero[0].client_id : ""
 }
 
 # --- ACR ---

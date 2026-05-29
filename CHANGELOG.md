@@ -1,5 +1,171 @@
 # Changelog
 
+## [0.62.0] - 2026-05-28
+
+### Changed — BREAKING — `network_dataplane` default flipped to `cilium-acns`
+
+Previously defaulted to `"default"` (Azure CNI cru, no Cilium, no Hubble).
+Now defaults to `"cilium-acns"` (Cilium dataplane + ACNS observability +
+ACNS security via FQDN filtering).
+
+**Impact**:
+
+- Existing consumers that DID NOT set `network_dataplane` explicitly will
+  see the cluster **destroyed and recreated** on apply (AKS does not allow
+  changing `network_data_plane` in-place from `azure` to `cilium`).
+- Consumers that already pin `network_dataplane = "cilium-acns"` are
+  unaffected.
+- To preserve legacy behavior: `network_dataplane = "default"`.
+
+**Why**: ACNS is the standard for Estabilis-managed clusters (Hubble flow
+logs + metrics + FQDN-based NetworkPolicies). Greenfield clusters should
+opt-in by default, not opt-out. Matches workload module behavior (v3.0.0).
+
+### Changed — Default Kubernetes version bumped to 1.35
+
+`kubernetes_version` default `"1.34"` → `"1.35"`. Aligns with the
+workload module recommended version. Consumers pinning explicitly in
+tfvars are unaffected.
+
+### Added — Workload parity: BYO CNI (Cilium) install path
+
+- New variable `cilium_version` (default `1.19.2`) — Cilium Helm chart
+  version installed when `network_dataplane = "byo-cni"`.
+- New variable `byo_cni_i_understand_this_destroys_the_cluster` —
+  safety flag. Switching an existing cluster to `byo-cni` DESTROYS and
+  RECREATES it; the validation rejects `byo-cni` unless this flag is
+  also true.
+- New file `cilium.tf` — literal port of the workload module's BYO CNI
+  install (helm_release.cilium with kube-proxy replacement, VXLAN
+  tunnel, Hubble UI/relay/metrics, tolerations for the system pool).
+  Only active when `network_dataplane = "byo-cni"`.
+- New `helm` provider added to `versions.tf` (pinned `2.17.0`).
+- AKS `network_profile.network_plugin` becomes `"none"` when
+  `network_dataplane = "byo-cni"` (the network plugin is brought by
+  the helm_release). Cluster `timeouts.create` reduced to `15m` in
+  BYO mode (nodes stay NotReady until Cilium installs; default 30m
+  poll wastes time).
+
+### Added — Workload parity: ACNS observability/security toggles
+
+Two previously-hardcoded ACNS knobs are now exposed:
+
+- `acns_observability_enabled` (bool, default `true`) — Hubble flow logs
+  + metrics. Disable to drop ~30% of ACNS cost when only FQDN filtering
+  matters.
+- `acns_security_enabled` (bool, default `true`) — Cilium FQDN-based
+  NetworkPolicy enforcement. Disable for pure observability deployments.
+
+Both apply only when `network_dataplane = "cilium-acns"`. Defaults preserve
+prior behavior (always-on).
+
+### Added — Workload parity: `network_plugin_mode` enum (Azure CNI Pod Subnet)
+
+New variable `network_plugin_mode` (default `"overlay"`) controls Azure CNI
+plugin mode. Valid values:
+
+- `"overlay"` (default) — Azure CNI Overlay. Pods allocated from
+  `pod_cidr` (RFC1918 private overlay range, no VNet IP consumption).
+  Backward-compatible with v0.61.x behavior.
+- `"pod-subnet"` — Azure CNI Pod Subnet (flat networking, GA per
+  Microsoft Learn 2026-05-13). Pods receive routable VNet IPs from
+  `azurerm_subnet.aks_pods`. Required when downstream consumers need pod
+  IPs reachable across peerings or NVA inspection.
+- `null` — only when `network_dataplane = "byo-cni"` (the helm-installed
+  Cilium handles IPAM; Azure CNI ignored).
+
+The system node pool now receives `pod_subnet_id = azurerm_subnet.aks_pods.id`
+only when `network_plugin_mode == "pod-subnet"`. Otherwise `null`
+(preserves current state for existing clusters).
+
+### Added — Workload parity: `external_nat_gateway_egress_ips`
+
+New variable `external_nat_gateway_egress_ips` (list, default `[]`) —
+public IPs (without `/32` suffix) of a NAT Gateway owned by another
+Terraform repo. When non-empty, the IPs are added to:
+
+- `local.firewall_base_ips` (so PaaS firewall rules accept traffic from
+  the external egress path).
+- `local.firewall_keyvault_ips`, `firewall_acr_ips`, `firewall_tfstate_ips`,
+  `firewall_cnpg_ips`, `firewall_velero_ips`.
+- The AKS API server's `authorized_ip_ranges` (when not in private
+  cluster mode).
+
+Use case: hub-spoke topology where the cluster's egress is owned by a
+hub Terraform repo (the platform module no longer needs to create its
+own NAT GW — set `nat_gateway_enabled = false` + populate this var).
+
+### Added — Workload parity: `keyvault_enabled` toggle
+
+New variable `keyvault_enabled` (bool, default `true`) — when false, the
+platform Key Vault, its role assignment to the Terraform operator, all
+platform secrets (argocd_redis, grafana_admin/db, opencost, repo tokens,
+openai), the PE, and the ESO `Key Vault Secrets User` role assignment
+are all skipped. Default `true` preserves historical always-on behavior.
+
+**Caveat**: the platform's child charts (argocd-redis, grafana, opencost
+cloud integration) currently expect those secrets to land in this KV.
+Setting `keyvault_enabled = false` requires an accompanying override
+that supplies the secrets elsewhere (or a workload that doesn't consume
+them).
+
+### Added — Workload parity: `velero_enabled` toggle
+
+New variable `velero_enabled` (bool, default `true`) — when false, the
+Velero Storage Account, container, PE, lock, UAMI, federated credential,
+and all three role assignments are skipped. `global.veleroStorageAccountName`
+in `platform-infrastructure` ConfigMap is emitted as empty string.
+Default `true` preserves historical always-on behavior.
+
+### Added — Workload parity: granular Storage Private Endpoint toggles
+
+Four new bool vars (each default `null` = inherit from
+`storage_private_endpoint_enabled`):
+
+- `tfstate_private_endpoint_enabled`
+- `cnpg_private_endpoint_enabled`
+- `velero_private_endpoint_enabled`
+- `observability_private_endpoint_enabled`
+- `cost_exports_private_endpoint_enabled`
+
+Each one drives a single Storage Account's PE + `public_network_access_enabled`
++ `network_rules` independently. **Backward compat**: when null (default)
+they inherit from `var.storage_private_endpoint_enabled` (the legacy
+single-toggle), so consumers bumping without changing tfvars see zero
+diff in plan.
+
+**`storage_private_endpoint_enabled` is DEPRECATED** — kept for backward
+compat. Will be removed in v1.0.0. Prefer the granular toggles.
+
+### Added — Workload parity: diagnostic categories (operator-tunable)
+
+Previously the `enabled_log` and `enabled_metric` categories on all
+`azurerm_monitor_diagnostic_setting` resources were hardcoded literals.
+10 new variables expose category lists:
+
+| Resource type | Logs var | Metrics var | Notes |
+|---|---|---|---|
+| AKS | `aks_diagnostic_log_categories` + `aks_diagnostic_log_categories_external_extra` | `aks_diagnostic_metric_categories` (external) + `aks_diagnostic_metric_categories_local` | External-extra preserves the option of sending heavyweight `kube-apiserver` only to central LAW |
+| Key Vault | `keyvault_diagnostic_log_categories` | `keyvault_diagnostic_metric_categories` | Shared platform + hub, local + external |
+| Storage (tfstate + observability + cnpg + velero + cost) | `storage_diagnostic_log_categories` | `storage_diagnostic_metric_categories` | One pair drives all 5 SAs (homogeneous schema) |
+| ACR | `acr_diagnostic_log_categories` | `acr_diagnostic_metric_categories` | Local + external pair |
+
+Defaults preserve prior categories — zero diff in plan for existing
+consumers (AKS local: 5 log categories, no metrics; AKS external: same
+5 logs, no metrics; KV: 2 logs + AllMetrics; Storage: 3 logs +
+Transaction; ACR: 2 logs, no metrics).
+
+All 18 diagnostic resources now use `dynamic "enabled_log"` /
+`dynamic "enabled_metric"` blocks iterating over `toset(var.*)`. Lists
+are deduplicated via `toset()` so accidental repetition in tfvars is
+harmless.
+
+### Added — `helm` provider declared
+
+`hashicorp/helm` 2.17.0 added to `required_providers` — needed by the
+new `cilium.tf` (BYO CNI install). Pinned exact (no minor drift across
+managed clusters).
+
 ## [0.61.5] - 2026-05-28
 
 ### Fixed — ingress `$traefikGate` reads `global.traefikInternal` bridge
@@ -2527,7 +2693,7 @@ or sync fails with `InvalidSpecError`. Migration is a `sed` on
 of truth for the 6 projects.
 
 Reference: `estabilis-platform-tools/docs/adr/0027-appproject-taxonomy-and-workload-apps-split.md`
-and the §"Concrete app mapping" section for transfero HML's 11-app
+and the §"Concrete app mapping" section for the reference 11-app
 migration mapping.
 
 ### Changed — `clientApps.autoSync` default flips to `false` (manual sync)
@@ -4772,8 +4938,8 @@ source-of-truth artifact for a future migration to ESO-based reconciliation.
 This release ships the AWS caller only. The Azure caller
 (`providers/azure/cloudflare.tf`) is a follow-up — the module's
 cloud-agnostic shape unblocks it without further changes. Existing
-Azure deployments using Cloudflare DNS (transfero HML) continue
-unaffected on the passthrough path.
+Azure deployments using Cloudflare DNS continue unaffected on the
+passthrough path.
 
 ### Migration
 
@@ -6504,7 +6670,7 @@ explicit values ref).
 - Any consumer of `acr-image-updater-credentials` can now override its
   values via a standard override file, e.g.
   `<config-repo>/overrides/acr-image-updater-credentials/values.yaml`.
-- Enables the planned Transfero shared-infra cutover
+- Enables shared-infra cutover scenarios
   (`secretStoreName: shared-infra-secret-store`) without per-cluster
   upstream bumps.
 - Backcompat: `ignoreMissingValueFiles: true` included via helper, so
@@ -6577,7 +6743,7 @@ stays well-formed under both `validate` (zero-epoch → year 0011)
 and real plan (current-time + 10y).
 
 Unblocks PR validation pipelines on every downstream repo that
-references this module (transfero-platform-azure-eastus2-hml, etc.).
+references this module.
 
 ## [0.12.0] - 2026-04-19
 
@@ -6666,7 +6832,7 @@ references this module (transfero-platform-azure-eastus2-hml, etc.).
   containers were OOMing on real-world image scans. The CLI does
   layer extraction client-side even in ClientServer mode, and the
   previous limit of 512 MiB was insufficient (`anon-rss ~520 MiB`
-  observed on Transfero HML 2026-04-16). Bumped
+  observed in a real consumer HML cluster 2026-04-16). Bumped
   `trivy.resources.limits.memory` from `512Mi` to `1Gi` and
   `requests.memory` from `128Mi` to `256Mi` to keep the Burstable
   QoS ratio reasonable.
@@ -6680,9 +6846,9 @@ references this module (transfero-platform-azure-eastus2-hml, etc.).
 ### Changed
 - Documentation polish for ADR 0015 — dropped the `(WIP)` markers in
   `providers/azure/acr-azdo.tf` and `providers/azure/main.tf`. The feature
-  was validated end-to-end on Estabilis HML against
-  `dev.azure.com/estabilis/Transfero` (5 resources created + destroyed
-  clean, no PAT used) and is considered shipped.
+  was validated end-to-end on Estabilis HML against a sample Azure
+  DevOps organization (5 resources created + destroyed clean, no PAT
+  used) and is considered shipped.
 
 ## [0.8.0] - 2026-04-16
 
@@ -6714,9 +6880,9 @@ references this module (transfero-platform-azure-eastus2-hml, etc.).
   registry (one for the legacy SP list, one for the Terraform-managed SP).
   Functional but redundant — drop the manual list once the automation is in
   place.
-- Validated empirically on 2026-04-16 against
-  `dev.azure.com/estabilis/Transfero`: 5 resources created and destroyed
-  cleanly without any auth secret.
+- Validated empirically on 2026-04-16 against a sample Azure DevOps
+  organization: 5 resources created and destroyed cleanly without any
+  auth secret.
 
 ## [0.7.1] - 2026-04-16
 

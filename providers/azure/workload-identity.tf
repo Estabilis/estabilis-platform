@@ -62,7 +62,8 @@ resource "azurerm_federated_identity_credential" "external_secrets" {
 }
 
 resource "azurerm_role_assignment" "external_secrets_kv_reader" {
-  scope                = azurerm_key_vault.platform.id
+  count                = var.keyvault_enabled ? 1 : 0
+  scope                = azurerm_key_vault.platform[0].id
   role_definition_name = "Key Vault Secrets User"
   principal_id         = azurerm_user_assigned_identity.external_secrets.principal_id
 }
@@ -163,6 +164,7 @@ resource "azurerm_role_assignment" "cert_manager_dns_contributor" {
 # ========================== velero ========================================
 
 resource "azurerm_user_assigned_identity" "velero" {
+  count               = var.velero_enabled ? 1 : 0
   name                = "mi-${local.base_name}-velero"
   location            = azurerm_resource_group.platform.location
   resource_group_name = azurerm_resource_group.platform.name
@@ -170,29 +172,33 @@ resource "azurerm_user_assigned_identity" "velero" {
 }
 
 resource "azurerm_federated_identity_credential" "velero" {
+  count                     = var.velero_enabled ? 1 : 0
   name                      = "fic-${local.base_name}-velero"
-  user_assigned_identity_id = azurerm_user_assigned_identity.velero.id
+  user_assigned_identity_id = azurerm_user_assigned_identity.velero[0].id
   audience                  = ["api://AzureADTokenExchange"]
   issuer                    = local.aks_oidc_issuer_url
   subject                   = "system:serviceaccount:velero:velero-server"
 }
 
 resource "azurerm_role_assignment" "velero_storage_contributor" {
-  scope                = azurerm_storage_account.velero_backup.id
+  count                = var.velero_enabled ? 1 : 0
+  scope                = azurerm_storage_account.velero_backup[0].id
   role_definition_name = "Storage Blob Data Contributor"
-  principal_id         = azurerm_user_assigned_identity.velero.principal_id
+  principal_id         = azurerm_user_assigned_identity.velero[0].principal_id
 }
 
 resource "azurerm_role_assignment" "velero_rg_reader" {
+  count                = var.velero_enabled ? 1 : 0
   scope                = azurerm_resource_group.platform.id
   role_definition_name = "Reader"
-  principal_id         = azurerm_user_assigned_identity.velero.principal_id
+  principal_id         = azurerm_user_assigned_identity.velero[0].principal_id
 }
 
 resource "azurerm_role_assignment" "velero_disk_snapshot" {
+  count                = var.velero_enabled ? 1 : 0
   scope                = azurerm_resource_group.platform.id
   role_definition_name = "Disk Snapshot Contributor"
-  principal_id         = azurerm_user_assigned_identity.velero.principal_id
+  principal_id         = azurerm_user_assigned_identity.velero[0].principal_id
 }
 
 # ========================== opencost ========================================

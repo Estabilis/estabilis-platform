@@ -205,11 +205,22 @@ locals {
   vaultcore_pdz_id = var.external_pdz_vaultcore_id != "" ? var.external_pdz_vaultcore_id : azurerm_private_dns_zone.vaultcore[0].id
 
   # Per-resource firewall IPs (base + extras)
-  firewall_keyvault_ips = distinct(concat(local.firewall_base_ips, var.keyvault_extra_allowed_ips))
-  firewall_acr_ips      = distinct(concat(local.firewall_base_ips, var.acr_extra_allowed_ips))
-  firewall_tfstate_ips  = distinct(concat(local.firewall_base_ips_bare, [for ip in var.storage_tfstate_extra_allowed_ips : replace(ip, "/32", "")]))
-  firewall_cnpg_ips     = distinct(concat(local.firewall_base_ips_bare, [for ip in var.storage_cnpg_extra_allowed_ips : replace(ip, "/32", "")]))
-  firewall_velero_ips   = distinct(concat(local.firewall_base_ips_bare, [for ip in var.storage_velero_extra_allowed_ips : replace(ip, "/32", "")]))
+  # v0.62.0: firewall_base_ips also absorbs external NAT GW egress IPs (workload parity)
+  firewall_keyvault_ips = distinct(concat(local.firewall_base_ips, var.keyvault_extra_allowed_ips, [for ip in var.external_nat_gateway_egress_ips : "${ip}/32"]))
+  firewall_acr_ips      = distinct(concat(local.firewall_base_ips, var.acr_extra_allowed_ips, [for ip in var.external_nat_gateway_egress_ips : "${ip}/32"]))
+  firewall_tfstate_ips  = distinct(concat(local.firewall_base_ips_bare, [for ip in var.storage_tfstate_extra_allowed_ips : replace(ip, "/32", "")], var.external_nat_gateway_egress_ips))
+  firewall_cnpg_ips     = distinct(concat(local.firewall_base_ips_bare, [for ip in var.storage_cnpg_extra_allowed_ips : replace(ip, "/32", "")], var.external_nat_gateway_egress_ips))
+  firewall_velero_ips   = distinct(concat(local.firewall_base_ips_bare, [for ip in var.storage_velero_extra_allowed_ips : replace(ip, "/32", "")], var.external_nat_gateway_egress_ips))
+
+  # v0.62.0 — granular PE toggles (workload parity). Each falls back to
+  # the legacy var.storage_private_endpoint_enabled when its own var is null.
+  # When the legacy var is true, ALL granular toggles inherit true (so
+  # consumers bumping without changing tfvars see zero diff in plan).
+  tfstate_pe_enabled       = var.tfstate_private_endpoint_enabled != null ? var.tfstate_private_endpoint_enabled : var.storage_private_endpoint_enabled
+  cnpg_pe_enabled          = var.cnpg_private_endpoint_enabled != null ? var.cnpg_private_endpoint_enabled : var.storage_private_endpoint_enabled
+  velero_pe_enabled        = var.velero_private_endpoint_enabled != null ? var.velero_private_endpoint_enabled : var.storage_private_endpoint_enabled
+  observability_pe_enabled = var.observability_private_endpoint_enabled != null ? var.observability_private_endpoint_enabled : var.storage_private_endpoint_enabled
+  cost_exports_pe_enabled  = var.cost_exports_private_endpoint_enabled != null ? var.cost_exports_private_endpoint_enabled : var.storage_private_endpoint_enabled
 
   # ---------------------------------------------------------------------------
   # Platform version derivation (v0.30.0+).

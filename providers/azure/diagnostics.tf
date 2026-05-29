@@ -1,7 +1,15 @@
 # ---------------------------------------------------------------------------
 # Log Analytics Workspace + Diagnostic Settings
 # Toggle via: diagnostics_enabled = false
-# External LAW: set external_log_analytics_workspace_id to send logs to both
+# External LAW: set external_log_analytics_workspace_id to fan-out to a
+# central observability workspace ALONGSIDE the local LAW (additive, not
+# replacement). Each *_external resource gates ONLY on external_law_enabled
+# so it works even when diagnostics_enabled = false (external-only mode).
+#
+# v0.62.0 (workload parity): categories are operator-customizable via
+# *_diagnostic_log_categories / *_diagnostic_metric_categories vars
+# (see variables.tf). Defaults reproduce the previously-hardcoded category
+# lists — zero diff in plan for existing consumers.
 # ---------------------------------------------------------------------------
 
 locals {
@@ -28,11 +36,19 @@ resource "azurerm_monitor_diagnostic_setting" "aks" {
   target_resource_id         = azurerm_kubernetes_cluster.platform.id
   log_analytics_workspace_id = azurerm_log_analytics_workspace.platform[0].id
 
-  enabled_log { category = "kube-audit-admin" }
-  enabled_log { category = "kube-controller-manager" }
-  enabled_log { category = "kube-scheduler" }
-  enabled_log { category = "cluster-autoscaler" }
-  enabled_log { category = "guard" }
+  dynamic "enabled_log" {
+    for_each = toset(var.aks_diagnostic_log_categories)
+    content {
+      category = enabled_log.value
+    }
+  }
+
+  dynamic "enabled_metric" {
+    for_each = toset(var.aks_diagnostic_metric_categories_local)
+    content {
+      category = enabled_metric.value
+    }
+  }
 }
 
 resource "azurerm_monitor_diagnostic_setting" "aks_external" {
@@ -41,37 +57,65 @@ resource "azurerm_monitor_diagnostic_setting" "aks_external" {
   target_resource_id         = azurerm_kubernetes_cluster.platform.id
   log_analytics_workspace_id = var.external_log_analytics_workspace_id
 
-  enabled_log { category = "kube-audit-admin" }
-  enabled_log { category = "kube-controller-manager" }
-  enabled_log { category = "kube-scheduler" }
-  enabled_log { category = "cluster-autoscaler" }
-  enabled_log { category = "guard" }
+  dynamic "enabled_log" {
+    for_each = toset(concat(var.aks_diagnostic_log_categories, var.aks_diagnostic_log_categories_external_extra))
+    content {
+      category = enabled_log.value
+    }
+  }
+
+  dynamic "enabled_metric" {
+    for_each = toset(var.aks_diagnostic_metric_categories)
+    content {
+      category = enabled_metric.value
+    }
+  }
 }
 
 # ---------------------------------------------------------------------------
-# Key Vault — Platform
+# Key Vault — Platform (toggle: keyvault_enabled)
 # ---------------------------------------------------------------------------
 
 resource "azurerm_monitor_diagnostic_setting" "keyvault" {
-  count                      = var.diagnostics_enabled ? 1 : 0
+  count                      = var.diagnostics_enabled && var.keyvault_enabled ? 1 : 0
   name                       = "diag-${local.base_name}-kv"
-  target_resource_id         = azurerm_key_vault.platform.id
+  target_resource_id         = azurerm_key_vault.platform[0].id
   log_analytics_workspace_id = azurerm_log_analytics_workspace.platform[0].id
 
-  enabled_log { category = "AuditEvent" }
-  enabled_log { category = "AzurePolicyEvaluationDetails" }
-  enabled_metric { category = "AllMetrics" }
+  dynamic "enabled_log" {
+    for_each = toset(var.keyvault_diagnostic_log_categories)
+    content {
+      category = enabled_log.value
+    }
+  }
+
+  dynamic "enabled_metric" {
+    for_each = toset(var.keyvault_diagnostic_metric_categories)
+    content {
+      category = enabled_metric.value
+    }
+  }
 }
 
 resource "azurerm_monitor_diagnostic_setting" "keyvault_external" {
-  count                      = local.external_law_enabled ? 1 : 0
+  count                      = local.external_law_enabled && var.keyvault_enabled ? 1 : 0
   name                       = "diag-${local.base_name}-kv-external"
-  target_resource_id         = azurerm_key_vault.platform.id
+  target_resource_id         = azurerm_key_vault.platform[0].id
   log_analytics_workspace_id = var.external_log_analytics_workspace_id
 
-  enabled_log { category = "AuditEvent" }
-  enabled_log { category = "AzurePolicyEvaluationDetails" }
-  enabled_metric { category = "AllMetrics" }
+  dynamic "enabled_log" {
+    for_each = toset(var.keyvault_diagnostic_log_categories)
+    content {
+      category = enabled_log.value
+    }
+  }
+
+  dynamic "enabled_metric" {
+    for_each = toset(var.keyvault_diagnostic_metric_categories)
+    content {
+      category = enabled_metric.value
+    }
+  }
 }
 
 # ---------------------------------------------------------------------------
@@ -84,9 +128,19 @@ resource "azurerm_monitor_diagnostic_setting" "keyvault_hub" {
   target_resource_id         = azurerm_key_vault.hub[0].id
   log_analytics_workspace_id = azurerm_log_analytics_workspace.platform[0].id
 
-  enabled_log { category = "AuditEvent" }
-  enabled_log { category = "AzurePolicyEvaluationDetails" }
-  enabled_metric { category = "AllMetrics" }
+  dynamic "enabled_log" {
+    for_each = toset(var.keyvault_diagnostic_log_categories)
+    content {
+      category = enabled_log.value
+    }
+  }
+
+  dynamic "enabled_metric" {
+    for_each = toset(var.keyvault_diagnostic_metric_categories)
+    content {
+      category = enabled_metric.value
+    }
+  }
 }
 
 resource "azurerm_monitor_diagnostic_setting" "keyvault_hub_external" {
@@ -95,9 +149,19 @@ resource "azurerm_monitor_diagnostic_setting" "keyvault_hub_external" {
   target_resource_id         = azurerm_key_vault.hub[0].id
   log_analytics_workspace_id = var.external_log_analytics_workspace_id
 
-  enabled_log { category = "AuditEvent" }
-  enabled_log { category = "AzurePolicyEvaluationDetails" }
-  enabled_metric { category = "AllMetrics" }
+  dynamic "enabled_log" {
+    for_each = toset(var.keyvault_diagnostic_log_categories)
+    content {
+      category = enabled_log.value
+    }
+  }
+
+  dynamic "enabled_metric" {
+    for_each = toset(var.keyvault_diagnostic_metric_categories)
+    content {
+      category = enabled_metric.value
+    }
+  }
 }
 
 # ---------------------------------------------------------------------------
@@ -110,10 +174,19 @@ resource "azurerm_monitor_diagnostic_setting" "sa_tfstate" {
   target_resource_id         = "${azurerm_storage_account.tfstate.id}/blobServices/default"
   log_analytics_workspace_id = azurerm_log_analytics_workspace.platform[0].id
 
-  enabled_log { category = "StorageRead" }
-  enabled_log { category = "StorageWrite" }
-  enabled_log { category = "StorageDelete" }
-  enabled_metric { category = "Transaction" }
+  dynamic "enabled_log" {
+    for_each = toset(var.storage_diagnostic_log_categories)
+    content {
+      category = enabled_log.value
+    }
+  }
+
+  dynamic "enabled_metric" {
+    for_each = toset(var.storage_diagnostic_metric_categories)
+    content {
+      category = enabled_metric.value
+    }
+  }
 }
 
 resource "azurerm_monitor_diagnostic_setting" "sa_tfstate_external" {
@@ -122,10 +195,19 @@ resource "azurerm_monitor_diagnostic_setting" "sa_tfstate_external" {
   target_resource_id         = "${azurerm_storage_account.tfstate.id}/blobServices/default"
   log_analytics_workspace_id = var.external_log_analytics_workspace_id
 
-  enabled_log { category = "StorageRead" }
-  enabled_log { category = "StorageWrite" }
-  enabled_log { category = "StorageDelete" }
-  enabled_metric { category = "Transaction" }
+  dynamic "enabled_log" {
+    for_each = toset(var.storage_diagnostic_log_categories)
+    content {
+      category = enabled_log.value
+    }
+  }
+
+  dynamic "enabled_metric" {
+    for_each = toset(var.storage_diagnostic_metric_categories)
+    content {
+      category = enabled_metric.value
+    }
+  }
 }
 
 # ---------------------------------------------------------------------------
@@ -138,10 +220,19 @@ resource "azurerm_monitor_diagnostic_setting" "sa_observability" {
   target_resource_id         = "${azurerm_storage_account.observability.id}/blobServices/default"
   log_analytics_workspace_id = azurerm_log_analytics_workspace.platform[0].id
 
-  enabled_log { category = "StorageRead" }
-  enabled_log { category = "StorageWrite" }
-  enabled_log { category = "StorageDelete" }
-  enabled_metric { category = "Transaction" }
+  dynamic "enabled_log" {
+    for_each = toset(var.storage_diagnostic_log_categories)
+    content {
+      category = enabled_log.value
+    }
+  }
+
+  dynamic "enabled_metric" {
+    for_each = toset(var.storage_diagnostic_metric_categories)
+    content {
+      category = enabled_metric.value
+    }
+  }
 }
 
 resource "azurerm_monitor_diagnostic_setting" "sa_observability_external" {
@@ -150,10 +241,19 @@ resource "azurerm_monitor_diagnostic_setting" "sa_observability_external" {
   target_resource_id         = "${azurerm_storage_account.observability.id}/blobServices/default"
   log_analytics_workspace_id = var.external_log_analytics_workspace_id
 
-  enabled_log { category = "StorageRead" }
-  enabled_log { category = "StorageWrite" }
-  enabled_log { category = "StorageDelete" }
-  enabled_metric { category = "Transaction" }
+  dynamic "enabled_log" {
+    for_each = toset(var.storage_diagnostic_log_categories)
+    content {
+      category = enabled_log.value
+    }
+  }
+
+  dynamic "enabled_metric" {
+    for_each = toset(var.storage_diagnostic_metric_categories)
+    content {
+      category = enabled_metric.value
+    }
+  }
 }
 
 # ---------------------------------------------------------------------------
@@ -166,10 +266,19 @@ resource "azurerm_monitor_diagnostic_setting" "sa_cnpg" {
   target_resource_id         = "${azurerm_storage_account.cnpg_backup.id}/blobServices/default"
   log_analytics_workspace_id = azurerm_log_analytics_workspace.platform[0].id
 
-  enabled_log { category = "StorageRead" }
-  enabled_log { category = "StorageWrite" }
-  enabled_log { category = "StorageDelete" }
-  enabled_metric { category = "Transaction" }
+  dynamic "enabled_log" {
+    for_each = toset(var.storage_diagnostic_log_categories)
+    content {
+      category = enabled_log.value
+    }
+  }
+
+  dynamic "enabled_metric" {
+    for_each = toset(var.storage_diagnostic_metric_categories)
+    content {
+      category = enabled_metric.value
+    }
+  }
 }
 
 resource "azurerm_monitor_diagnostic_setting" "sa_cnpg_external" {
@@ -178,42 +287,69 @@ resource "azurerm_monitor_diagnostic_setting" "sa_cnpg_external" {
   target_resource_id         = "${azurerm_storage_account.cnpg_backup.id}/blobServices/default"
   log_analytics_workspace_id = var.external_log_analytics_workspace_id
 
-  enabled_log { category = "StorageRead" }
-  enabled_log { category = "StorageWrite" }
-  enabled_log { category = "StorageDelete" }
-  enabled_metric { category = "Transaction" }
+  dynamic "enabled_log" {
+    for_each = toset(var.storage_diagnostic_log_categories)
+    content {
+      category = enabled_log.value
+    }
+  }
+
+  dynamic "enabled_metric" {
+    for_each = toset(var.storage_diagnostic_metric_categories)
+    content {
+      category = enabled_metric.value
+    }
+  }
 }
 
 # ---------------------------------------------------------------------------
-# Storage Account — Velero Backup (blob service)
+# Storage Account — Velero Backup (toggle: velero_enabled)
 # ---------------------------------------------------------------------------
 
 resource "azurerm_monitor_diagnostic_setting" "sa_velero" {
-  count                      = var.diagnostics_enabled ? 1 : 0
+  count                      = var.diagnostics_enabled && var.velero_enabled ? 1 : 0
   name                       = "diag-${local.base_name}-velero-blob"
-  target_resource_id         = "${azurerm_storage_account.velero_backup.id}/blobServices/default"
+  target_resource_id         = "${azurerm_storage_account.velero_backup[0].id}/blobServices/default"
   log_analytics_workspace_id = azurerm_log_analytics_workspace.platform[0].id
 
-  enabled_log { category = "StorageRead" }
-  enabled_log { category = "StorageWrite" }
-  enabled_log { category = "StorageDelete" }
-  enabled_metric { category = "Transaction" }
+  dynamic "enabled_log" {
+    for_each = toset(var.storage_diagnostic_log_categories)
+    content {
+      category = enabled_log.value
+    }
+  }
+
+  dynamic "enabled_metric" {
+    for_each = toset(var.storage_diagnostic_metric_categories)
+    content {
+      category = enabled_metric.value
+    }
+  }
 }
 
 resource "azurerm_monitor_diagnostic_setting" "sa_velero_external" {
-  count                      = local.external_law_enabled ? 1 : 0
+  count                      = local.external_law_enabled && var.velero_enabled ? 1 : 0
   name                       = "diag-${local.base_name}-velero-blob-external"
-  target_resource_id         = "${azurerm_storage_account.velero_backup.id}/blobServices/default"
+  target_resource_id         = "${azurerm_storage_account.velero_backup[0].id}/blobServices/default"
   log_analytics_workspace_id = var.external_log_analytics_workspace_id
 
-  enabled_log { category = "StorageRead" }
-  enabled_log { category = "StorageWrite" }
-  enabled_log { category = "StorageDelete" }
-  enabled_metric { category = "Transaction" }
+  dynamic "enabled_log" {
+    for_each = toset(var.storage_diagnostic_log_categories)
+    content {
+      category = enabled_log.value
+    }
+  }
+
+  dynamic "enabled_metric" {
+    for_each = toset(var.storage_diagnostic_metric_categories)
+    content {
+      category = enabled_metric.value
+    }
+  }
 }
 
 # ---------------------------------------------------------------------------
-# Storage Account — Cost Exports (blob service)
+# Storage Account — Cost Exports (toggle: cost_export_enabled)
 # ---------------------------------------------------------------------------
 
 resource "azurerm_monitor_diagnostic_setting" "sa_cost_exports" {
@@ -222,10 +358,19 @@ resource "azurerm_monitor_diagnostic_setting" "sa_cost_exports" {
   target_resource_id         = "${azurerm_storage_account.cost_exports[0].id}/blobServices/default"
   log_analytics_workspace_id = azurerm_log_analytics_workspace.platform[0].id
 
-  enabled_log { category = "StorageRead" }
-  enabled_log { category = "StorageWrite" }
-  enabled_log { category = "StorageDelete" }
-  enabled_metric { category = "Transaction" }
+  dynamic "enabled_log" {
+    for_each = toset(var.storage_diagnostic_log_categories)
+    content {
+      category = enabled_log.value
+    }
+  }
+
+  dynamic "enabled_metric" {
+    for_each = toset(var.storage_diagnostic_metric_categories)
+    content {
+      category = enabled_metric.value
+    }
+  }
 }
 
 resource "azurerm_monitor_diagnostic_setting" "sa_cost_exports_external" {
@@ -234,10 +379,19 @@ resource "azurerm_monitor_diagnostic_setting" "sa_cost_exports_external" {
   target_resource_id         = "${azurerm_storage_account.cost_exports[0].id}/blobServices/default"
   log_analytics_workspace_id = var.external_log_analytics_workspace_id
 
-  enabled_log { category = "StorageRead" }
-  enabled_log { category = "StorageWrite" }
-  enabled_log { category = "StorageDelete" }
-  enabled_metric { category = "Transaction" }
+  dynamic "enabled_log" {
+    for_each = toset(var.storage_diagnostic_log_categories)
+    content {
+      category = enabled_log.value
+    }
+  }
+
+  dynamic "enabled_metric" {
+    for_each = toset(var.storage_diagnostic_metric_categories)
+    content {
+      category = enabled_metric.value
+    }
+  }
 }
 
 # ---------------------------------------------------------------------------
@@ -250,8 +404,19 @@ resource "azurerm_monitor_diagnostic_setting" "acr" {
   target_resource_id         = azurerm_container_registry.platform[0].id
   log_analytics_workspace_id = azurerm_log_analytics_workspace.platform[0].id
 
-  enabled_log { category = "ContainerRegistryRepositoryEvents" }
-  enabled_log { category = "ContainerRegistryLoginEvents" }
+  dynamic "enabled_log" {
+    for_each = toset(var.acr_diagnostic_log_categories)
+    content {
+      category = enabled_log.value
+    }
+  }
+
+  dynamic "enabled_metric" {
+    for_each = toset(var.acr_diagnostic_metric_categories)
+    content {
+      category = enabled_metric.value
+    }
+  }
 }
 
 resource "azurerm_monitor_diagnostic_setting" "acr_external" {
@@ -260,6 +425,17 @@ resource "azurerm_monitor_diagnostic_setting" "acr_external" {
   target_resource_id         = azurerm_container_registry.platform[0].id
   log_analytics_workspace_id = var.external_log_analytics_workspace_id
 
-  enabled_log { category = "ContainerRegistryRepositoryEvents" }
-  enabled_log { category = "ContainerRegistryLoginEvents" }
+  dynamic "enabled_log" {
+    for_each = toset(var.acr_diagnostic_log_categories)
+    content {
+      category = enabled_log.value
+    }
+  }
+
+  dynamic "enabled_metric" {
+    for_each = toset(var.acr_diagnostic_metric_categories)
+    content {
+      category = enabled_metric.value
+    }
+  }
 }

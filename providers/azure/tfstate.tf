@@ -18,7 +18,7 @@ resource "azurerm_storage_account" "tfstate" {
   min_tls_version                 = "TLS1_2"
   shared_access_key_enabled       = false
   allow_nested_items_to_be_public = false
-  public_network_access_enabled   = var.storage_private_endpoint_enabled ? false : true
+  public_network_access_enabled   = local.tfstate_pe_enabled ? false : true
 
   dynamic "blob_properties" {
     for_each = var.storage_soft_delete_enabled ? [1] : []
@@ -33,7 +33,7 @@ resource "azurerm_storage_account" "tfstate" {
   }
 
   dynamic "network_rules" {
-    for_each = !var.storage_private_endpoint_enabled && var.firewall_enabled ? [1] : []
+    for_each = !local.tfstate_pe_enabled && var.firewall_enabled ? [1] : []
     content {
       default_action             = "Deny"
       bypass                     = ["AzureServices"]
@@ -67,7 +67,7 @@ resource "azurerm_role_assignment" "tfstate_deployer" {
 # ---------------------------------------------------------------------------
 
 resource "azurerm_private_endpoint" "tfstate_blob" {
-  count               = var.storage_private_endpoint_enabled ? 1 : 0
+  count               = local.tfstate_pe_enabled ? 1 : 0
   name                = "pe-${local.base_name}-tfstate-blob"
   location            = azurerm_resource_group.tfstate.location
   resource_group_name = azurerm_resource_group.tfstate.name
