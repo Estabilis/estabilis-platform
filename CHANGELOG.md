@@ -1,5 +1,37 @@
 # Changelog
 
+## [0.61.6] - 2026-05-29
+
+### Changed — `hub-egress-ip` Key Vault secret is conditional (no empty string)
+
+`providers/azure/shared.tf` no longer writes `hub-egress-ip = ""`. The secret
+is created **only** when a real hub egress IP exists:
+
+- `nat_gateway_enabled = true` → the NAT Gateway public IP, **or**
+- new `var.hub_egress_ip_override` (non-empty) → for NVA / FortiGate-VM egress.
+
+In the private/peered topology (no NAT GW, no override) the secret is **absent**.
+Workload clusters in that topology register with `apiServerAccess.mode=private`
+(estabilis-workload >= v3.1.0 / operator >= v0.8.0) and never read it — which
+removes the malformed `"/32"` that the empty value previously produced
+downstream.
+
+`allowlist`-topology workloads require this secret populated (NAT GW or override).
+
+### Added
+
+- **`var.hub_egress_ip_override`** — explicit hub egress IP for NVA/FortiGate
+  egress (no Azure NAT Gateway).
+- **`docs/operations/workload-operator-delivery.md`** — documents the no-CLI
+  operator delivery (GitOps Bridge) and the operational prerequisite of
+  publishing the operator image + chart to the client ACR (no `estabilis` CLI).
+
+### Fixed
+
+- Corrected the stale `shared.tf` note that claimed `hub-registrar-token` is
+  written by the `estabilis` CLI — it is published at runtime by the
+  workload operator via Workload Identity (ADR 0010).
+
 ## [0.61.5] - 2026-05-28
 
 ### Fixed — ingress `$traefikGate` reads `global.traefikInternal` bridge

@@ -87,19 +87,35 @@ resource "azurerm_key_vault_secret" "hub_ca_certificate" {
   depends_on = [azurerm_role_assignment.hub_kv_officer]
 }
 
+# hub-egress-ip is ONLY meaningful for allowlist-topology workload clusters
+# (public API server). We never write an empty value: the secret is created
+# only when a real egress IP exists — either the hub NAT Gateway public IP, or
+# an explicit override for NVA/FortiGate egress. In the private/peered topology
+# both are unset, the secret is absent, and workload clusters register with
+# apiServerAccess.mode=private (they never read it).
+locals {
+  hub_egress_ip_effective = (
+    var.hub_egress_ip_override != "" ? var.hub_egress_ip_override :
+    (var.nat_gateway_enabled ? azurerm_public_ip.nat_gateway[0].ip_address : "")
+  )
+}
+
 resource "azurerm_key_vault_secret" "hub_egress_ip" {
-  count        = var.shared_hub_kv_enabled ? 1 : 0
+  count        = var.shared_hub_kv_enabled && local.hub_egress_ip_effective != "" ? 1 : 0
   name         = "hub-egress-ip"
-  value        = var.nat_gateway_enabled ? azurerm_public_ip.nat_gateway[0].ip_address : ""
+  value        = local.hub_egress_ip_effective
   key_vault_id = azurerm_key_vault.hub[0].id
 
   depends_on = [azurerm_role_assignment.hub_kv_officer]
 }
 
-# NOTE: The 4th hub secret (hub-registrar-token) is written by the
-# estabilis CLI during `estabilis upstart`, after the workload-operator
-# chart is synced and the ServiceAccount token exists in Kubernetes.
-# See: estabilis-platform-tools issue #69.
+# NOTE: The hub-registrar-token secret is published at RUNTIME by the
+# estabilis-workload-operator via Azure Workload Identity (its hubTokenSync
+# handler), NOT by any CLI. It is delivered through the GitOps Bridge: the
+# operator chart is synced as a platformAddon with `bridge: true` +
+# `hubTokenSync.enabled: true`, and the operator's UAMI/FIC + Key Vault Secrets
+# Officer role on this vault (workload-identity.tf) let it write the secret.
+# See ADR 0010 (GitOps Bridge) and workload-identity.tf.
 
 # ---------------------------------------------------------------------------
 # Private Endpoint — Key Vault (hub) via VNet

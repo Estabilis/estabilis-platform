@@ -1249,6 +1249,19 @@ variable "shared_hub_kv_enabled" {
   default     = true
 }
 
+variable "hub_egress_ip_override" {
+  description = <<-EOT
+    Real hub egress IP to publish as the 'hub-egress-ip' Key Vault secret for
+    allowlist-topology workload clusters when egress does NOT go through an
+    Azure NAT Gateway (e.g. an NVA / FortiGate-VM provides egress). Leave empty
+    for the private/peered topology — when both this and nat_gateway_enabled
+    are unset, the 'hub-egress-ip' secret is NOT created (no more empty-string
+    secret). Only meaningful for workloads using apiServerAccess mode=allowlist.
+  EOT
+  type        = string
+  default     = ""
+}
+
 # ---------------------------------------------------------------------------
 # HashiCorp Vault (v0.27.0+ — multi-provider opt-in component)
 # ---------------------------------------------------------------------------
