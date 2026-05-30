@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.61.7] - 2026-05-29
+
+### Added — publish `hub-cluster-name` to the shared hub Key Vault
+
+`providers/azure/shared.tf` now publishes the hub AKS **resource name**
+(`azurerm_kubernetes_cluster.platform.name`, e.g.
+`aks-transfero-platform-stg-eastus2`) as the Key Vault secret `hub-cluster-name`,
+gated by `shared_hub_kv_enabled` — exactly like `hub-api-server-url` /
+`hub-ca-certificate`.
+
+Workload clusters read it (estabilis-workload >= v3.3.0) to derive their Alloy
+observability push endpoints — the loki/mimir ingress hosts are
+`{app}.{hub-cluster-name}.{telemetry-domain}`. This is the AKS **resource** name,
+deliberately distinct from the deployment-id-style `cluster-name` on the hub
+Cluster Secret: the split-horizon DNS A records (public Cloudflare and private
+`*.azure.<domain>`) use the resource name. Without this, workloads had no
+non-hardcoded source for the hub name and Alloy produced a malformed
+`mimir..<domain>` URL.
+
 ## [0.61.6] - 2026-05-29
 
 ### Changed — `hub-egress-ip` Key Vault secret is conditional (no empty string)

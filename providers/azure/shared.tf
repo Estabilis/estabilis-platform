@@ -87,6 +87,21 @@ resource "azurerm_key_vault_secret" "hub_ca_certificate" {
   depends_on = [azurerm_role_assignment.hub_kv_officer]
 }
 
+# Hub AKS resource name (e.g. aks-transfero-platform-stg-eastus2). Workload
+# clusters read this to derive the hub observability endpoints — the ingress
+# hosts are {app}.{hub-cluster-name}.{domain-or-internal-domain} (e.g.
+# mimir.aks-transfero-platform-stg-eastus2.azure.estabilis-transfero.dev). This
+# is the AKS RESOURCE name, NOT the deployment-id-style cluster-name published on
+# the hub Cluster Secret — the DNS A records use the resource name.
+resource "azurerm_key_vault_secret" "hub_cluster_name" {
+  count        = var.shared_hub_kv_enabled ? 1 : 0
+  name         = "hub-cluster-name"
+  value        = azurerm_kubernetes_cluster.platform.name
+  key_vault_id = azurerm_key_vault.hub[0].id
+
+  depends_on = [azurerm_role_assignment.hub_kv_officer]
+}
+
 # hub-egress-ip is ONLY meaningful for allowlist-topology workload clusters
 # (public API server). We never write an empty value: the secret is created
 # only when a real egress IP exists — either the hub NAT Gateway public IP, or
