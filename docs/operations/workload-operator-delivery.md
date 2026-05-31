@@ -83,6 +83,31 @@ az acr repository show-tags --name <acr-name> \
 > the ACR — either is fine, as long as `:<version>` exists in the ACR before
 > sync.
 
+## Per-cluster gating labels (capability contract)
+
+Besides the `estabilis.io/bridge.*` annotations above, the operator stamps a
+small set of **labels** on each *workload* Cluster Secret so the
+`workload-bootstrap` ApplicationSet `clusters`-generators can gate addons
+per-cluster (generators select by label, not annotation). As of operator
+`0.11.0` this mapping is **config-driven** (the chart's `gateLabels` value, not
+hardcoded Python) and emits **vendor-neutral capability labels** alongside the
+legacy product-named labels ("dual-emit"):
+
+| Bridge key (intent) | Capability label (target) | Legacy label (still emitted) |
+|---|---|---|
+| `traefik-enabled` | `estabilis.io/capability.ingress` | `estabilis.io/ingress.traefik` |
+| `traefik-internal-enabled` | `estabilis.io/capability.ingress-internal` | `estabilis.io/ingress.traefik-internal` |
+| `external-dns-internal-enabled` | `estabilis.io/capability.dns-internal` | `estabilis.io/addon.external-dns-internal` |
+
+**Migration (follow-up in `estabilis-platform-gitops`):** point the
+`workload-bootstrap` ApplicationSet `selector.matchLabels` at the
+`estabilis.io/capability.*` keys. Because the operator dual-emits, selectors can
+move one at a time with zero downtime. Once all selectors use the capability
+label, drop the legacy label from the operator chart's `gateLabels` and the
+operator prunes it from existing Cluster Secrets on the next reconcile. The
+capability naming also lets the ingress/DNS implementation change (nginx, Istio,
+a different DNS controller) without touching selector names.
+
 ## Validation
 
 - `kubectl get applicationset estabilis-workload-operator -n argocd` exists.
