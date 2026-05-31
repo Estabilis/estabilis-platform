@@ -4,15 +4,14 @@
 
 ### Docs
 
-- **Workload-operator gating contract: vendor-neutral capability labels.** The
-  `estabilis-workload-operator` (`0.11.0`) now emits `estabilis.io/capability.*`
-  labels on workload Cluster Secrets alongside the legacy product-named labels
-  (`estabilis.io/ingress.*`, `estabilis.io/addon.*`) — "dual-emit" — and the
-  intent→label mapping is config-driven (chart `gateLabels`) rather than
-  hardcoded. No platform change required yet; `workload-bootstrap` selectors keep
-  matching the legacy labels. Follow-up (in `estabilis-platform-gitops`): migrate
-  `selector.matchLabels` to the capability labels, then retire the legacy ones.
-  See `docs/operations/workload-operator-delivery.md`.
+- **Workload-operator gating contract: capability convention (breaking).** The
+  `estabilis-workload-operator` (`0.11.0`) replaces the product-named gate keys
+  and labels with a convention: bridge keys under `capability.*` are promoted to
+  `estabilis.io/capability.*` labels — no mapping replicated, no product names.
+  This is a coordinated breaking change across three repos (`estabilis-workload`
+  bridge keys, the operator, `estabilis-platform-gitops` selectors). The cutover
+  contract and per-repo diffs are documented in
+  `docs/operations/workload-operator-delivery.md`.
 
 ## [0.61.7] - 2026-05-29
 

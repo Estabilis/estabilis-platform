@@ -83,30 +83,79 @@ az acr repository show-tags --name <acr-name> \
 > the ACR — either is fine, as long as `:<version>` exists in the ACR before
 > sync.
 
-## Per-cluster gating labels (capability contract)
+## Per-cluster capability gating (convention contract)
 
-Besides the `estabilis.io/bridge.*` annotations above, the operator stamps a
-small set of **labels** on each *workload* Cluster Secret so the
+Besides the `estabilis.io/bridge.*` annotations above, the operator promotes
+**capability** flags to **labels** on each *workload* Cluster Secret so the
 `workload-bootstrap` ApplicationSet `clusters`-generators can gate addons
 per-cluster (generators select by label, not annotation). As of operator
-`0.11.0` this mapping is **config-driven** (the chart's `gateLabels` value, not
-hardcoded Python) and emits **vendor-neutral capability labels** alongside the
-legacy product-named labels ("dual-emit"):
+`0.11.0` this is a **convention, not a mapping**:
 
-| Bridge key (intent) | Capability label (target) | Legacy label (still emitted) |
-|---|---|---|
-| `traefik-enabled` | `estabilis.io/capability.ingress` | `estabilis.io/ingress.traefik` |
-| `traefik-internal-enabled` | `estabilis.io/capability.ingress-internal` | `estabilis.io/ingress.traefik-internal` |
-| `external-dns-internal-enabled` | `estabilis.io/capability.dns-internal` | `estabilis.io/addon.external-dns-internal` |
+```
+bridge key  capability.<name>   →   label  estabilis.io/capability.<name>
+```
 
-**Migration (follow-up in `estabilis-platform-gitops`):** point the
-`workload-bootstrap` ApplicationSet `selector.matchLabels` at the
-`estabilis.io/capability.*` keys. Because the operator dual-emits, selectors can
-move one at a time with zero downtime. Once all selectors use the capability
-label, drop the legacy label from the operator chart's `gateLabels` and the
-operator prunes it from existing Cluster Secrets on the next reconcile. The
+No product names and no bridgeKey→label table live anywhere. The producer
+(`estabilis-workload` Terraform) emits `capability.<name>` in the bridge Secret;
+the consumer (`estabilis-platform-gitops` selectors) matches
+`estabilis.io/capability.<name>`. Both sides just follow the convention.
+Governance is centralized in the operator chart's `capabilities` value (a flat
+allowlist of known capability names + `unknownPolicy`), validated at startup.
+
+Current capabilities:
+
+| Bridge key (intent) | Cluster Secret label |
+|---|---|
+| `capability.ingress` | `estabilis.io/capability.ingress` |
+| `capability.ingress-internal` | `estabilis.io/capability.ingress-internal` |
+| `capability.dns-internal` | `estabilis.io/capability.dns-internal` |
+
+### Breaking change — coordinated cutover across three repos
+
+This replaces the earlier product-named keys/labels (`traefik-enabled`,
+`estabilis.io/ingress.traefik`, …). There is **no dual-emit / backward-compat**;
+the change must land together in three repos:
+
+1. **`estabilis-workload` (Terraform)** — rename the bridge Secret keys:
+
+   ```hcl
+   # bridge Secret `data` — capability gates (ADR 0010)
+   "capability.ingress"          = tostring(var.ingress_enabled)            # was traefik-enabled
+   "capability.ingress-internal" = tostring(var.ingress_internal_enabled)   # was traefik-internal-enabled
+   "capability.dns-internal"     = tostring(var.dns_internal_enabled)       # was external-dns-internal-enabled
+   # other bridge values (tenant-id, keyvault-uri, …) unchanged
+   ```
+
+   Renaming the variables (`traefik_enabled → ingress_enabled`, etc.) is optional
+   but keeps capability naming end-to-end.
+
+2. **`estabilis-workload-operator`** — already done in `0.11.0` (this change).
+   The chart's `capabilities.known` allowlist must contain `ingress`,
+   `ingress-internal`, `dns-internal`.
+
+3. **`estabilis-platform-gitops` (`workload-bootstrap` ApplicationSets)** — point
+   the cluster-generator selectors at the capability labels:
+
+   ```yaml
+   generators:
+     - clusters:
+         selector:
+           matchLabels:
+             estabilis.io/capability.ingress: "true"          # was estabilis.io/ingress.traefik
+   # likewise: estabilis.io/capability.ingress-internal, estabilis.io/capability.dns-internal
+   ```
+
+**Cutover order.** ArgoCD syncs each repo independently, so there is no atomic
+flip. For a **greenfield** fleet (these gates are days old — v0.9.0 was
+2026-05-29 — so likely not yet relied on in production), simply land all three
+with capability naming; no transition needed. For an **already-live** fleet,
+schedule a short maintenance window: roll the operator `0.11.0`, then the
+workload bridge keys, then the gitops selectors — the gated addons re-sync once
+the new labels and selectors line up. (If a zero-downtime transition is ever
+required, reintroduce a temporary dual emission behind `capabilities`, migrate
+selectors, then drop it — but for a days-old feature this is unnecessary.) The
 capability naming also lets the ingress/DNS implementation change (nginx, Istio,
-a different DNS controller) without touching selector names.
+a different DNS controller) later without touching any selector name.
 
 ## Validation
 
