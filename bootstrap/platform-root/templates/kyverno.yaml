@@ -102,9 +102,11 @@ spec:
   ignoreDifferences:
     - group: kyverno.io
       kind: ClusterPolicy
+      # Hide the fields Kyverno's admission controller mutates after apply so the
+      # app shows Synced. Keep these as jqPathExpressions (ignore by path) — they
+      # are object defaults Kyverno applies that are NOT tracked under any field
+      # manager, so managedFieldsManagers can't match them.
       jqPathExpressions:
-        # Kyverno admission controller mutates ClusterPolicies after
-        # apply, injecting default fields not present in our manifests.
         - .spec.admission
         - .spec.emitWarning
         - .spec.rules[].skipBackgroundRequests
@@ -122,5 +124,9 @@ spec:
         factor: 2
         maxDuration: 3m
     syncOptions:
+      # ServerSideApply ONLY — do NOT add RespectIgnoreDifferences. SSA already
+      # preserves the Kyverno-mutated fields; combined with the jqPathExpressions
+      # above (which target .spec.rules[] array items) RespectIgnoreDifferences
+      # makes ArgoCD pin the entire .spec.rules array to the live state, silently
+      # blocking every legitimate rule change and freezing the ClusterPolicies.
       - ServerSideApply=true
-      - RespectIgnoreDifferences=true

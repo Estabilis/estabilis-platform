@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.61.8] - 2026-06-01
+
+### Fixed — Kyverno ClusterPolicy drift (hub)
+
+`bootstrap/platform-root/templates/kyverno.yaml`: remove
+`RespectIgnoreDifferences=true` from the `kyverno-policies` Application
+syncOptions (keep `ServerSideApply=true`). Combined with the
+`jqPathExpressions` that target `.spec.rules[]` array items,
+`RespectIgnoreDifferences` made ArgoCD pin the whole `.spec.rules` array to the
+live state, silently blocking every legitimate rule change (e.g.
+`excluded-namespace-list` edits) and freezing the hub's ClusterPolicies in a
+perpetual OutOfSync state. `RespectIgnoreDifferences` is redundant with
+ServerSideApply — SSA already preserves the Kyverno-mutated default fields
+(verified by server-side dry-run). `jqPathExpressions` still keeps the diff
+display clean. The kyverno-CRDs Application's `RespectIgnoreDifferences` (which
+ignores non-array `.metadata` paths) is intentionally left untouched.
+
 ## [0.61.7] - 2026-05-29
 
 ### Added — publish `hub-cluster-name` to the shared hub Key Vault
