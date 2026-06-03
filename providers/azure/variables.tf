@@ -802,6 +802,18 @@ variable "acr_enabled" {
   default     = false
 }
 
+variable "acr_purpose" {
+  description = "Naming discriminator inserted into the ACR name: acr<name_prefix><acr_purpose><env_code><suffix?>. Empty (default) preserves the legacy name acr<name_prefix><env_code><suffix>. Example: \"platform\" => acrtransferoplatformstg."
+  type        = string
+  default     = ""
+}
+
+variable "acr_random_suffix_enabled" {
+  description = "Append the shared 6-char random suffix to the ACR name for global DNS uniqueness. Default true (legacy behavior). Set false for a deterministic name (ensure global uniqueness yourself, e.g. via acr_purpose)."
+  type        = bool
+  default     = true
+}
+
 variable "shared_acr_login_server" {
   description = "Login server of the shared ACR (e.g. acrtransferosharedhml.azurecr.io). Used by ArgoCD Image Updater to monitor container registries. Leave empty if not using Image Updater."
   type        = string

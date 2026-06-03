@@ -5,16 +5,28 @@
 
 locals {
   acr_is_premium = var.acr_sku == "Premium"
+
+  # ACR name: acr<name_prefix><acr_purpose><env_code><suffix?>. acr_purpose=""
+  # + suffix enabled preserves the legacy name. acr_purpose="platform" +
+  # suffix disabled => deterministic acrtransferoplatformstg.
+  acr_name = "acr${var.name_prefix}${var.acr_purpose}${local.env_code}${var.acr_random_suffix_enabled ? random_string.storage_suffix.result : ""}"
 }
 
 resource "azurerm_container_registry" "platform" {
   count                = var.acr_enabled ? 1 : 0
-  name                 = "acr${var.name_prefix}${local.env_code}${random_string.storage_suffix.result}"
+  name                 = local.acr_name
   resource_group_name  = azurerm_resource_group.platform.name
   location             = azurerm_resource_group.platform.location
   sku                  = var.acr_sku
   admin_enabled        = false
   trust_policy_enabled = local.acr_is_premium && var.acr_content_trust_enabled
+
+  lifecycle {
+    precondition {
+      condition     = can(regex("^[a-zA-Z0-9]{5,50}$", local.acr_name))
+      error_message = "ACR name '${local.acr_name}' (${length(local.acr_name)} chars) must be 5-50 alphanumeric chars. Adjust name_prefix / acr_purpose, or enable acr_random_suffix_enabled."
+    }
+  }
 
   # Retention for untagged manifests — Premium SKU only (0 = disabled)
   retention_policy_in_days = local.acr_is_premium && var.acr_retention_days > 0 ? var.acr_retention_days : null

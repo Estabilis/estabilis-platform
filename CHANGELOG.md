@@ -1,6 +1,26 @@
 # Changelog
 
-## [0.61.8] - 2026-06-01
+## [0.61.9] - 2026-06-03
+
+### Added — configurable ACR name (`acr_purpose` + `acr_random_suffix_enabled`)
+
+`providers/azure/acr.tf`: the platform ACR name is now composed as
+`acr<name_prefix><acr_purpose><env_code><suffix?>`. Two new inputs:
+
+- `acr_purpose` (default `""`) — naming discriminator (e.g. `platform`).
+- `acr_random_suffix_enabled` (default `true`) — append the shared 6-char
+  random suffix for global DNS uniqueness.
+
+Backward-compatible: with the defaults (`acr_purpose=""`, suffix enabled) the
+name is unchanged — `acr<name_prefix><env_code><suffix>`. Setting
+`acr_purpose="platform"` + `acr_random_suffix_enabled=false` yields a
+deterministic name such as `acrtransferoplatformstg`, symmetric with the
+parque's shared registry `acrtransferosharedstg`. A plan-time precondition
+enforces the Azure 5–50 alphanumeric rule.
+
+NB: an ACR name is immutable — changing it on an existing registry forces
+replacement (re-derives `cred-acr-charts`, re-attaches AKS AcrPull, requires
+re-push of any stored artifacts).
 
 ### Fixed — Kyverno ClusterPolicy drift (hub)
 
