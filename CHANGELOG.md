@@ -22,6 +22,8 @@ NB: an ACR name is immutable — changing it on an existing registry forces
 replacement (re-derives `cred-acr-charts`, re-attaches AKS AcrPull, requires
 re-push of any stored artifacts).
 
+## [0.61.8] - 2026-06-01
+
 ### Fixed — Kyverno ClusterPolicy drift (hub)
 
 `bootstrap/platform-root/templates/kyverno.yaml`: remove
