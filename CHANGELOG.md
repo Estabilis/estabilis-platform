@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.61.10] - 2026-06-11
+
+### Added — configurable AKS node resource group (`node_resource_group`)
+
+`providers/azure/aks.tf`: new optional input `node_resource_group` to override
+the auto-generated AKS node ("MC_") resource group name.
+
+Azure composes the default node RG as `MC_<rg-name>_<cluster-name>_<region>`.
+With the platform's standard names this exceeds the 80-char limit in regions
+with long names — e.g. `brazilsouth` yields a 91-char default and the cluster
+create fails with `InvalidParameter: The length of the node resource group
+name is too long`. `eastus2` fits (79 chars), which is why this surfaced only
+in `brazilsouth`.
+
+- `node_resource_group` (default `""`) — when set, passed through to the
+  cluster; when empty, `null` is passed so Azure keeps composing the default
+  name. A plan-time validation enforces the 80-char Azure limit.
+
+Backward-compatible: existing consumers keep the Azure default. Mirrors the
+input already present in `estabilis-workload`. Example for brazilsouth:
+`node_resource_group = "MC_aks-transfero-platform-prd-brazilsouth"` (41 chars).
+
 ## [0.61.9] - 2026-06-03
 
 ### Added — configurable ACR name (`acr_purpose` + `acr_random_suffix_enabled`)
