@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.61.11] - 2026-06-11
+
+### Added — dedicated cost-exports storage PE toggle (`cost_exports_private_endpoint_enabled`)
+
+`providers/azure/cost-export.tf`: the cost-exports storage account now has its
+own private-endpoint toggle, independent of the global
+`storage_private_endpoint_enabled`.
+
+Azure Cost Management exports cannot write to a private-endpoint-only storage
+account — the export destination does not support Private Endpoints, so a
+PE-only cost SA fails export creation with `The exports service is not
+authorized to access the specified storage account`. With a fully PE-only
+platform (`storage_private_endpoint_enabled = true`) the cost SA inherited
+PE-only and broke cost exports.
+
+- `cost_exports_private_endpoint_enabled` (default `null`) — when `null`,
+  inherits `storage_private_endpoint_enabled` (backward-compatible). Set to
+  `false` to keep the cost SA public + firewall (`default_action = Deny` +
+  `bypass = ["AzureServices"]`) so the Cost Management trusted-services bypass
+  works, even when the rest of the platform storage is PE-only.
+
+Backward-compatible: existing consumers (toggle unset → `null`) keep the prior
+behavior.
+
 ## [0.61.10] - 2026-06-11
 
 ### Added — configurable AKS node resource group (`node_resource_group`)

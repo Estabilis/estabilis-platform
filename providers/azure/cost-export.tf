@@ -7,6 +7,17 @@
 # to be registered. This is handled by `estabilis register-providers`
 # (run once per subscription) and verified by `estabilis apply`.
 
+# Cost Management exports CANNOT write to a private-endpoint-only storage
+# account (the export destination does not support Private Endpoints), so the
+# cost-exports SA has its own PE toggle, independent of the global
+# storage_private_endpoint_enabled. Defaults to the global value for backward
+# compatibility; set cost_exports_private_endpoint_enabled = false to keep the
+# cost SA public+firewall (default_action=Deny + bypass=AzureServices) even
+# when the rest of the platform storage is PE-only.
+locals {
+  cost_exports_pe = var.cost_exports_private_endpoint_enabled != null ? var.cost_exports_private_endpoint_enabled : var.storage_private_endpoint_enabled
+}
+
 resource "azurerm_storage_account" "cost_exports" {
   count                           = var.cost_export_enabled ? 1 : 0
   name                            = "st${var.name_prefix}${local.env_code}cst${random_string.storage_suffix.result}"
@@ -17,14 +28,14 @@ resource "azurerm_storage_account" "cost_exports" {
   min_tls_version                 = "TLS1_2"
   shared_access_key_enabled       = true # required by OpenCost cloud-integration
   allow_nested_items_to_be_public = false
-  public_network_access_enabled   = var.storage_private_endpoint_enabled ? false : true
+  public_network_access_enabled   = local.cost_exports_pe ? false : true
 
   # Start open so Cost Management can access during export creation.
   # azurerm_storage_account_network_rules locks down after export exists.
   # ignore_changes prevents Terraform from reverting Deny back to Allow.
   # Skipped when PE-only — Cost Management uses trusted services bypass.
   dynamic "network_rules" {
-    for_each = var.storage_private_endpoint_enabled ? [] : [1]
+    for_each = local.cost_exports_pe ? [] : [1]
     content {
       default_action = "Allow"
       bypass         = ["AzureServices"]
@@ -57,7 +68,7 @@ resource "azurerm_storage_account" "cost_exports" {
 # See: https://learn.microsoft.com/azure/cost-management-billing/costs/tutorial-improved-exports
 # Skipped when PE-only — public_network_access_enabled=false handles isolation.
 resource "azurerm_storage_account_network_rules" "cost_exports" {
-  count              = var.cost_export_enabled && !var.storage_private_endpoint_enabled ? 1 : 0
+  count              = var.cost_export_enabled && !local.cost_exports_pe ? 1 : 0
   storage_account_id = azurerm_storage_account.cost_exports[0].id
   default_action     = "Deny"
   bypass             = ["AzureServices"]
@@ -77,7 +88,7 @@ resource "azurerm_storage_container" "cost_exports" {
 # ---------------------------------------------------------------------------
 
 resource "azurerm_private_endpoint" "cost_exports_blob" {
-  count               = var.cost_export_enabled && var.storage_private_endpoint_enabled ? 1 : 0
+  count               = var.cost_export_enabled && local.cost_exports_pe ? 1 : 0
   name                = "pe-${local.base_name}-costs-blob"
   location            = azurerm_resource_group.platform.location
   resource_group_name = azurerm_resource_group.platform.name

@@ -1361,3 +1361,13 @@ variable "node_resource_group" {
     error_message = "node_resource_group must be at most 80 characters (Azure limit)."
   }
 }
+
+# ---------------------------------------------------------------------------
+# Cost-exports storage PE override
+# ---------------------------------------------------------------------------
+
+variable "cost_exports_private_endpoint_enabled" {
+  description = "Private-endpoint-only toggle SPECIFIC to the cost-exports storage account. Azure Cost Management exports cannot write to a PE-only SA (the export destination has no Private Endpoint support), so set this to false to keep the cost SA public+firewall (default_action=Deny + bypass=AzureServices) even when the global storage_private_endpoint_enabled=true. Null (default) inherits storage_private_endpoint_enabled."
+  type        = bool
+  default     = null
+}
