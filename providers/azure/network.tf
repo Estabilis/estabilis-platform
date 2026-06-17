@@ -15,11 +15,12 @@ resource "azurerm_virtual_network" "platform" {
 # ---------------------------------------------------------------------------
 
 resource "azurerm_subnet" "aks_nodes" {
-  name                 = "snet-${local.base_name}-nodes"
-  resource_group_name  = azurerm_resource_group.platform.name
-  virtual_network_name = azurerm_virtual_network.platform.name
-  address_prefixes     = [var.subnet_nodes_prefix]
-  service_endpoints    = ["Microsoft.KeyVault", "Microsoft.Storage"]
+  name                              = "snet-${local.base_name}-nodes"
+  resource_group_name               = azurerm_resource_group.platform.name
+  virtual_network_name              = azurerm_virtual_network.platform.name
+  address_prefixes                  = [var.subnet_nodes_prefix]
+  service_endpoints                 = ["Microsoft.KeyVault", "Microsoft.Storage"]
+  private_endpoint_network_policies = var.aks_nodes_private_endpoint_network_policies
 }
 
 # ---------------------------------------------------------------------------

@@ -326,6 +326,16 @@ variable "subnet_pods_prefix" {
   default     = "10.0.4.0/22"
 }
 
+variable "aks_nodes_private_endpoint_network_policies" {
+  description = "Value of `private_endpoint_network_policies` on the AKS node subnet (which also hosts the API-server private endpoint on private clusters). Default \"Disabled\" (Azure's PE-recommended value: NSGs/UDRs do NOT apply to private endpoints in the subnet, so PE traffic bypasses any firewall). Set \"Enabled\" to force private-endpoint traffic through the subnet's route table — required when egress/east-west must traverse an NVA/firewall (e.g. a FortiGate with outbound_type=userDefinedRouting)."
+  type        = string
+  default     = "Disabled"
+  validation {
+    condition     = contains(["Enabled", "Disabled"], var.aks_nodes_private_endpoint_network_policies)
+    error_message = "Must be \"Enabled\" or \"Disabled\"."
+  }
+}
+
 variable "service_cidr" {
   description = "CIDR for Kubernetes services."
   type        = string
