@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.61.12] - 2026-06-17
+
+### Added — configurable AKS node-subnet private-endpoint network policies (`aks_nodes_private_endpoint_network_policies`)
+
+`providers/azure/network.tf`: the AKS node subnet (which also hosts the
+API-server private endpoint on private clusters) now exposes
+`private_endpoint_network_policies` via a new input.
+
+- `aks_nodes_private_endpoint_network_policies` (default `"Disabled"`) —
+  preserves the prior behavior (Azure's PE-recommended value; NSGs/UDRs do not
+  apply to private endpoints in the subnet, so PE traffic bypasses any
+  firewall). Set `"Enabled"` to force private-endpoint traffic (e.g. the
+  API-server PE) through the subnet's route table — required when egress /
+  east-west must traverse an NVA/firewall (e.g. a FortiGate with
+  `outbound_type = userDefinedRouting`).
+
+Backward-compatible: existing consumers (input unset → `"Disabled"`) keep the
+prior behavior.
+
 ## [0.61.11] - 2026-06-11
 
 ### Added — dedicated cost-exports storage PE toggle (`cost_exports_private_endpoint_enabled`)
