@@ -37,8 +37,24 @@ spec:
           - name: identity.externalDns.clientId
             value: "{{ .Values.identity.externalDns.clientId }}"
           {{- else if eq $dnsProvider "cloudflare" }}
+          {{- if and (eq .Values.global.provider "aws") .Values.global.secretsPathPrefix }}
+          {{- /* AWS: hand the chart the Secrets Manager PATH, not the token.
+                Injecting the token as a helm parameter writes it in cleartext
+                onto this Application spec — and an Application is a CRD, so it
+                sits outside the EKS `resources: ["secrets"]` envelope
+                encryption, unlike the Secret it ends up producing.
+
+                Same prefixing convention as platform-secrets.yaml: secrets live
+                under estabilis/<deploymentId>/*, which is the IRSA scope of the
+                external-secrets role. */}}
+          - name: kvSecrets.cloudflareApiToken
+            value: "{{ .Values.global.secretsPathPrefix }}/platform-cloudflare-api-token"
+          {{- else }}
+          {{- /* Azure and any deployment without a secrets path prefix keep the
+                direct injection. */}}
           - name: global.cloudflareApiToken
             value: "{{ .Values.global.cloudflareApiToken }}"
+          {{- end }}
           {{- end }}
     - repoURL: {{ .Values.platformRepoUrl }}
       targetRevision: {{ .Values.platformVersion }}
@@ -46,6 +62,15 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: external-dns
+  ignoreDifferences:
+    {{- /* ESO writes these defaults server-side; undeclared they show up as
+          permanent OutOfSync drift. Same block as platform-secrets.yaml. */}}
+    - group: external-secrets.io
+      kind: ExternalSecret
+      jsonPointers:
+        - /spec/data/0/remoteRef/conversionStrategy
+        - /spec/data/0/remoteRef/decodingStrategy
+        - /spec/data/0/remoteRef/metadataPolicy
   syncPolicy:
     {{- include "platform-root.managedNamespaceMetadataExcluded" . | nindent 4 }}
     retry:
@@ -114,6 +139,15 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: external-dns
+  ignoreDifferences:
+    {{- /* ESO writes these defaults server-side; undeclared they show up as
+          permanent OutOfSync drift. Same block as platform-secrets.yaml. */}}
+    - group: external-secrets.io
+      kind: ExternalSecret
+      jsonPointers:
+        - /spec/data/0/remoteRef/conversionStrategy
+        - /spec/data/0/remoteRef/decodingStrategy
+        - /spec/data/0/remoteRef/metadataPolicy
   syncPolicy:
     {{- include "platform-root.managedNamespaceMetadataExcluded" . | nindent 4 }}
     retry:

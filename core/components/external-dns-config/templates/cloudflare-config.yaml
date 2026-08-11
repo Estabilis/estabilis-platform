@@ -1,4 +1,17 @@
 {{- if eq .Values.global.dnsProvider "cloudflare" }}
+{{- /* `default dict` keeps the chart standalone-renderable against a values
+       file predating kvSecrets — same three-level guard style as
+       estabilis.provenanceAnnotations in _helpers.tpl. */ -}}
+{{- $kvToken := (default dict .Values.kvSecrets).cloudflareApiToken | default "" -}}
+{{- if .Values.global.cloudflareApiToken }}
+{{- /* DIRECT path — the token arrives as a helm parameter, so it is stored in
+       cleartext on the Application spec: readable in etcd (Application is a
+       CRD, NOT covered by the EKS `resources: ["secrets"]` envelope
+       encryption), in the ArgoCD UI/API, and in the repo-server cache.
+
+       Kept for backward compatibility and for bootstrap flows that run before
+       External Secrets exists. Prefer kvSecrets.cloudflareApiToken below on
+       any cluster where the platform secret store is wired. */ -}}
 apiVersion: v1
 kind: Secret
 metadata:
@@ -8,4 +21,29 @@ metadata:
 type: Opaque
 stringData:
   api-token: {{ .Values.global.cloudflareApiToken | quote }}
+{{- else if $kvToken }}
+{{- /* SECRET-STORE path — the token never leaves the store. ESO materialises
+       the same Secret name and key, so the external-dns Deployment's
+       secretKeyRef needs no change. Mirrors the shape already used by
+       components/cert-manager-config in estabilis-platform-gitops. */ -}}
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: external-dns-cloudflare-config
+  namespace: external-dns
+  {{- include "estabilis.metadata" . | nindent 2 }}
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: platform-secret-store
+    kind: ClusterSecretStore
+  target:
+    name: external-dns-cloudflare-config
+    creationPolicy: Owner
+  data:
+    - secretKey: api-token
+      remoteRef:
+        key: {{ $kvToken | quote }}
+        nullBytePolicy: Ignore
+{{- end }}
 {{- end }}
