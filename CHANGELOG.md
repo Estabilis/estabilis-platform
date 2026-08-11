@@ -1,5 +1,40 @@
 # Changelog
 
+## [0.62.0] - 2026-08-11
+
+### Added — Cloudflare API token via the platform secret store (`kvSecrets.cloudflareApiToken`)
+
+`global.cloudflareApiToken` travels as a helm parameter, so the token is stored
+in cleartext on the `platform-root`, `external-dns-config` and
+`cert-manager-config` Application specs. An ArgoCD Application is a CRD, so it
+sits outside the EKS `resources: ["secrets"]` envelope encryption — unlike the
+Secret it ultimately produces — and it is readable in the ArgoCD UI/API and in
+the repo-server cache. The final consumption was already a `secretKeyRef`; only
+the transport was the problem.
+
+- `core/components/external-dns-config` gains the ExternalSecret branch that
+  `components/cert-manager-config` (estabilis-platform-gitops) already had.
+  When `kvSecrets.cloudflareApiToken` is set and no direct token is given, the
+  chart emits an ExternalSecret against `platform-secret-store` producing the
+  same Secret name and key — the external-dns Deployment is untouched.
+- `bootstrap/platform-root/templates/external-dns.yaml` and `cert-manager.yaml`
+  pass the Secrets Manager path instead of the token on AWS deployments that
+  have `global.secretsPathPrefix`, using the same prefixing convention as
+  `platform-secrets.yaml`. Both Applications also gain the standard ESO
+  `ignoreDifferences` block, so the server-side defaults do not surface as
+  permanent drift.
+
+The `cert-manager-config` half requires estabilis-platform-gitops >= v0.43.0,
+where that chart's ExternalSecret reads `kvSecrets.cloudflareApiToken` instead
+of a hardcoded flat Key Vault name — a bare name never resolves against an AWS
+Secrets Manager path. The external-dns half is self-contained.
+
+Backward-compatible: nothing changes unless a deployment has both
+`provider = "aws"` and a non-empty `secretsPathPrefix`. Azure and prefix-less
+deployments keep the direct injection, and an explicitly set direct token
+always wins — so bootstrap flows that run before External Secrets exists are
+unaffected.
+
 ## [0.61.12] - 2026-06-17
 
 ### Added — configurable AKS node-subnet private-endpoint network policies (`aks_nodes_private_endpoint_network_policies`)
