@@ -4,7 +4,15 @@ global:
   tenantId: ""              # used when dnsProvider=azure
   subscriptionId: ""        # used when dnsProvider=azure
   resourceGroup: ""         # used when dnsProvider=azure
-  cloudflareApiToken: ""    # used when dnsProvider=cloudflare
+  cloudflareApiToken: ""    # used when dnsProvider=cloudflare — DIRECT injection (cleartext)
+
+# Preferred alternative to global.cloudflareApiToken when the platform secret
+# store is available: the name (Azure Key Vault) or full path (AWS Secrets
+# Manager) of the secret holding the token. Set, the chart emits an
+# ExternalSecret instead of a cleartext Secret. platform-root prepends the
+# AWS path prefix — see bootstrap/platform-root/templates/external-dns.yaml.
+kvSecrets:
+  cloudflareApiToken: ""
 identity:
   externalDns:
     clientId: ""            # used when dnsProvider=azure (workload identity)

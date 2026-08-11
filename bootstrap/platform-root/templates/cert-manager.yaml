@@ -132,8 +132,19 @@ spec:
           - name: identity.certManager.clientId
             value: "{{ .Values.identity.certManager.clientId }}"
           {{- else if eq $dnsProvider "cloudflare" }}
+          {{- if and (eq .Values.global.provider "aws") .Values.global.secretsPathPrefix }}
+          {{- /* AWS: pass the Secrets Manager path so cert-manager-config takes
+                its ExternalSecret branch instead of rendering the token in
+                cleartext onto this Application spec. Requires
+                estabilis-platform-gitops >= v0.42.11, where that branch reads
+                .Values.kvSecrets.cloudflareApiToken instead of a hardcoded flat
+                Key Vault name (which never resolves against AWS SM paths). */}}
+          - name: kvSecrets.cloudflareApiToken
+            value: "{{ .Values.global.secretsPathPrefix }}/platform-cloudflare-api-token"
+          {{- else }}
           - name: global.cloudflareApiToken
             value: "{{ .Values.global.cloudflareApiToken }}"
+          {{- end }}
           {{- end }}
     - repoURL: {{ .Values.platformGitopsRepoUrl }}
       targetRevision: {{ .Values.platformGitopsVersion }}
