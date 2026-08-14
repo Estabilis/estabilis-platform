@@ -1141,6 +1141,33 @@ variable "secretsmanager_recovery_days" {
   }
 }
 
+variable "secrets_manager_admin_principals" {
+  description = <<-EOT
+    IAM principals allowed to manage the platform secrets through their resource
+    policy (the `AllowTerraformPrincipal` statement). ARNs, not session ARNs.
+
+    Empty (the default) derives it from whoever runs Terraform, resolved to that
+    principal's ROLE arn. That is stable across sessions of the same role, but it
+    still differs between two different runners — so a plan produced by CI and a
+    plan produced locally will disagree on these policies.
+
+    Set it explicitly to remove that dependency entirely. Then the policy states
+    who is meant to manage these secrets rather than recording who happened to
+    run the last apply, and a plan means the same thing wherever it ran. That is
+    a precondition for reviewing plans in CI, and for ever applying from it.
+
+      secrets_manager_admin_principals = [
+        "arn:aws:iam::123456789012:role/aws-reserved/sso.amazonaws.com/AWSReservedSSO_admin_abc123",
+      ]
+
+    ⚠️ Setting this REPLACES the derived value. Whoever runs Terraform must be in
+    the list, or the next apply writes a policy that locks Terraform itself out
+    of these secrets. Include the CI role here too if CI will ever apply.
+  EOT
+  type        = list(string)
+  default     = []
+}
+
 variable "secretsmanager_resource_policy_enabled" {
   description = "Attach a resource policy to each platform secret denying cross-deployment access (analog of Key Vault RBAC isolation). Recommended ON for multi-tenant AWS accounts."
   type        = bool

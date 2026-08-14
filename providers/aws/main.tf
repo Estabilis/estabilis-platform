@@ -53,6 +53,20 @@ data "aws_caller_identity" "current" {}
 data "aws_partition" "current" {}
 data "aws_region" "current" {}
 
+# Resolves an assumed-role SESSION arn to the underlying ROLE arn.
+#
+# `data.aws_caller_identity.current.arn` returns
+# `arn:aws:sts::<acct>:assumed-role/<Role>/<SessionName>` — it identifies a
+# session, not a role, and the session name is part of it. Anything derived
+# from it changes whenever the session name changes.
+#
+# String-rewriting it back to a role arn is wrong for SSO roles, whose real arn
+# carries the `aws-reserved/sso.amazonaws.com/` path that the session arn drops.
+# This data source asks IAM instead of guessing. It calls iam:GetRole.
+data "aws_iam_session_context" "current" {
+  arn = data.aws_caller_identity.current.arn
+}
+
 # ---------------------------------------------------------------------------
 # CAF naming + tags — kept byte-compatible with the Azure provider so client
 # downstream tfvars can reuse the same CAF tag keys across providers.
