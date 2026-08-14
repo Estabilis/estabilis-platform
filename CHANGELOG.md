@@ -1,5 +1,74 @@
 # Changelog
 
+## [0.65.0] - 2026-08-14
+
+### Fixed — an unbounded replication slot can fill the CNPG volume and deadlock the cluster
+
+`cnpg-cluster` never set any `postgresql.parameters`, so the cluster ran on
+Postgres defaults. One of those defaults is a trap:
+
+```
+max_slot_wal_keep_size = -1     # unlimited
+```
+
+A replica that dies or stalls leaves its replication slot pinning WAL with no
+upper bound. The volume fills, and on CNPG that closes a trap rather than
+raising an alarm: the cluster reports `Not enough disk space`, and it then
+**cannot create the replacement replica** that would release the slot. There is
+no way out from inside.
+
+That is not hypothetical. On a production platform database the cluster sat
+degraded with `Ready=False` and `phase: Not enough disk space`; the instance
+names had reached `-1`, `-2`, `-5`, meaning two replicas had already been lost
+and could not be rebuilt. It was resolved by resizing the volume **by hand** —
+which broke the deadlock (the replacement replica appeared seven minutes later)
+without touching the mechanism that caused it.
+
+`max_slot_wal_keep_size` is now set from `postgres.wal.maxSlotKeepSize`,
+defaulting to `1GB`. A finite bound converts an unrecoverable failure into a
+recoverable one: Postgres invalidates the offending slot, and CNPG rebuilds the
+replica from scratch. **Losing a replica beats losing the cluster.**
+
+The parameter is reloadable (`sighup`), so adopting this does not restart
+anything.
+
+The trade is worth naming: a replica that lags by more than the bound now gets
+its slot invalidated and must be rebuilt, where previously it would have caught
+up. On a small platform database a rebuild is cheap; on a large one, raise the
+bound together with `postgres.storage.size`.
+
+### Added — `postgres.storage.size` is a value, and `cnpg-cluster` accepts overrides
+
+`storage.size` was hardcoded to `4Gi` in both the AWS and Azure templates,
+unchanged since v0.20.0, and the Application carried no override value file.
+
+Two consequences, both real:
+
+- **4Gi does not fit the platform's own WAL budget.** Measured at rest on a
+  production cluster: **577Mi of WAL against 46Mi of data** — twelve times the
+  database. That is not anomalous, it is `wal_keep_size` (512MB) doing what it
+  is configured to do, plus `max_wal_size` (1GB) as headroom above it. A
+  quarter of a 4Gi volume is spoken for before anything goes wrong.
+- **A cluster grown to escape a full volume can never come back.** CNPG does not
+  shrink volumes, so once resized, the Application is permanently `OutOfSync`
+  against a value it cannot reach — and permanent OutOfSync trains people to
+  ignore OutOfSync.
+
+`postgres.storage.size` now drives both templates (default `4Gi`, unchanged),
+and `bootstrap/platform-root/templates/cnpg.yaml` gains the override value file
+plus the `$overrides` source, so a deployment can declare the size it actually
+runs. Deployments without `configRepoUrl` render exactly as before.
+
+### Not addressed here
+
+The volume still holds data and WAL together — `walStorage` is not used. That is
+the structural fix, and it is deliberately not in this release: the CNPG
+documentation states *"Removing `walStorage` isn't supported. Once added, a
+separate volume for WALs can't be removed from an existing Postgres cluster"*,
+and it documents no migration path for a cluster created without it. A one-way
+door with no documented procedure deserves its own change, tested, not a rider
+on a bugfix.
+
 ## [0.64.0] - 2026-08-14
 
 ### Added — `cluster_addon_versions`, pin an addon without losing its configuration

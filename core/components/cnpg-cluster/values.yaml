@@ -18,6 +18,39 @@ postgres:
     limits:
       cpu: "1"
       memory: "1Gi"
+
+  storage:
+    # Data volume. WAL lives here too — there is no dedicated walStorage — so
+    # this has to cover the database AND the WAL floor, not just the data.
+    #
+    # 4Gi is tight on purpose-built defaults and has proven insufficient in
+    # practice: WAL alone occupies ~577Mi at rest under CNPG's defaults
+    # (wal_keep_size 512MB), against ~46Mi of actual data on a platform
+    # database. Raise it wherever the WAL budget below is raised.
+    #
+    # CNPG does not shrink volumes: "CloudNativePG does not support automated
+    # volume shrinking, as it is a delicate operation that can lead to data
+    # loss if performed incorrectly." Size up only when you mean it.
+    size: 4Gi
+
+  wal:
+    # Upper bound on WAL a replication slot may pin.
+    #
+    # Postgres defaults max_slot_wal_keep_size to -1, meaning UNLIMITED: a
+    # replica that dies or stalls leaves its slot holding WAL forever, and the
+    # volume fills. On a CNPG cluster that is a closed trap — the disk fills,
+    # the cluster reports "Not enough disk space", and it then cannot create
+    # the replacement replica that would release the slot. Observed on a
+    # production platform database, which had to be resized by hand to break
+    # the deadlock.
+    #
+    # A finite value converts that into a recoverable failure: Postgres
+    # invalidates the offending slot and the replica is rebuilt from scratch.
+    # Losing a replica beats losing the cluster.
+    #
+    # 1GB fits the 4Gi default alongside max_wal_size (1GB) and wal_keep_size
+    # (512MB). Raise it together with storage.size, never alone.
+    maxSlotKeepSize: "1GB"
 identity:
   cnpg:
     clientId: ""                       # Azure only (Workload Identity)

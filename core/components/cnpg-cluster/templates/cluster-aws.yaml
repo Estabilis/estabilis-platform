@@ -19,9 +19,18 @@ spec:
   # PostgreSQL version
   imageName: ghcr.io/cloudnative-pg/postgresql:18.1
 
-  # Storage
+  # Storage — WAL shares this volume (no dedicated walStorage). Sized via
+  # values so a deployment whose WAL budget was raised can follow.
   storage:
-    size: 4Gi
+    size: {{ .Values.postgres.storage.size }}
+
+  # Bound the WAL a replication slot may pin. Postgres defaults this to -1
+  # (unlimited), which lets a dead replica's slot fill the volume and deadlock
+  # the cluster: no space means no replacement replica, and the slot is never
+  # released. See values.yaml for the incident this came from.
+  postgresql:
+    parameters:
+      max_slot_wal_keep_size: {{ .Values.postgres.wal.maxSlotKeepSize | quote }}
 
   # Bootstrap — creates the cluster from scratch
   bootstrap:
