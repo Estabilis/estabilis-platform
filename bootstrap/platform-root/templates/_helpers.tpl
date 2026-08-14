@@ -432,3 +432,45 @@ components:
   {{- end }}
   {{- end }}
 {{- end -}}
+
+{{/*
+Resolved ArgoCD UI base URL, e.g. "https://argocd.example.com", or "" when
+ArgoCD has no enabled external exposure.
+
+Derived from `global.argocdExposures` — the same payload
+templates/argocd-ingress.yaml decodes to build the Ingress, and the same
+`host` field providers/{aws,azure}/platform-outputs.tf reads. Deriving here
+instead of consuming `global.argocdUrl` removes a value that had to be
+computed upstream, published to the infrastructure ConfigMap, and forwarded
+as a parameter — three places to stay in sync for information the chart
+already holds.
+
+That chain is not hypothetical: on a real deployment the parameter was
+absent from the consumer's hand-maintained list, `global.argocdUrl` resolved
+empty, and every dashboard data link silently became a relative URL that
+resolved against Grafana's own host.
+
+`global.argocdUrl` still wins when set, so deployments that supply it keep
+their current behaviour. Accepts base64 or raw JSON, matching
+argocd-ingress.yaml.
+*/}}
+{{- define "platform-root.argocdUrl" -}}
+{{- $explicit := .Values.global.argocdUrl | default "" -}}
+{{- if $explicit -}}
+{{- $explicit -}}
+{{- else -}}
+{{- $raw := index .Values.global "argocdExposures" | default "" -}}
+{{- $jsonStr := "{}" -}}
+{{- if $raw -}}
+{{- if or (hasPrefix "{" $raw) (hasPrefix "[" $raw) -}}
+{{- $jsonStr = $raw -}}
+{{- else -}}
+{{- $jsonStr = b64dec $raw -}}
+{{- end -}}
+{{- end -}}
+{{- $exp := (fromJson $jsonStr).external | default dict -}}
+{{- if and $exp.enabled $exp.host -}}
+{{- printf "https://%s" $exp.host -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}

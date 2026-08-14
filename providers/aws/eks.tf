@@ -103,7 +103,35 @@ locals {
   # Merge instead of substitute. Operators set var.cluster_addons to override
   # individual addons (e.g. enable amazon-cloudwatch-observability) without
   # losing the 6 platform defaults. User-provided keys win on collision.
-  effective_addons = merge(local.default_addons, var.cluster_addons)
+  #
+  # NOTE this merge is SHALLOW: a key present in var.cluster_addons replaces
+  # the whole default entry. Pinning a version that way silently drops the
+  # rest of the config — for vpc-cni that means losing before_compute and
+  # enableNetworkPolicy, i.e. NetworkPolicy stops being enforced cluster-wide
+  # while the DaemonSet keeps running. Use var.cluster_addon_versions below
+  # to set a version without touching anything else.
+  merged_addons = merge(local.default_addons, var.cluster_addons)
+
+  # Version pinning. `most_recent = true` means every apply chases whatever
+  # AWS published since the last one, so no plan is ever just the change the
+  # operator asked for. That pressure is what pushes people towards -target,
+  # and -target skips the post-processing resources further down this file
+  # that must run on every apply — the combination has taken a cluster down.
+  #
+  # A pinned addon drops most_recent and takes addon_version instead, keeping
+  # configuration_values, before_compute and service_account_role_arn intact.
+  # Unpinned addons are untouched, so the default stays "track latest" and
+  # existing deployments see no change.
+  effective_addons = {
+    for name, cfg in local.merged_addons : name => (
+      contains(keys(var.cluster_addon_versions), name)
+      ? merge(
+        { for k, v in cfg : k => v if k != "most_recent" },
+        { addon_version = var.cluster_addon_versions[name] },
+      )
+      : cfg
+    )
+  }
 
   # Fargate profiles — kube-system is always included (addons land here),
   # karpenter namespace when autoscaler uses Karpenter ("karpenter" or
@@ -490,6 +518,31 @@ resource "aws_ec2_tag" "existing_subnets_cluster_membership" {
 # detection — the local-exec idempotency keeps the cluster healthy in
 # between any actual applies.
 # ---------------------------------------------------------------------------
+# A pin whose key matches no addon does nothing at all — no error, no plan
+# diff, just a version that never takes effect. That is the same silent-no-op
+# this variable exists to remove, so it fails at plan time instead.
+#
+# This lives on a terraform_data rather than the module block because module
+# blocks accept no lifecycle{}. It creates no infrastructure.
+resource "terraform_data" "validate_cluster_addon_versions" {
+  input = keys(var.cluster_addon_versions)
+
+  lifecycle {
+    precondition {
+      condition = length(setsubtract(
+        keys(var.cluster_addon_versions),
+        keys(local.merged_addons),
+      )) == 0
+      error_message = join(" ", [
+        "cluster_addon_versions pins addons that are not installed:",
+        join(", ", setsubtract(keys(var.cluster_addon_versions), keys(local.merged_addons))),
+        "- available:",
+        join(", ", sort(keys(local.merged_addons))),
+      ])
+    }
+  }
+}
+
 resource "null_resource" "untag_node_sg_cluster_membership" {
   triggers = {
     sg_id        = module.eks.node_security_group_id

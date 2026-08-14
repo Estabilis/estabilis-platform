@@ -17,14 +17,15 @@ spec:
       parameters:
         # Per-cluster ArgoCD UI URL — substituted into the
         # argocd-application dashboard JSON to make table-panel data
-        # links resolve to the correct UI on this cluster. Sourced
-        # from global.argocdUrl in the platform-infrastructure
-        # ConfigMap (computed by providers/{aws,azure}/platform-outputs.tf
-        # from local.argocd_exposures_resolved.external when enabled).
-        # Empty when ArgoCD is not exposed externally — links stay
-        # broken but dashboard still renders.
+        # links resolve to the correct UI on this cluster.
+        #
+        # Derived from global.argocdExposures, which this chart already
+        # decodes to build the Ingress. global.argocdUrl still wins when
+        # supplied. See the helper for why the derived path is preferred.
+        # Empty when ArgoCD has no enabled external exposure — links stay
+        # broken but the dashboard still renders.
         - name: argocdUrl
-          value: "{{ default "" .Values.global.argocdUrl }}"
+          value: "{{ include "platform-root.argocdUrl" . }}"
         {{- /* Gate the opencost dashboard ConfigMaps on the same precondition
               as bootstrap/platform-root/templates/opencost.yaml:
               both components.opencost!=false AND global.curBucketName!="".
