@@ -190,6 +190,29 @@ resource "aws_secretsmanager_secret_version" "alertmanager_slack_info" {
 # per-deployment scope from the caller side.
 # ---------------------------------------------------------------------------
 
+locals {
+  # Who may manage these secrets through the resource policy.
+  #
+  # Previously this was `data.aws_caller_identity.current.arn` — the SESSION
+  # arn of whoever ran apply. That is not a stable value: the session name is
+  # part of the arn, so the policy recorded one session of one role rather than
+  # a principal. It looked stable only because a single operator applying from
+  # SSO reuses the same session name.
+  #
+  # It stops looking stable the moment anything else runs Terraform against the
+  # same state. A CI role's session name typically embeds the run id, so every
+  # run produced a diff on every one of these policies, and an apply from CI
+  # would have written a session arn that ceases to exist when the job ends —
+  # leaving the statement pointing at nobody.
+  #
+  # Default now resolves the caller to its ROLE arn, which is stable across
+  # sessions. Set `secrets_manager_admin_principals` to stop deriving it at all:
+  # then the policy states who is meant to manage these secrets, the value is
+  # reviewable in a diff, and a plan means the same thing regardless of which
+  # runner produced it. That last property is what makes CI usable here.
+  secrets_manager_admin_principals = length(var.secrets_manager_admin_principals) > 0 ? var.secrets_manager_admin_principals : [data.aws_iam_session_context.current.issuer_arn]
+}
+
 data "aws_iam_policy_document" "platform_secret_policy" {
   count = var.secretsmanager_resource_policy_enabled ? 1 : 0
 
@@ -199,7 +222,7 @@ data "aws_iam_policy_document" "platform_secret_policy" {
 
     principals {
       type        = "AWS"
-      identifiers = [data.aws_caller_identity.current.arn]
+      identifiers = local.secrets_manager_admin_principals
     }
 
     actions   = ["secretsmanager:*"]

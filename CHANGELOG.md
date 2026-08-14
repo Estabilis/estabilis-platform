@@ -1,5 +1,56 @@
 # Changelog
 
+## [0.66.0] - 2026-08-14
+
+### Fixed — secret resource policies granted to a SESSION, so they changed on every runner
+
+`aws_iam_policy_document.platform_secret_policy` built its
+`AllowTerraformPrincipal` statement from `data.aws_caller_identity.current.arn`.
+That returns the assumed-role **session** arn:
+
+```
+arn:aws:sts::<acct>:assumed-role/<Role>/<SessionName>
+```
+
+The session name is part of the value, so the policy recorded one *session* of
+one role rather than a principal.
+
+It looks stable while a single operator applies from SSO, because their session
+name is their identity. It stops looking stable the moment anything else runs
+Terraform against the same state. A CI role's session name typically embeds the
+run id, so **every run produces a different arn**: eight secret policies diff on
+every plan, and the plan never converges.
+
+Worse than churn — an apply from CI writes a session arn that ceases to exist
+when the job ends, leaving `AllowTerraformPrincipal` pointing at nobody. The
+grant that lets Terraform manage its own secrets would be silently dead.
+
+Two changes:
+
+- The derived default now resolves the caller to its **role** arn via
+  `data.aws_iam_session_context`, which is stable across sessions.
+  String-rewriting the session arn is not equivalent and is wrong for SSO roles,
+  whose real arn carries an `aws-reserved/sso.amazonaws.com/` path that the
+  session arn drops — the data source asks IAM instead of guessing.
+- New `secrets_manager_admin_principals` removes the derivation entirely. With
+  it set, the policy states who is *meant* to manage these secrets rather than
+  recording who happened to run the last apply, and a plan means the same thing
+  whichever runner produced it.
+
+The second is the one that matters for reviewing plans in CI, and it is a
+precondition for ever applying from one.
+
+### Migration
+
+Applying rewrites the `AllowTerraformPrincipal` principal on every secret with a
+resource policy — from the session arn to a role arn. One-time and in-place; the
+secrets themselves are untouched.
+
+⚠️ **Setting `secrets_manager_admin_principals` REPLACES the derived value.**
+Whoever runs Terraform must appear in the list, CI included if CI will ever
+apply. Leaving yourself out means the next apply writes a policy that locks
+Terraform out of the secrets it manages.
+
 ## [0.65.0] - 2026-08-14
 
 ### Fixed — an unbounded replication slot can fill the CNPG volume and deadlock the cluster
