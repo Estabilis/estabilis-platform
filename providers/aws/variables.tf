@@ -332,6 +332,42 @@ variable "iam_policy_name_use_cluster_prefix" {
   default     = false
 }
 
+variable "operator_ip_autodetect" {
+  description = <<-EOT
+    Append the public IP of whoever runs Terraform to the EKS API server
+    allowlist (on top of authorized_ip_ranges).
+
+    Convenient for a laptop workflow. A liability once anything NON-INTERACTIVE
+    can run Terraform: the detected address is then a CI runner's, it changes
+    every run so the plan never converges, the list only ever grows because
+    nothing removes a previously added address, and hosted runner addresses come
+    from a SHARED pool — allowlisting one authorises whatever workload holds it,
+    not "our CI".
+
+    Default true so no existing deployment changes behaviour. Set false and
+    declare the CIDRs you mean in authorized_ip_ranges wherever Terraform can run
+    from somewhere other than a person's machine.
+  EOT
+  type        = bool
+  default     = true
+}
+
+variable "kms_key_administrators" {
+  description = <<-EOT
+    IAM principals administering the KMS key the EKS module creates. Role ARNs.
+
+    Empty (the default) lets the module fall back to the calling identity, which
+    is derived state: the key policy records whoever ran the last apply and
+    changes when a different identity runs Terraform. A plan from CI proposes
+    rewriting it; an apply from CI hands key administration to the CI role.
+
+    Set it to state who administers the key. Whoever runs Terraform should be in
+    the list — losing key administration does not fail the apply that causes it.
+  EOT
+  type        = list(string)
+  default     = []
+}
+
 variable "eks_access_entries" {
   description = "List of EKS Access Entry definitions (AWS best practice, replaces aws-auth ConfigMap). Each entry binds an IAM principal to an EKS access policy."
   type = list(object({

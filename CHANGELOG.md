@@ -1,5 +1,54 @@
 # Changelog
 
+## [0.67.0] - 2026-08-14
+
+### Added — opt out of the two remaining caller-derived values
+
+Two pieces of configuration were derived from whoever ran Terraform. Both look
+stable while one operator applies from one machine, and stop being stable the
+moment anything non-interactive runs against the same state.
+
+**`operator_ip_autodetect`** (default `true`, unchanged behaviour)
+
+The public IP of the caller is appended to the EKS API server allowlist. From a
+laptop that is convenient. From CI the detected address is a runner's, and:
+
+- it changes on every run, so the plan never converges;
+- `distinct(concat(...))` only ever GROWS the list — nothing removes a
+  previously added address, so applies accumulate stale entries on a production
+  API allowlist;
+- hosted runner addresses come from a **shared pool**, so allowlisting one does
+  not authorise "our CI" — it authorises whatever workload holds that address.
+
+Set it `false` and declare the CIDRs you mean. The `data "http"` is gated too,
+so with autodetect off nothing calls `api.ipify.org` and a run from a network
+that cannot reach it does not fail for a value it would discard.
+
+**`kms_key_administrators`** (default `[]`, unchanged behaviour)
+
+The EKS module makes the caller the administrator of the KMS key it creates when
+this is empty. Same shape: a plan from a different identity proposes rewriting
+the key policy, and an apply hands key administration to whoever ran it.
+
+### Note on the defaults
+
+Both keep today's behaviour, so no deployment changes on upgrade. That is
+deliberate — but for `operator_ip_autodetect` it is worth saying that
+convenience-by-default is hard to defend once Terraform can run from anywhere
+but a person's machine, and the failure is silent: the allowlist simply grows,
+and nobody re-reads a CIDR list they did not expect to change. Flipping the
+default is a breaking change and belongs in a major bump, not here.
+
+### Verified
+
+Planned against a live deployment, `-refresh=false`, both paths:
+
+- **defaults** — plan identical to before the change: no `public_access_cidrs`
+  diff, no KMS key diff. Nothing breaks.
+- **`operator_ip_autodetect = false` + `kms_key_administrators` set** — the
+  allowlist stops changing (the declared CIDRs already covered the operator) and
+  the key policy moves once, to the declared administrators.
+
 ## [0.66.0] - 2026-08-14
 
 ### Fixed — secret resource policies granted to a SESSION, so they changed on every runner

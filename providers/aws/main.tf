@@ -259,25 +259,45 @@ locals {
 }
 
 # ---------------------------------------------------------------------------
-# Operator IP — auto-detected. Used to:
-#   - Append to authorized_ip_ranges for the EKS API server allowlist when
-#     cluster_endpoint_public_access = true and authorized_ip_ranges is set.
-#   - Seed S3 bucket policies that restrict access by source IP when the
-#     deployment is fully public-endpoint.
+# Operator IP — auto-detected, and appended to the EKS API server allowlist
+# when cluster_endpoint_public_access = true and authorized_ip_ranges is set.
+#
+# Convenient for a laptop workflow: whoever applies keeps reaching the API
+# without editing the allowlist. It becomes a liability the moment something
+# NON-INTERACTIVE runs Terraform, because "whoever applies" is then a CI
+# runner:
+#
+#   - the detected address changes on every run, so the plan never converges;
+#   - `distinct(concat(...))` only ever GROWS the list — nothing removes a
+#     previously added address, so applies accumulate stale entries on a
+#     production API allowlist;
+#   - hosted runner addresses come from a SHARED pool, so allowlisting one does
+#     not authorise "our CI" — it authorises whatever workload happens to hold
+#     that address.
+#
+# `operator_ip_autodetect` turns it off. Default stays true so no existing
+# deployment changes behaviour, but any deployment that can run Terraform from
+# somewhere other than a person's machine should set it false and declare the
+# CIDRs it means. See variables.tf.
+#
+# The data source is gated too: with autodetect off nothing calls out to
+# api.ipify.org, so a run from a network that cannot reach it does not fail for
+# a value it would discard.
 # ---------------------------------------------------------------------------
 
 data "http" "operator_ip" {
-  url = "https://api.ipify.org"
+  count = var.operator_ip_autodetect ? 1 : 0
+  url   = "https://api.ipify.org"
 }
 
 locals {
-  operator_ip = "${chomp(data.http.operator_ip.response_body)}/32"
+  operator_ips = var.operator_ip_autodetect ? ["${chomp(data.http.operator_ip[0].response_body)}/32"] : []
 
-  # EKS API allowlist: user-provided CIDRs + operator IP. If the user did
-  # not provide any CIDR and the public endpoint is enabled, fall back to
-  # 0.0.0.0/0 (documented behavior in the authorized_ip_ranges variable —
-  # must be consciously opted in via allow_public_api_endpoint = true).
-  authorized_ips = length(var.authorized_ip_ranges) > 0 ? distinct(concat(var.authorized_ip_ranges, [local.operator_ip])) : ["0.0.0.0/0"]
+  # EKS API allowlist: user-provided CIDRs + the operator IP when autodetect is
+  # on. If the user did not provide any CIDR and the public endpoint is enabled,
+  # fall back to 0.0.0.0/0 (documented behavior in the authorized_ip_ranges
+  # variable — must be consciously opted in via allow_public_api_endpoint).
+  authorized_ips = length(var.authorized_ip_ranges) > 0 ? distinct(concat(var.authorized_ip_ranges, local.operator_ips)) : ["0.0.0.0/0"]
 }
 
 # ---------------------------------------------------------------------------
