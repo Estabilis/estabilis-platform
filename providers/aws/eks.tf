@@ -289,6 +289,18 @@ module "eks" {
     provider_key_arn = aws_kms_key.cluster_secrets.arn
   } : null
 
+  # --- KMS key administrators ---------------------------------------------
+  # The EKS module creates its own KMS key and, when this is empty, makes the
+  # CALLER its administrator (main.tf: coalescelist(var.kms_key_administrators,
+  # [data.aws_iam_session_context.current[0].issuer_arn])).
+  #
+  # That is derived state: the key policy records whoever ran the last apply,
+  # so it changes when a different identity runs Terraform — a CI plan proposes
+  # rewriting the key policy, and a CI apply hands administration of the key to
+  # the CI role. Empty keeps that behaviour; set it to state who administers the
+  # key instead of recording who happened to run apply.
+  kms_key_administrators = var.kms_key_administrators
+
   # --- Authentication (Access Entries, AWS best practice) -----------------
   authentication_mode                      = var.authentication_mode
   enable_cluster_creator_admin_permissions = var.enable_cluster_creator_admin_permissions
