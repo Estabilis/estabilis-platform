@@ -1,5 +1,77 @@
 # Changelog
 
+## [0.64.0] - 2026-08-14
+
+### Added — `cluster_addon_versions`, pin an addon without losing its configuration
+
+All six default addons carry `most_recent = true`, so every apply also carries
+whatever versions AWS published since the last one. A plan is never just the
+change being made, which makes it hard to read and easy to approve without
+understanding. That pressure pushes operators toward `-target` — and `-target`
+skips the post-processing resources in `eks.tf` that must run on every apply.
+On one deployment that combination removed the node security group's
+cluster-membership cleanup, the ALB controller refused to reconcile, and 41
+TargetGroupBindings stopped updating for eight hours.
+
+Pinning was already possible in principle through `var.cluster_addons`, and it
+is a trap: that merge is **shallow**, so an entry there replaces the addon's
+whole configuration. Pinning `vpc-cni` that way silently drops `before_compute`
+and `enableNetworkPolicy` — the policy agent keeps running while enforcing
+nothing, and the first-apply CNI deadlock returns.
+
+`cluster_addon_versions` merges only the version:
+
+```hcl
+cluster_addon_versions = {
+  vpc-cni = "v1.22.1-eksbuild.2"
+}
+```
+
+The pinned addon drops `most_recent` and takes `addon_version`;
+`configuration_values`, `before_compute` and `service_account_role_arn` survive.
+Unpinned addons are untouched, so the default remains "track latest" and
+existing deployments see no diff. A key that matches no addon fails at plan
+time — a pin that matches nothing would otherwise be silently ignored, which is
+the failure this variable exists to remove.
+
+The cost, stated plainly: a pinned addon stops receiving patches. Upgrades
+become a dated decision that needs an owner. That is the intended trade —
+consciously behind rather than silently moving.
+
+`var.cluster_addons` keeps working and its description now warns about the
+shallow merge.
+
+### Changed — the ArgoCD dashboard URL is derived, not forwarded
+
+`global.argocdUrl` travelled a long way for a value the chart already holds:
+computed in `platform-outputs.tf` from
+`local.argocd_exposures_resolved.external.host`, published to the
+`platform-infrastructure` ConfigMap, then forwarded as a Helm parameter by each
+consumer that builds the `platform-root` Application.
+
+`templates/argocd-ingress.yaml` already decodes `global.argocdExposures` and
+reads that same `host` to build the Ingress. So the chart had the information
+and still depended on a second copy of it arriving.
+
+On a real deployment the parameter was missing from the consumer's
+hand-maintained list. `global.argocdUrl` resolved empty, and every data link in
+the ArgoCD dashboard became a **relative** URL — `/applications/...` — which
+resolves against Grafana's own host. Not a visibly broken link: one that looks
+fine and goes somewhere wrong.
+
+`grafana-dashboards.yaml` now calls the new `platform-root.argocdUrl` helper,
+which derives the URL from `global.argocdExposures`. `global.argocdUrl` still
+wins when supplied, so deployments that forward it keep their behaviour and
+nothing needs to change downstream. Accepts base64 or raw JSON, matching the
+Ingress template. Resolves to empty when there is no enabled external exposure,
+when `external` is absent, and when a profile is enabled without a host.
+
+### Migration
+
+None for either change. `cluster_addon_versions` is empty by default, and the
+derived URL only takes effect where `global.argocdUrl` was already empty — which
+is exactly the case that was broken.
+
 ## [0.63.0] - 2026-08-14
 
 ### Fixed — the observability lifecycle rule deleted Alertmanager and Ruler configuration, not just blocks

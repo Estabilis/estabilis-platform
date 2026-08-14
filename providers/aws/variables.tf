@@ -577,8 +577,40 @@ variable "karpenter_discovery_tag_key" {
 # ---------------------------------------------------------------------------
 
 variable "cluster_addons" {
-  description = "Map of EKS managed addons to install. Each entry maps addon name to its configuration (most_recent, configuration_values, etc.). Leave empty for sensible defaults applied in eks.tf."
+  description = "Map of EKS managed addons to install. Each entry maps addon name to its configuration (most_recent, configuration_values, etc.). Leave empty for sensible defaults applied in eks.tf. NOTE: this merges shallowly over the defaults — an entry here REPLACES the whole default entry for that addon. To pin only a version, use cluster_addon_versions instead."
   type        = any
+  default     = {}
+}
+
+variable "cluster_addon_versions" {
+  description = <<-EOT
+    Pin specific EKS managed addons to an exact version, as
+    { "<addon-name>" = "<version>" }. Listed addons drop `most_recent` and take
+    `addon_version`; everything else in their configuration is preserved.
+
+    Unlike cluster_addons, this does NOT replace the addon's entry — pinning
+    vpc-cni through cluster_addons would drop `before_compute` and
+    `enableNetworkPolicy`, leaving the policy agent running without enforcing
+    anything.
+
+    Why pin at all: with `most_recent = true` every apply also carries whatever
+    versions AWS published since the last one, so a plan is never just the change
+    being made. That is what pushes operators toward `-target`, which skips the
+    post-processing resources in eks.tf that must run on every apply. Pinning to
+    the versions already running turns the next apply into exactly one change.
+
+    The cost is real and worth stating: a pinned addon stops receiving patches.
+    Upgrades become a dated decision that needs an owner.
+
+      cluster_addon_versions = {
+        vpc-cni = "v1.22.1-eksbuild.2"
+      }
+
+    A key that is not an addon fails at plan time — a pin that matches nothing
+    would otherwise be silently ignored. Empty by default: everything tracks
+    latest, as before.
+  EOT
+  type        = map(string)
   default     = {}
 }
 
