@@ -75,6 +75,12 @@ spec:
       helm:
         valueFiles:
           - $values/core/components/cnpg-cluster/values.yaml
+          {{- /* Storage size and the WAL bound are deployment-specific: a
+                 cluster that had to be grown to escape a full volume cannot
+                 be shrunk back, so without an override the Application stays
+                 permanently OutOfSync against a value it can never reach. */}}
+          {{- include "platform-root.overrideValueFile" (dict "component" "cnpg-cluster" "root" $) | nindent 10 }}
+        {{- include "platform-root.ignoreMissingValueFiles" $ | nindent 8 }}
         parameters:
           {{- include "platform-root.provenanceParameters" $ | nindent 10 }}
           - name: global.provider
@@ -101,6 +107,7 @@ spec:
     - repoURL: {{ .Values.platformRepoUrl }}
       targetRevision: {{ .Values.platformVersion }}
       ref: values
+    {{- include "platform-root.overrideSource" . | nindent 4 }}
   destination:
     server: https://kubernetes.default.svc
     namespace: cnpg-system
