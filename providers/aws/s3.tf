@@ -85,22 +85,102 @@ resource "aws_s3_bucket_policy" "observability" {
   depends_on = [aws_s3_bucket_public_access_block.observability]
 }
 
+# The observability bucket holds two categories of object with opposing
+# needs, and an unfiltered expiration rule cannot tell them apart:
+#
+#   blocks/ fake/ index/ single-tenant/   time series      -> expire
+#   alertmanager/alerts/<tenant>          Alertmanager cfg -> NEVER expire
+#   ruler/rules/<tenant>/...              alert rules      -> NEVER expire
+#   *_cluster_seed.json                   cluster identity -> NEVER expire
+#
+# Expiring the configuration breaks alerting SILENTLY: Mimir Alertmanager
+# falls back to a default config with no receivers, rules keep evaluating,
+# and every notification is discarded without an error or a log line. The
+# only reason this stayed hidden is that the mimir-rules and
+# mimir-alertmanager-config charts rewrite those objects on every sync,
+# resetting the clock before it reaches the expiration window. That is an
+# accidental side effect of reconciliation, not a design — any pause (app
+# OutOfSync, upgrade, feature gated off) restarts the countdown.
+#
+# So expiration is scoped to the data prefixes and configuration is simply
+# never matched by a rule that deletes a current version. The failure
+# direction is deliberate: a new prefix that nobody adds to the list costs
+# storage, it does not cost configuration.
+#
+# Per-prefix days exist because one number cannot serve every component.
+# Mimir's compactor_blocks_retention_period defaults to 2160h (90 days)
+# while Loki and Tempo retain 720h (30 days). With a single value, S3
+# deletes the blocks Mimir still promises to serve — again silently.
+locals {
+  # prefix => expiration days. The override map wins; otherwise every
+  # prefix gets the bucket-wide default.
+  s3_observability_prefix_days = {
+    for p in var.s3_observability_data_prefixes :
+    p => try(var.s3_observability_prefix_lifecycle_days[p], var.s3_observability_lifecycle_days)
+  }
+}
+
 resource "aws_s3_bucket_lifecycle_configuration" "observability" {
   count  = var.s3_observability_lifecycle_days > 0 ? 1 : 0
   bucket = aws_s3_bucket.observability.id
 
+  # Time series — one rule per data prefix so each component can be given
+  # a window that matches its own retention setting.
+  dynamic "rule" {
+    for_each = local.s3_observability_prefix_days
+
+    content {
+      id     = "expire-${trim(replace(rule.key, "/", "-"), "-")}"
+      status = "Enabled"
+
+      filter {
+        prefix = rule.key
+      }
+
+      expiration {
+        days = rule.value
+      }
+    }
+  }
+
+  # Non-current versions of ANY object, including configuration. On a
+  # versioned bucket the rules above only write a delete marker; this is
+  # what reclaims the bytes. It never touches a current version, so the
+  # live configuration is safe. `expired_object_delete_marker` clears the
+  # markers left behind once their versions are gone — the prd bucket had
+  # 2k+ of them accumulated under ruler/.
   rule {
-    id     = "expire-observability"
+    id     = "expire-noncurrent-versions"
     status = "Enabled"
 
     filter {}
 
-    expiration {
-      days = var.s3_observability_lifecycle_days
-    }
-
     noncurrent_version_expiration {
       noncurrent_days = var.s3_observability_lifecycle_days
+    }
+
+    expiration {
+      expired_object_delete_marker = true
+    }
+  }
+
+  lifecycle {
+    precondition {
+      condition = length(setsubtract(
+        keys(var.s3_observability_prefix_lifecycle_days),
+        var.s3_observability_data_prefixes,
+      )) == 0
+      error_message = join(" ", [
+        "s3_observability_prefix_lifecycle_days has keys that are not in",
+        "s3_observability_data_prefixes:",
+        join(", ", setsubtract(
+          keys(var.s3_observability_prefix_lifecycle_days),
+          var.s3_observability_data_prefixes,
+        )),
+        "- an override on a prefix that has no rule is silently ignored,",
+        "which is exactly the failure mode this resource exists to prevent.",
+        "Prefixes are matched literally and need the trailing slash.",
+      ])
     }
   }
 }

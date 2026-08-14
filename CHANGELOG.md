@@ -1,5 +1,84 @@
 # Changelog
 
+## [0.63.0] - 2026-08-14
+
+### Fixed — the observability lifecycle rule deleted Alertmanager and Ruler configuration, not just blocks
+
+`aws_s3_bucket_lifecycle_configuration.observability` used `filter {}`, so
+`expire-observability` applied to every object in the bucket. The bucket holds
+two categories with opposing needs:
+
+| prefix | nature | expire |
+|---|---|---|
+| `blocks/` `fake/` `index/` `single-tenant/` | time series | yes |
+| `alertmanager/alerts/<tenant>` | Alertmanager configuration | **no** |
+| `ruler/rules/<tenant>/...` | alert rules | **no** |
+| `loki_cluster_seed.json` `tempo_cluster_seed.json` | cluster identity | **no** |
+
+The variable description already said "Loki, Mimir **blocks**" — the rule was
+wider than its own stated intent.
+
+Losing the Alertmanager configuration breaks alerting **silently**: Mimir falls
+back to a default config with no receivers, rules keep evaluating and routing,
+and every notification is discarded with no error and no log line.
+
+Observed on a production bucket: a delete marker on
+`alertmanager/alerts/anonymous` at `2026-07-18T00:00:00Z` — midnight UTC, the
+lifecycle signature — and the object that replaced it already carried
+`expiry-date="Thu, 10 Sep 2026 00:00:00 GMT", rule-id="expire-observability"`.
+
+What kept this from biting every deployment is that the `mimir-rules` and
+`mimir-alertmanager-config` charts rewrite those objects on every sync, resetting
+the clock before it reaches the window. Protection was an accidental side effect
+of reconciliation, not a design: any pause — app OutOfSync, an upgrade, the
+feature gated off — restarts the countdown, and the configuration is gone N days
+later.
+
+Expiration is now scoped to `var.s3_observability_data_prefixes`
+(default `["blocks/", "fake/", "index/", "single-tenant/"]`). Configuration is
+simply never matched by a rule that deletes a current version. The failure
+direction is deliberate — a prefix nobody adds to the list costs storage, the
+reverse costs configuration. Overhead is not the trade it looks like: on the
+observed bucket `blocks/` is 15.5 GB against 25 KB for `ruler/` and 47 bytes for
+`alertmanager/`.
+
+Reclaiming bytes still happens for every object, configuration included, via a
+single bucket-wide `noncurrent_version_expiration` — it never touches a current
+version. That rule also sets `expired_object_delete_marker`, which clears the
+markers left behind once their versions are gone; the observed bucket had 2k+
+accumulated under `ruler/`.
+
+### Added — `s3_observability_prefix_lifecycle_days`, per-prefix expiration
+
+One number cannot serve every component. Mimir's
+`compactor_blocks_retention_period` is `2160h` (90 days) in
+`grafana-stack/mimir-values.yaml` while Loki and Tempo retain `720h` (30 days).
+Set `s3_observability_lifecycle_days` below the longest of those and S3 deletes
+data the component still promises to serve — silently again, since Mimir reports
+no error for a block that vanished from object storage.
+
+Measured on the deployment that prompted this: 30 days configured against
+Mimir's 90-day promise, and the oldest object under `blocks/` was exactly 31 days
+old. Sixty days of metrics the platform claimed to hold did not exist.
+
+```hcl
+s3_observability_lifecycle_days        = 30
+s3_observability_prefix_lifecycle_days = { "blocks/" = 100 }
+```
+
+Empty by default, so existing deployments keep their current windows. A key that
+is not also in `s3_observability_data_prefixes` fails at plan time through a
+`precondition` — an override with no matching rule would otherwise be ignored in
+silence, which is the failure mode this whole change exists to remove.
+
+### Migration
+
+None required. Applying replaces the single `expire-observability` rule with one
+rule per data prefix plus `expire-noncurrent-versions`; the bucket, its objects
+and its versioning are untouched. Deployments that want Mimir's full retention
+should set `s3_observability_prefix_lifecycle_days` at the same time — the fix
+stops the configuration loss on its own, but not the retention mismatch.
+
 ## [0.62.0] - 2026-08-11
 
 ### Added — Cloudflare API token via the platform secret store (`kvSecrets.cloudflareApiToken`)

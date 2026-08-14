@@ -1172,9 +1172,47 @@ variable "s3_tfstate_protect_critical" {
 }
 
 variable "s3_observability_lifecycle_days" {
-  description = "Days before observability objects (Loki, Mimir blocks) are deleted. 0 = no lifecycle rule."
+  description = "Days before observability objects (Loki, Mimir blocks) are deleted. Applies to the s3_observability_data_prefixes only, and is the noncurrent-version window for the whole bucket. 0 = no lifecycle rule at all."
   type        = number
   default     = 90
+}
+
+variable "s3_observability_data_prefixes" {
+  description = <<-EOT
+    Key prefixes in the observability bucket that hold time series and may be
+    expired. Everything outside this list is never matched by a rule that
+    deletes a current version — deliberately, because the same bucket stores
+    Alertmanager configuration (alertmanager/), alert rules (ruler/) and the
+    Loki/Tempo cluster seed files, and deleting those breaks alerting with no
+    error and no log line.
+
+    Adding a prefix here opts its objects into deletion. Forgetting to add one
+    costs storage; the reverse costs configuration, so the default errs long.
+
+    Prefixes are matched literally by S3 and need the trailing slash.
+  EOT
+  type        = list(string)
+  default     = ["blocks/", "fake/", "index/", "single-tenant/"]
+}
+
+variable "s3_observability_prefix_lifecycle_days" {
+  description = <<-EOT
+    Per-prefix override of s3_observability_lifecycle_days, as
+    { "<prefix>" = <days> }. Keys must also appear in
+    s3_observability_data_prefixes; a key that does not is a plan-time error,
+    because an override with no matching rule would be silently ignored.
+
+    Exists because one number cannot serve every component. Mimir's
+    compactor_blocks_retention_period defaults to 2160h (90 days) while Loki
+    and Tempo retain 720h (30 days) — set below the longest of those, S3
+    deletes data the component still promises to serve.
+
+      { "blocks/" = 100 }   # Mimir blocks outlive the compactor's 90 days
+
+    Empty by default: every prefix uses s3_observability_lifecycle_days.
+  EOT
+  type        = map(number)
+  default     = {}
 }
 
 variable "s3_velero_lifecycle_days" {
