@@ -7,9 +7,11 @@ name: release
 #
 # Operator workflow:
 #   - Merge feature PRs normally (squash or merge, doesn't matter)
-#   - When ready to release, create a dedicated commit on main with the
-#     subject `chore(release): vX.Y.Z` (via a small PR or direct push —
-#     the workflow handles both).
+#   - When ready to release, DIRECT-PUSH a dedicated commit to main with the
+#     subject `chore(release): vX.Y.Z` and nothing after the version. The
+#     regex below is anchored at both ends, so a squash merge — which
+#     appends ` (#NNN)` to the subject — produces no tag and no release,
+#     silently. A release cannot go through a PR.
 #   - This workflow tags + releases. No manual `git tag` / `git push --tags`
 #     required.
 
@@ -48,7 +50,17 @@ jobs:
             echo "Detected release: $version"
           else
             echo "should_release=false" >> "$GITHUB_OUTPUT"
+            # Every push to main lands here, so most runs are correctly doing
+            # nothing. The one that is NOT is a release attempt whose subject
+            # missed the pattern — usually ` (#NNN)` appended by a squash
+            # merge. Both look identical unless this says what was expected.
             echo "Not a release commit — skipping."
+            echo "A release commit's subject must be exactly: chore(release): vX.Y.Z"
+            case "$subject" in
+              "chore(release): "*)
+                echo "::warning::Subject starts like a release commit but does not match, so nothing was tagged. A squash merge appends ' (#NNN)' to the subject — direct-push the release commit instead."
+                ;;
+            esac
           fi
 
       - name: Guard against tag drift (idempotent)

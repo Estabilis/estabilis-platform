@@ -100,9 +100,9 @@ coexist permanently.
    written directly under the version they ship in).
 3. Commit with subject `chore(release): vX.Y.Z` and **direct-push** to
    `main`. Do NOT route through a PR — squash merge rewrites the subject
-   to `chore(release): vX.Y.Z (#NNN)`, which breaks the auto-tag
-   workflow's prefix regex.
-4. The `.github/workflows/auto-tag.yml` workflow tags the commit and
+   to `chore(release): vX.Y.Z (#NNN)`, and the release workflow's regex
+   is anchored at both ends, so the tag is silently not created.
+4. The `.github/workflows/release.yaml` workflow tags the commit and
    publishes the GitHub Release page automatically.
 5. Propagate to downstream template + clients per the version-propagation
    checklist in the consumer repo's `CLAUDE.md`.
