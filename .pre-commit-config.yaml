@@ -24,8 +24,22 @@ repos:
       - id: terraform_validate
         args:
           - --hook-config=--retry-once-with-cleanup=true
+      # The --config is NOT optional. The hook runs INSIDE providers/<cloud>/,
+      # and .tflint.hcl lives at the repo root — tflint does not discover it
+      # from there. Without this line it runs with the bundled `terraform`
+      # ruleset alone and no cloud rules at all, passing green while checking
+      # none of what matters.
+      #
+      # That was the real state of the Cortex downstream until 2026-08-17, when
+      # an em dash in an IAM `description` cleared pre-commit, cleared plan,
+      # cleared the production gate, and was only rejected by the AWS API —
+      # with the policy already created. The rule that would have caught it,
+      # aws_iam_role_invalid_description, was configured and never loaded.
+      #
+      # __GIT_WORKING_DIR__ is substituted with the repo root by the hook.
       - id: terraform_tflint
         args:
+          - --args=--config=__GIT_WORKING_DIR__/.tflint.hcl
           - --args=--minimum-failure-severity=error
 
   # ---------------------------------------------------------------------------
