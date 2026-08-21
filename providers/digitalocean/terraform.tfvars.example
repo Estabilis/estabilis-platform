@@ -1,0 +1,157 @@
+# ============================================================================
+# Estabilis Platform — DigitalOcean provider inputs
+# ============================================================================
+# Copy this file to terraform.tfvars and fill in the required values.
+#
+#   cp terraform.tfvars.example terraform.tfvars
+#
+# Then run:
+#   terraform init
+#   terraform plan
+#   terraform apply
+#
+# Terraform loads terraform.tfvars automatically (no -var-file needed).
+# For secrets, use secrets.auto.tfvars (gitignored, auto-loaded) — or better,
+# export DIGITALOCEAN_ACCESS_TOKEN and never write the token to a file.
+#
+# Variable precedence (low -> high):
+#   1. default in variables.tf
+#   2. TF_VAR_<name> env var
+#   3. terraform.tfvars (this file)
+#   4. *.auto.tfvars (alphabetical)
+#   5. -var-file=<path> on the CLI
+#   6. -var <name>=<value> on the CLI
+# ============================================================================
+
+# ----------------------------------------------------------------------------
+# Required
+# ----------------------------------------------------------------------------
+
+deployment_id = "platform-digitalocean-nyc3-prd" # Unique key in the client GitOps repo (platforms/<deployment_id>/)
+
+# ----------------------------------------------------------------------------
+# Core
+# ----------------------------------------------------------------------------
+
+name_prefix = "estabilis" # Prefix for every derived resource name
+region      = "nyc3"      # Must be a region where DOKS is offered
+environment = "prd"       # dev | uat | hml | stg | prd | prod
+
+# Derived cluster name: doks-{name_prefix}-platform-{env}-{region}
+# cluster_name_override = "doks-custom-name"
+
+# ----------------------------------------------------------------------------
+# Kubernetes version
+#
+# Leave kubernetes_version empty to track the latest patch in the prefix
+# series. Pin the exact slug where an unattended apply must never move the
+# control plane.
+# ----------------------------------------------------------------------------
+
+kubernetes_version_prefix = "1.36."
+# kubernetes_version      = "1.36.3-do.2"
+
+# ----------------------------------------------------------------------------
+# API server exposure
+#
+# DigitalOcean has no private control plane. The endpoint is always public and
+# this allowlist is the only thing in front of it — an empty list with the
+# firewall on fails the safety check rather than opening the API silently.
+#
+# operator_ip_autodetect appends the applying machine's address. Turn it OFF
+# for CI and declare the runner CIDRs here instead.
+# ----------------------------------------------------------------------------
+
+control_plane_firewall_enabled = true
+authorized_ip_ranges           = ["CHANGE_ME/32"]
+operator_ip_autodetect         = true
+allow_public_api_endpoint      = false
+
+# ----------------------------------------------------------------------------
+# VPC
+#
+# ip_range null (default) lets DigitalOcean allocate a free /20. Set it only
+# when a specific range is required — DigitalOcean cannot change it in place,
+# so a later edit replaces the VPC and everything attached.
+# ----------------------------------------------------------------------------
+
+vpc_mode = "create"
+# vpc_ip_range = "10.20.0.0/20"
+# vpc_mode = "existing"
+# vpc_uuid = "00000000-0000-0000-0000-000000000000"
+
+# ----------------------------------------------------------------------------
+# Cluster behaviour
+# ----------------------------------------------------------------------------
+
+ha_control_plane     = false # +USD ~40/month, and cannot be turned back off
+auto_upgrade         = true
+surge_upgrade        = true
+isolated_workers     = false # Workers without public IPs — needs a NAT egress path first
+registry_integration = false # DOCR is not required; platform charts come from GHCR
+
+# destroy_all_associated_resources = false   # Leave false so destroy cannot take data volumes
+
+# maintenance_policy = {
+#   day        = "sunday"
+#   start_time = "04:00"
+# }
+
+# ----------------------------------------------------------------------------
+# Node pools
+#
+# The default pool is inline on the cluster and cannot carry taints — that is
+# a DigitalOcean limitation. Pools that need taints go in additional_node_pools.
+# ----------------------------------------------------------------------------
+
+default_node_pool = {
+  size       = "s-2vcpu-4gb" # USD 24/node/month
+  auto_scale = true
+  min_nodes  = 2
+  max_nodes  = 4
+}
+
+# additional_node_pools = {
+#   workload = {
+#     size       = "s-4vcpu-8gb"
+#     auto_scale = true
+#     min_nodes  = 0
+#     max_nodes  = 6
+#     labels     = { workload = "apps" }
+#     taints = [{
+#       key    = "dedicated"
+#       value  = "apps"
+#       effect = "NoSchedule"
+#     }]
+#   }
+# }
+
+# ----------------------------------------------------------------------------
+# CAF tags — same keys as the AWS and Azure providers
+#
+# DigitalOcean tags are flat "key:value" strings and account-global. Values
+# outside [A-Za-z0-9_-] (URLs, dotted semver, "99.95") are dropped from the
+# DigitalOcean projection and reported in the do_tags_dropped output; they stay
+# intact in caf_tags.
+# ----------------------------------------------------------------------------
+
+tag_app             = ""
+tag_tier            = "platform"
+tag_criticality     = ""
+tag_confidentiality = ""
+tag_sla             = ""
+tag_costcenter      = ""
+tag_department      = ""
+tag_budget          = ""
+tag_businessprocess = ""
+tag_businessimpact  = ""
+tag_revenueimpact   = ""
+tag_opsteam         = ""
+tag_businessunit    = ""
+
+extra_tags      = {}
+do_tags_enabled = true # false when the account is shared and global tags would collide
+
+# Provenance — set from the downstream repo
+# repo_url       = "https://github.com/<org>/<client>-platform-digitalocean-nyc3-prd"
+# client_version = "0.1.0"   # regex out of the downstream CHANGELOG.md

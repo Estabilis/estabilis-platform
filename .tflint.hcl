@@ -20,18 +20,27 @@ plugin "terraform" {
   preset  = "recommended"
 }
 
+// `deep_check` is NOT a valid plugin argument on tflint 0.64 — its presence
+// makes the whole file fail to parse with "Unsupported argument", so tflint
+// reports an error instead of an analysis. Removed on both plugins.
+//
+// Note for providers/digitalocean: terraform-linters publishes rulesets for
+// aws, azurerm and google only. There is no DigitalOcean ruleset, so that
+// provider is linted by the bundled `terraform` ruleset alone. Provider-level
+// checks there would have to be written as OPA policies
+// (tflint-ruleset-opa) — otherwise DigitalOcean gets strictly less static
+// analysis than the other two, and that should be a conscious gap rather
+// than a surprise.
 plugin "aws" {
-  enabled     = true
-  version     = "0.44.0"
-  source      = "github.com/terraform-linters/tflint-ruleset-aws"
-  deep_check  = false
+  enabled = true
+  version = "0.48.0"
+  source  = "github.com/terraform-linters/tflint-ruleset-aws"
 }
 
 plugin "azurerm" {
-  enabled     = true
-  version     = "0.30.0"
-  source      = "github.com/terraform-linters/tflint-ruleset-azurerm"
-  deep_check  = false
+  enabled = true
+  version = "0.32.0"
+  source  = "github.com/terraform-linters/tflint-ruleset-azurerm"
 }
 
 // ---------------------------------------------------------------------------
