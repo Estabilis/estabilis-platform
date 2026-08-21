@@ -1,5 +1,98 @@
 # Changelog
 
+## [0.68.0] - 2026-08-21
+
+### Added — DigitalOcean provider
+
+`providers/digitalocean/` brings up the substrate a platform deployment needs:
+VPC, DOKS cluster and node pools, a DigitalOcean Project, an optional VPC NAT
+Gateway, and the Spaces bucket that holds Terraform state. No ArgoCD seed and no
+`platform-outputs` yet, so nothing from `core/components/` deploys from a
+DigitalOcean deployment.
+
+Exercised end to end six times — bootstrap and teardown, both in place and
+through a downstream consuming it as a module. Most of what follows was
+established by running it, because DigitalOcean documents almost none of it.
+
+**Two constraints shape the whole state bootstrap.** A bucket-scoped Spaces key
+cannot create its own bucket — granting against a bucket that does not exist
+returns `403 invalid grant`. And a scoped key cannot manage the bucket resource
+either: it reads and writes objects (200/200/204) but not bucket configuration
+(`GET ?versioning`, `?acl` → 403), which is what `terraform refresh` needs. So
+the bootstrap runs in stages, and the bucket is released from Terraform
+management afterwards rather than keeping an account-wide key alive forever.
+
+**Locking is `use_lockfile` and it is a real mutex.** Spaces has no DynamoDB
+equivalent. The backend acquires the lock with a conditional write
+(`If-None-Match: *`), which only works if the object store honours it;
+DigitalOcean documents nothing either way. Verified directly: a second writer
+gets `412 PreconditionFailed` and the first writer's content survives.
+
+**Nodes can be isolated, and the API allowlist has to know.** With
+`isolated_workers = true` the workers carry no public address and reach the
+control plane through the NAT gateway — so the control plane firewall sees the
+gateway's address, not the node's. Leave it out and the nodes boot, pull images,
+register, then go `NotReady` with *"Kubelet stopped posting node status"*: the
+platform's own firewall dropping its own kubelet. The module derives those
+addresses into the allowlist so turning on `isolated_workers` cannot forget
+them.
+
+**The egress address cannot be pinned.** Every gateway rebuild yields a
+different one. `egresses.public_gateways.ipv4` is described by the provider as
+taking "a BYOIP / reserved IP" and does not accept a DigitalOcean reserved IP —
+`404 BYOIP address not found on this account`. It is also create-only while
+`terraform plan` reports an in-place update for it, so forcing it with
+`-replace` destroys the cluster's only route out before discovering the create
+will fail.
+
+**Changes that replace the cluster**, verified by planning each against a live
+one: `default_node_pool.size` (the pool is an inline block, so resizing a node
+destroys the CLUSTER), `isolated_workers`, `cluster_subnet`, `service_subnet`,
+`vpc_ip_range`, and a Kubernetes downgrade. Upgrades are in place.
+
+**Projects need explicit assignment and fail silently without it.** Seven
+resource types take `project_id` directly; the rest go through
+`digitalocean_project_resources` by urn. A resource nobody assigned lands in the
+ACCOUNT DEFAULT project without erroring. `digitalocean_vpc_nat_gateway` is a
+special case: it exposes `project_id`, the API ignores it on create and on
+update, and the field is ForceNew — so Terraform plans a destroy-and-recreate
+forever chasing a value that will never take. It is assigned by urn instead,
+`do:nat_gateway:<id>`, a spelling the API accepts and nothing documents.
+
+### Added — `modules/spaces-bucket-with-key`
+
+A Spaces bucket and its scoped key as one unit. Every bucket needs its own key,
+so both a bucket without a key and a key without a bucket are possible and
+silent; one `enabled` flag makes neither representable. Ordering falls out of
+the grant referencing the bucket resource rather than a string.
+
+### Fixed — `tflint` never loaded its configuration
+
+The `terraform_tflint` hook ran without `--config`. It executes inside
+`providers/<cloud>/` and `.tflint.hcl` is at the repo root, so tflint never
+found it: it ran with the bundled `terraform` ruleset alone, no cloud rules at
+all, and passed green while checking none of what matters. That was the state of
+the Cortex downstream until an em dash in an IAM `description` cleared
+pre-commit, cleared plan, cleared the production gate, and was refused by the
+AWS API with the policy already created. The rule that would have caught it,
+`aws_iam_role_invalid_description`, was configured and never loaded.
+
+`deep_check` is also not a valid plugin argument on tflint 0.64 — its presence
+made the whole file fail to parse, so even a correctly pointed `--config`
+produced an error rather than an analysis. Removed from both plugins; rulesets
+moved to aws 0.48.0 and azurerm 0.32.0.
+
+This affects every provider, not only the new one.
+
+### Fixed — `.gitignore` gaps
+
+`*.tfstate.*` replaces `*.tfstate.*backup`, which did not catch
+`terraform.tfstate.1` and the numbered copies Terraform leaves after a failed
+write. Plan artifacts and crash dumps added. `.terraform.lock.hcl` no longer
+ignored: without it every `init` is free to resolve different provider versions,
+and `-lockfile=readonly` becomes impossible, so CI cannot assert that the
+providers it planned with are the ones anyone reviewed.
+
 ## [0.67.0] - 2026-08-14
 
 ### Added — opt out of the two remaining caller-derived values
