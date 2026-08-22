@@ -138,6 +138,21 @@ locals {
     # is `do:nat_gateway:` with an underscore; the API rejects every other
     # spelling.
     one(digitalocean_vpc_nat_gateway.this[*].id) != null ? "do:nat_gateway:${one(digitalocean_vpc_nat_gateway.this[*].id)}" : "",
+
+    # Component buckets. These were missing, and the gap was invisible because
+    # all four default to off: with none of them created, verify-project
+    # -membership.sh reports `missing: 0` and looks like agreement. Turn one on
+    # and it lands in the ACCOUNT DEFAULT project instead — which on a shared
+    # account is where production already lives, and nothing errors when it
+    # happens. That silence is the whole reason the script exists.
+    #
+    # Read off the module rather than constructed, unlike the state bucket:
+    # these stay under management for their whole life, so bucket_name is empty
+    # exactly when the bucket does not exist, which is the gate we want.
+    module.observability_storage.bucket_urn,
+    module.velero_storage.bucket_urn,
+    module.cnpg_storage.bucket_urn,
+    module.vault_backup_storage.bucket_urn,
   ])
 }
 

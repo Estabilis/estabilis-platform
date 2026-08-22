@@ -53,3 +53,35 @@ module "cnpg_storage" {
 
   versioning_enabled = true
 }
+
+# Vault's Raft snapshots. The AWS provider has carried an equivalent since the
+# Vault work landed there; this is the DigitalOcean side of it.
+#
+# Off by default like every other component bucket, and for a sharper reason
+# here: a snapshot of a Vault that nobody has initialised is an empty object in
+# a bucket with a key attached. Turn it on with Vault, not before.
+#
+# VERSIONING IS ON, unlike observability. A Raft snapshot is the only copy of
+# the platform's secrets that exists outside the cluster, and the failure it
+# guards against is a bad snapshot overwriting a good one — a corrupted or
+# truncated upload replacing the last known-good backup with itself. Object
+# storage cannot tell those apart; versions can.
+#
+# What this bucket does NOT protect against is losing the unseal key. Snapshots
+# are encrypted under Vault's root key, which is wrapped by the cloud KMS key —
+# destroy that and every version in here becomes ciphertext nobody can read.
+# See the seal configuration in the deployment that owns it.
+module "vault_backup_storage" {
+  source = "../../modules/spaces-bucket-with-key"
+
+  enabled = var.vault_backup_bucket_enabled
+  name    = "${var.name_prefix}-vault-backup-${local.env_code}-${local._bucket_suffix}"
+  region  = local.spaces_region_effective
+
+  versioning_enabled = true
+
+  # Snapshots are small and taken often. Without expiry the bucket grows
+  # forever, and old versions of a rotated snapshot are worth nothing after the
+  # window in which you would have noticed the corruption.
+  expire_noncurrent_days = var.vault_backup_noncurrent_retention_days
+}

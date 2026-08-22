@@ -265,3 +265,13 @@ output "registry_pull_docker_credentials" {
   value       = var.registry_enabled && var.registry_pull_credentials_enabled ? digitalocean_container_registry_docker_credentials.pull[0].docker_credentials : null
   sensitive   = true
 }
+
+output "vault_backup_bucket_name" {
+  description = "Bucket Vault writes Raft snapshots to, or null when disabled."
+  value       = module.vault_backup_storage.bucket_name
+}
+
+output "vault_backup_bucket_endpoint" {
+  description = "S3-compatible endpoint for the snapshot bucket."
+  value       = module.vault_backup_storage.bucket_endpoint
+}
