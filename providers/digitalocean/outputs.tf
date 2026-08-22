@@ -234,3 +234,34 @@ output "nat_gateway_egresses" {
   description = "Public egress addresses of the NAT Gateway — the identity the cluster presents outbound, and what a third party would allowlist."
   value       = one(digitalocean_vpc_nat_gateway.this[*].egresses)
 }
+
+# ============================================================================
+# Container registry
+# ============================================================================
+
+output "registry_name" {
+  description = "Name of the container registry, or null when disabled."
+  value       = var.registry_enabled ? digitalocean_container_registry.this[0].name : null
+}
+
+output "registry_endpoint" {
+  description = "Registry endpoint for tagging images, e.g. registry.digitalocean.com/<name>."
+  value       = var.registry_enabled ? digitalocean_container_registry.this[0].endpoint : null
+}
+
+output "registry_server_url" {
+  description = "Registry server URL, for `docker login`."
+  value       = var.registry_enabled ? digitalocean_container_registry.this[0].server_url : null
+}
+
+output "registry_ci_docker_credentials" {
+  description = "Read-write Docker config JSON for CI push. Read with `terraform output -raw` and pipe it straight into its consumer."
+  value       = var.registry_enabled && var.registry_ci_credentials_enabled ? digitalocean_container_registry_docker_credentials.ci[0].docker_credentials : null
+  sensitive   = true
+}
+
+output "registry_pull_docker_credentials" {
+  description = "Read-only Docker config JSON, for pulls from outside the cluster."
+  value       = var.registry_enabled && var.registry_pull_credentials_enabled ? digitalocean_container_registry_docker_credentials.pull[0].docker_credentials : null
+  sensitive   = true
+}

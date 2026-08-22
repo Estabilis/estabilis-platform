@@ -705,3 +705,83 @@ variable "velero_noncurrent_retention_days" {
   default     = 30
   nullable    = false
 }
+
+# ============================================================================
+# Container registry
+# ============================================================================
+# A deliberately smaller surface than ecr_* or acr_*. See registry.tf: the
+# missing capabilities are missing from DigitalOcean, not from this module.
+
+variable "registry_enabled" {
+  description = "Create a DigitalOcean Container Registry. Off by default. Note that the subscription tier is account-wide, and that starter and basic permit only one registry per account — an account already holding one cannot create a second on those tiers."
+  type        = bool
+  default     = false
+  nullable    = false
+}
+
+variable "registry_sole_account_registry" {
+  description = "Acknowledge that this deployment owns the account's only container registry. Required when registry_subscription_tier is starter or basic, because those tiers permit one registry and set the subscription for the entire account. Leave false on a shared account and use professional, which permits ten."
+  type        = bool
+  default     = false
+  nullable    = false
+}
+
+variable "registry_subscription_tier" {
+  description = "starter (free, 1 repo, 500 MiB), basic (USD 5/mo, 5 repos, 5 GiB) or professional (USD 20/mo, unlimited repos, 100 GiB, up to 10 registries). ACCOUNT-WIDE: this sets the subscription covering every registry on the account."
+  type        = string
+  default     = "basic"
+  nullable    = false
+
+  validation {
+    condition     = contains(["starter", "basic", "professional"], var.registry_subscription_tier)
+    error_message = "registry_subscription_tier must be starter, basic or professional."
+  }
+}
+
+variable "registry_purpose" {
+  description = "Naming discriminator, as acr_purpose is on Azure: `<name_prefix>[-<purpose>]-<env>[-<suffix>]`. Empty by default."
+  type        = string
+  default     = ""
+  nullable    = false
+}
+
+variable "registry_random_suffix_enabled" {
+  description = "Append the deployment's shared 6-character suffix to the registry name. On by default: registry names are globally unique across DigitalOcean, so a bare `<prefix>-<env>` collides with any other account that thought of it first."
+  type        = bool
+  default     = true
+  nullable    = false
+}
+
+variable "registry_name_override" {
+  description = "Exact registry name, bypassing the derived one. Globally unique across DigitalOcean, lowercase alphanumeric and hyphens."
+  type        = string
+  default     = null
+}
+
+variable "registry_region" {
+  description = "Registry region. Defaults to the deployment region. Fixed at creation and not all regions host registries."
+  type        = string
+  default     = ""
+  nullable    = false
+}
+
+variable "registry_ci_credentials_enabled" {
+  description = "Emit a read-write Docker credential for CI to push with. Registry-wide: DigitalOcean has no scope maps, so a credential that may push may push to every repository. The cluster does not need this — registry_integration covers pulls."
+  type        = bool
+  default     = false
+  nullable    = false
+}
+
+variable "registry_pull_credentials_enabled" {
+  description = "Emit a read-only Docker credential, for pulls from outside the cluster. In-cluster pulls are covered by registry_integration."
+  type        = bool
+  default     = false
+  nullable    = false
+}
+
+variable "registry_credentials_expiry_seconds" {
+  description = "Lifetime of the emitted Docker credentials. 0 leaves them non-expiring. A finite value is safer and noisier: Terraform proposes a new credential once the expiry passes, and whatever consumes it must be re-fed on that cadence."
+  type        = number
+  default     = 0
+  nullable    = false
+}
