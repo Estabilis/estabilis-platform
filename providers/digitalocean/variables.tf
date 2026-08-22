@@ -785,3 +785,17 @@ variable "registry_credentials_expiry_seconds" {
   default     = 0
   nullable    = false
 }
+
+variable "vault_backup_bucket_enabled" {
+  description = "Create the Spaces bucket Vault writes Raft snapshots to. Off by default: a snapshot of a Vault nobody has initialised is an empty object with a scoped key attached. Turn it on with Vault."
+  type        = bool
+  default     = false
+  nullable    = false
+}
+
+variable "vault_backup_noncurrent_retention_days" {
+  description = "Days to keep superseded snapshot versions. Versioning is on for this bucket because a corrupted upload replacing the last good backup is the failure it exists to prevent; retention bounds what that costs. 0 disables expiry and lets the bucket grow without limit."
+  type        = number
+  default     = 30
+  nullable    = false
+}

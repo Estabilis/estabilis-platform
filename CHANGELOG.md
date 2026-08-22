@@ -1,5 +1,37 @@
 # Changelog
 
+## [0.70.0] - 2026-08-22
+
+### Added — Vault snapshot bucket for DigitalOcean
+
+`vault_backup_bucket_enabled` creates the Spaces bucket Vault writes its Raft
+snapshots to, matching what the AWS provider has carried since the Vault work
+landed there. Off by default like every component bucket: a snapshot of a Vault
+nobody has initialised is an empty object with a scoped key attached.
+
+Versioning is **on**, unlike observability, and the reason is specific. A Raft
+snapshot is the only copy of the platform's secrets outside the cluster, and the
+failure it guards against is a bad snapshot overwriting a good one — a corrupted
+or truncated upload replacing the last known-good backup with itself. Object
+storage cannot tell those apart; versions can.
+`vault_backup_noncurrent_retention_days` bounds what that costs.
+
+### Fixed — component buckets were never assigned to the Project
+
+`digitalocean_project_resources` listed the state bucket and the NAT gateway and
+nothing else. The four component buckets — observability, velero, cnpg and now
+vault-backup — were absent, so any one of them, once enabled, would land in the
+**account default project**: on a shared account, where production already lives.
+
+The gap was invisible because all four default to off. With none created,
+`verify-project-membership.sh` reports `missing: 0` and reads like agreement.
+Nothing errors when a resource lands in the wrong project, which is the entire
+reason that script exists.
+
+Their urns are read off the module rather than constructed, unlike the state
+bucket's: these stay under management for their whole life, so `bucket_name` is
+empty exactly when the bucket does not exist — which is the gate wanted here.
+
 ## [0.69.0] - 2026-08-22
 
 ### Added — DigitalOcean container registry
