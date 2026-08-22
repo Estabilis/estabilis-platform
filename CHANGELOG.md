@@ -1,5 +1,41 @@
 # Changelog
 
+## [0.69.0] - 2026-08-22
+
+### Added — DigitalOcean container registry
+
+`registry_enabled` provisions a DigitalOcean Container Registry, mirroring the
+shape of `ecr_enabled` and `acr_enabled`. Nine inputs, against ECR's eight and
+ACR's seventeen: name derivation with a purpose discriminator and the
+deployment's shared suffix, subscription tier, region, and optional read-write
+and read-only Docker credentials for consumers outside the cluster. In-cluster
+pulls stay covered by `registry_integration`, which already existed.
+
+The surface stops there because the product does. There is no DigitalOcean
+equivalent for declared repositories, tag immutability, scan on push, retention
+policy, pull-through cache, network firewall, private endpoint, geo-replication,
+content trust or scoped tokens — the resource takes three arguments and computes
+the rest. `registry.tf` says so explicitly rather than leaving the gaps to be
+discovered.
+
+Three properties make this resource unlike anything else in the provider, and
+each is enforced or stated rather than left implicit:
+
+- **The subscription is the account's.** Tiers are sold as "10 registries", a
+  count that only means something account-wide, so `registry_subscription_tier`
+  changes a billing setting covering registries this deployment did not create.
+  A precondition refuses `starter` or `basic` unless
+  `registry_sole_account_registry` says the account holds no other.
+- **A registry cannot belong to a Project.** The accepted urn types listed in
+  `project.tf` do not include it, so this is the one resource here that stays
+  outside the platform Project and outside `verify-project-membership.sh`.
+- **There is no retention policy.** DigitalOcean's garbage collection is an
+  imperative API and CLI call with no Terraform resource, so the equivalent of
+  `ecr_lifecycle_untagged_days` remains a scheduled job somebody has to write.
+
+Credentials are registry-wide: DigitalOcean has no scope maps, so `write` is the
+only dial and anything that may push may push everywhere.
+
 ## [0.68.0] - 2026-08-21
 
 ### Added — DigitalOcean provider
