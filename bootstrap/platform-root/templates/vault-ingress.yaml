@@ -10,7 +10,7 @@
   live in `estabilis-platform-gitops`, this repo only carries the bootstrap
   Application template that references them.
 */ -}}
-{{- if and (or (eq .Values.global.provider "aws") (eq .Values.global.provider "azure")) (ne (index .Values.components "vault" | toString) "false") }}
+{{- if and (has .Values.global.provider (list "aws" "azure" "digitalocean")) (ne (index .Values.components "vault" | toString) "false") }}
 {{- /* Source of truth: terraform's `vault.exposuresJson` field on
       platform-infrastructure-sensitive Secret, surfaced into helm values
       as global.vaultExposures by the upstart parameter wiring. */ -}}

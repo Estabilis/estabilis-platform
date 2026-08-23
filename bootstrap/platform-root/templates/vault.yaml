@@ -22,7 +22,7 @@
   manually after this Application syncs, then proceeds with downstream
   / runbook procedures.
 */ -}}
-{{- if and (or (eq .Values.global.provider "aws") (eq .Values.global.provider "azure")) (ne (index .Values.components "vault" | toString) "false") }}
+{{- if and (has .Values.global.provider (list "aws" "azure" "digitalocean")) (ne (index .Values.components "vault" | toString) "false") }}
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -48,6 +48,60 @@ spec:
           {{- $mode := default "auto" (index .Values.scheduling "vault") }}
           {{- include "platform-root.schedulingValuesTopLevel" (dict "mode" $mode
                 "provider" .Values.global.provider) | nindent 10 }}
+          {{- if eq .Values.global.provider "digitalocean" }}
+          {{- /*
+                Workload Identity Federation wiring for the gcpckms seal.
+
+                AWS and Azure attach an identity to the ServiceAccount with an
+                annotation, because the pod authenticates as itself to a KMS in
+                the same cloud. DigitalOcean has no KMS and no cloud identity to
+                attach, so the identity is federated to Google instead: a
+                projected ServiceAccount token, audience-scoped to the WIF
+                provider, is exchanged for a short-lived Google token that
+                impersonates the service account holding encrypt/decrypt on the
+                key. No service account JSON key exists, so none can leak.
+
+                Two mounts, and neither is a Secret:
+
+                  gcp-wif-token       the projected token. `audience` MUST equal
+                                      the WIF provider, or Google rejects the
+                                      exchange on an audience mismatch.
+                  gcp-wif-credential  the credential configuration telling the
+                                      Google SDK where that token is and which
+                                      service account to impersonate. It holds
+                                      no private key -- Google documents it as
+                                      non-confidential -- hence a ConfigMap.
+
+                PREREQUISITE, not created by this chart: the ConfigMap named
+                below must exist in the `vault` namespace holding
+                `credential-configuration.json`. It is cluster-specific fact, so
+                it comes from the deployment's Terraform, the same way the
+                `platform-infrastructure` ConfigMap does (ADR 0010). Without it
+                the pod stays Pending on a missing volume -- a loud failure,
+                which is the intended one. */}}
+          server:
+            volumes:
+              - name: gcp-wif-token
+                projected:
+                  defaultMode: 420
+                  sources:
+                    - serviceAccountToken:
+                        path: token
+                        expirationSeconds: 3600
+                        audience: {{ .Values.vault.gcpWifAudience | quote }}
+              - name: gcp-wif-credential
+                configMap:
+                  name: {{ .Values.vault.gcpWifConfigMap | default "vault-gcp-wif" | quote }}
+            volumeMounts:
+              - name: gcp-wif-token
+                mountPath: /var/run/service-account
+                readOnly: true
+              - name: gcp-wif-credential
+                mountPath: /etc/gcp
+                readOnly: true
+            extraEnvironmentVars:
+              GOOGLE_APPLICATION_CREDENTIALS: /etc/gcp/credential-configuration.json
+          {{- end }}
         parameters:
           {{- if eq .Values.global.provider "aws" }}
           {{- /* IRSA annotation — vault SA assumes the role provisioned
@@ -149,6 +203,60 @@ spec:
                 tenant_id  = "{{ .Values.global.tenantId }}"
                 vault_name = "{{ .Values.vault.keyVaultName }}"
                 key_name   = "{{ .Values.vault.unsealKeyName }}"
+              }
+
+              telemetry {
+                prometheus_retention_time = "24h"
+                disable_hostname          = true
+              }
+
+              service_registration "kubernetes" {}
+          {{- else if eq .Values.global.provider "digitalocean" }}
+          {{- /* No ServiceAccount annotation: the identity arrives as the token
+                 and credential configuration mounted in valuesObject above, not
+                 as cloud metadata on the SA.
+
+                 The gcpckms stanza deliberately omits `credentials` -- the
+                 Google SDK resolves them from GOOGLE_APPLICATION_CREDENTIALS,
+                 which points at the federated configuration. Setting it here
+                 would mean a key file on disk, which is what this avoids. */}}
+          - name: server.ha.raft.config
+            value: |
+              ui = true
+
+              listener "tcp" {
+                tls_disable     = 1
+                address         = "[::]:8200"
+                cluster_address = "[::]:8201"
+                telemetry {
+                  # Allow unauthenticated /v1/sys/metrics scrape from
+                  # in-cluster alloy. Without this flag the endpoint
+                  # returns 403 and the vault job in Mimir reads up=0.
+                  # Network is restricted to grafana ns by NetworkPolicy
+                  # `allow-vault` (port 8200 from grafana only).
+                  unauthenticated_metrics_access = true
+                }
+              }
+
+              storage "raft" {
+                path = "/vault/data"
+
+                retry_join {
+                  leader_api_addr = "http://vault-0.vault-internal:8200"
+                }
+                retry_join {
+                  leader_api_addr = "http://vault-1.vault-internal:8200"
+                }
+                retry_join {
+                  leader_api_addr = "http://vault-2.vault-internal:8200"
+                }
+              }
+
+              seal "gcpckms" {
+                project    = "{{ .Values.vault.gcpKmsProject }}"
+                region     = "{{ .Values.vault.gcpKmsRegion }}"
+                key_ring   = "{{ .Values.vault.gcpKmsKeyRing }}"
+                crypto_key = "{{ .Values.vault.gcpKmsCryptoKey }}"
               }
 
               telemetry {

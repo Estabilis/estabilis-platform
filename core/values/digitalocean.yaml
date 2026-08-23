@@ -1,0 +1,41 @@
+# DigitalOcean-specific overrides for the Estabilis Platform
+#
+# Counterpart to core/values/azure.yaml. The shape is deliberately the same, but
+# most of what the other providers fill in has no equivalent here, and the empty
+# blocks say so rather than being left out.
+
+# Cloud provider
+provider: digitalocean
+
+# Storage configuration
+#
+# Spaces is S3-compatible, so the components that back onto object storage use
+# the same S3 clients and plugins the AWS path uses. Two things differ and both
+# matter: requests go to a regional Spaces endpoint rather than to AWS, and
+# authentication is a scoped access key rather than a role — DigitalOcean has no
+# IAM role to assume, so there is no IRSA equivalent and credentials arrive as a
+# Secret.
+storage:
+  type: spaces
+  spaces:
+    # Provided per-deployment, not hardcoded.
+    region: ""
+    endpoint: ""
+
+# Identity configuration
+#
+# There is no cloud identity to attach to a ServiceAccount. Where a component
+# needs to authenticate outside the cluster, it federates: a projected
+# ServiceAccount token exchanged for a short-lived token at the other end. Vault
+# reaching GCP Cloud KMS for auto-unseal is the first instance of this; see the
+# DigitalOcean branch in bootstrap/platform-root/templates/vault.yaml.
+identity:
+  type: workload-identity-federation
+
+# DNS configuration
+#
+# DigitalOcean DNS is not used. Deployments run their zones on Cloudflare and
+# select it through global.dnsProvider, which external-dns and cert-manager both
+# read — this is why neither needs a DigitalOcean overlay.
+dns:
+  provider: cloudflare
