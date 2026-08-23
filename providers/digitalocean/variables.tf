@@ -1209,19 +1209,7 @@ variable "hub_cluster_secret_enabled" {
   nullable    = false
 }
 
-variable "cloudflare_credentials_enabled" {
-  description = "Deliver the Cloudflare API token to the cluster as a Secret, for external-dns and cert-manager. Requires cloudflare_api_token."
-  type        = bool
-  default     = false
-  nullable    = false
-}
 
-variable "cloudflare_credentials_namespace" {
-  description = "Namespace the Cloudflare Secret is written to. Defaults to external-dns, which is the chart that reads it as an env var; cert-manager reaches it through a ClusterSecretStore."
-  type        = string
-  default     = "external-dns"
-  nullable    = false
-}
 
 variable "github_app_credentials_enabled" {
   description = "Deliver the GitHub App credentials to the cluster as an ArgoCD repository credential. Requires the three github_app_* values."
