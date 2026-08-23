@@ -83,12 +83,16 @@ resource "kubernetes_config_map_v1" "platform_infrastructure" {
       "global.traefikInternal"   = tostring(var.traefik_internal)
       "global.argocdUrl"         = var.argocd_url != "" ? var.argocd_url : "https://argocd.${var.domain}"
 
-      "global.argocdExposures"   = var.argocd_exposures
-      "global.grafanaExposures"  = var.grafana_exposures
-      "global.lokiExposures"     = var.loki_exposures
-      "global.mimirExposures"    = var.mimir_exposures
-      "global.vaultExposures"    = var.vault_exposures
-      "global.hubbleUiExposures" = var.hubble_ui_exposures
+      # A ConfigMap holds strings, so these are JSON. Disabled entries are
+      # dropped rather than shipped as `enabled: false`: the platform reads this
+      # to decide what to expose, and a list containing things it must not
+      # expose is one typo away from exposing them.
+      "global.argocdExposures"   = jsonencode({ for k, v in var.argocd_exposures : k => v if v.enabled })
+      "global.grafanaExposures"  = jsonencode({ for k, v in var.grafana_exposures : k => v if v.enabled })
+      "global.lokiExposures"     = jsonencode({ for k, v in var.loki_exposures : k => v if v.enabled })
+      "global.mimirExposures"    = jsonencode({ for k, v in var.mimir_exposures : k => v if v.enabled })
+      "global.vaultExposures"    = jsonencode({ for k, v in var.vault_exposures : k => v if v.enabled })
+      "global.hubbleUiExposures" = jsonencode({ for k, v in var.hubble_ui_exposures : k => v if v.enabled })
 
       # Object storage. Spaces is S3-compatible, so the components address it
       # by endpoint and bucket exactly as they would S3 — what differs is that
