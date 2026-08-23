@@ -811,6 +811,7 @@ variable "platform_outputs_enabled" {
   description = "Write platform infrastructure values to a ConfigMap and Secret in the argocd namespace. OFF by default here, unlike the AWS provider: this writes to the Kubernetes API, which a first apply has no cluster for and which a hosted CI runner cannot reach through the control plane firewall. Used by ArgoCD to configure platform components without the CLI."
   type        = bool
   default     = false
+  nullable    = false
 }
 
 variable "platform_repo_url" {
@@ -833,6 +834,7 @@ variable "platform_version" {
   EOT
   type        = string
   default     = ""
+  nullable    = false
 }
 
 variable "platform_revision" {
@@ -848,6 +850,7 @@ variable "platform_revision" {
   EOT
   type        = string
   default     = ""
+  nullable    = false
 }
 
 variable "config_repo_url" {
@@ -866,12 +869,14 @@ variable "config_repo_version" {
   description = "Git tag for the config repository (deprecated — prefer config_repo_revision). Kept for backward compatibility."
   type        = string
   default     = ""
+  nullable    = false
 }
 
 variable "config_repo_revision" {
   description = "Git revision for the config repository (tag OR branch, e.g. 'v1.0.0' or 'release/prod'). Empty falls back to config_repo_version. ADR 0020."
   type        = string
   default     = ""
+  nullable    = false
 }
 
 variable "client_gitops_repo_url" {
@@ -890,12 +895,14 @@ variable "client_gitops_repo_version" {
   description = "Git tag for the client GitOps repo (deprecated — prefer client_gitops_repo_revision). Kept for backward compatibility."
   type        = string
   default     = ""
+  nullable    = false
 }
 
 variable "client_gitops_repo_revision" {
   description = "Git revision for the client GitOps repo (tag OR branch). Empty falls back to client_gitops_repo_version. ADR 0020."
   type        = string
   default     = ""
+  nullable    = false
 }
 
 variable "domain" {
@@ -914,6 +921,7 @@ variable "dns_provider" {
     condition     = contains(["route53", "cloudflare", "none"], var.dns_provider)
     error_message = "dns_provider must be one of: route53, cloudflare, none."
   }
+  nullable = false
 }
 
 variable "cloudflare_zone_id" {
@@ -925,6 +933,7 @@ variable "cloudflare_zone_id" {
     condition     = var.dns_provider != "cloudflare" || length(var.cloudflare_zone_id) > 0
     error_message = "cloudflare_zone_id is required when dns_provider = 'cloudflare'."
   }
+  nullable = false
 }
 
 variable "letsencrypt_email" {
@@ -943,6 +952,7 @@ variable "ingress_controller" {
     condition     = contains(["traefik", "alb", "none"], var.ingress_controller)
     error_message = "ingress_controller must be one of: traefik, alb, none."
   }
+  nullable = false
 }
 
 variable "argocd_exposures" {
@@ -965,7 +975,8 @@ variable "argocd_exposures" {
     alb_certificate_source = optional(string, "acm")
     alb_cloudflare_proxied = optional(bool, false)
   }))
-  default = {}
+  default  = {}
+  nullable = false
 }
 
 variable "grafana_exposures" {
@@ -988,7 +999,8 @@ variable "grafana_exposures" {
     alb_certificate_source = optional(string, "acm")
     alb_cloudflare_proxied = optional(bool, false)
   }))
-  default = {}
+  default  = {}
+  nullable = false
 }
 
 variable "loki_exposures" {
@@ -1010,7 +1022,8 @@ variable "loki_exposures" {
     alb_certificate_source = optional(string, "acm")
     alb_cloudflare_proxied = optional(bool, false)
   }))
-  default = {}
+  default  = {}
+  nullable = false
 }
 
 variable "mimir_exposures" {
@@ -1033,7 +1046,8 @@ variable "mimir_exposures" {
     alb_certificate_source = optional(string, "acm")
     alb_cloudflare_proxied = optional(bool, false)
   }))
-  default = {}
+  default  = {}
+  nullable = false
 }
 
 variable "vault_exposures" {
@@ -1055,7 +1069,8 @@ variable "vault_exposures" {
     alb_certificate_source = optional(string, "acm")
     alb_cloudflare_proxied = optional(bool, false)
   }))
-  default = {}
+  default  = {}
+  nullable = false
 }
 
 variable "hubble_ui_exposures" {
@@ -1078,37 +1093,43 @@ variable "hubble_ui_exposures" {
     alb_certificate_source = optional(string, "acm")
     alb_cloudflare_proxied = optional(bool, false)
   }))
-  default = {}
+  default  = {}
+  nullable = false
 }
 
 variable "velero_backup_schedule" {
   description = "Cron schedule for Velero full cluster backups."
   type        = string
   default     = "0 2 * * *"
+  nullable    = false
 }
 
 variable "velero_backup_retention_hours" {
   description = "Retention period in hours for Velero backups (CR TTL + S3 lifecycle alignment)."
   type        = number
   default     = 720
+  nullable    = false
 }
 
 variable "cnpg_backup_schedule" {
   description = "Cron schedule for CloudNativePG daily backups."
   type        = string
   default     = "0 2 * * *"
+  nullable    = false
 }
 
 variable "cnpg_backup_retention_days" {
   description = "Retention period in days for CloudNativePG base backups (S3 lifecycle + CNPG retention policy)."
   type        = number
   default     = 7
+  nullable    = false
 }
 
 variable "slack_alerting_enabled" {
   description = "Master toggle for the Mimir Alertmanager Slack alerting pipeline. When true, terraform creates 3 SM secrets and the platform-root chart enables the mimir-alertmanager-config Slack templates. Requires all 3 slack_webhook_alertmanager_* variables non-empty."
   type        = bool
   default     = false
+  nullable    = false
 }
 
 variable "cloudflare_api_token" {
@@ -1121,18 +1142,21 @@ variable "cloudflare_api_token" {
     condition     = var.dns_provider != "cloudflare" || length(var.cloudflare_api_token) > 0
     error_message = "cloudflare_api_token is required when dns_provider = 'cloudflare'."
   }
+  nullable = false
 }
 
 variable "github_app_id" {
   description = "GitHub App ID (numeric string). Leave empty to skip the ArgoCD GitHub App credential setup (fallback: config_repo_token / client_gitops_repo_token)."
   type        = string
   default     = ""
+  nullable    = false
 }
 
 variable "github_app_installation_id" {
   description = "GitHub App Installation ID (numeric string). Found in the URL after installing the App on the organization."
   type        = string
   default     = ""
+  nullable    = false
 }
 
 variable "github_app_private_key" {
@@ -1140,12 +1164,14 @@ variable "github_app_private_key" {
   type        = string
   default     = ""
   sensitive   = true
+  nullable    = false
 }
 
 variable "github_org_url" {
   description = "Organization URL for GitHub App credential matching (ArgoCD matches repos by URL prefix). Example: 'https://github.com/Cortex-Innovation'. Required when github_app_id is set."
   type        = string
   default     = ""
+  nullable    = false
 }
 
 variable "argocd_namespace" {
