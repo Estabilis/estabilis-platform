@@ -16,6 +16,36 @@
 # deployment.
 # ---------------------------------------------------------------------------
 
+locals {
+  # The VERSION file at the root of this module's own cloned source.
+  #
+  # `platform_version` and `platform_revision` say which ref ArgoCD resolves the
+  # platform chart at, and platform-root uses the former as the targetRevision
+  # of its `$values` source. Empty is not a harmless default there: the source
+  # resolves to nothing and every child Application fails on a value file it
+  # cannot read.
+  #
+  # The variables have always documented this as auto-derived. Until now it was
+  # not — the derivation lived in providers/aws and providers/azure, which read
+  # the file and pass the result in, so a caller consuming this module directly
+  # got an empty string and a description telling them that was fine.
+  #
+  # `modules/platform-outputs` is two directories below the repository root,
+  # the same depth as `providers/<name>`, so the relative path is the same one
+  # those providers already use.
+  #
+  # Guarded with fileexists rather than a bare file(): someone vendoring this
+  # directory on its own has no VERSION above it, and that should degrade to
+  # the previous behaviour instead of failing the plan outright.
+  version_file    = "${path.module}/../../VERSION"
+  derived_version = fileexists(local.version_file) ? trimspace(file(local.version_file)) : ""
+
+  # Explicit input still wins — local module sources, branch refs without a
+  # VERSION file, and anyone already passing it keep working unchanged.
+  effective_platform_version  = var.platform_version != "" ? var.platform_version : local.derived_version
+  effective_platform_revision = var.platform_revision != "" ? var.platform_revision : local.derived_version
+}
+
 resource "kubernetes_namespace_v1" "argocd" {
 
   metadata {
@@ -42,8 +72,8 @@ resource "kubernetes_config_map_v1" "platform_infrastructure" {
     {
       # Where the platform's own charts and values come from.
       platformRepoUrl  = var.platform_repo_url
-      platformVersion  = var.platform_version
-      platformRevision = var.platform_revision
+      platformVersion  = local.effective_platform_version
+      platformRevision = local.effective_platform_revision
 
       configRepoUrl      = var.config_repo_url
       configRepoVersion  = var.config_repo_version
