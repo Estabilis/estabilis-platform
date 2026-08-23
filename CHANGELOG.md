@@ -1,5 +1,56 @@
 # Changelog
 
+## [0.71.0] - 2026-08-23
+
+### Added — the handoff to ArgoCD on DigitalOcean
+
+`platform_outputs_enabled` writes the `argocd` namespace, the
+`platform-infrastructure` ConfigMap, the `platform-infrastructure-sensitive`
+Secret and the `hub-cluster` Secret, alongside the Cloudflare and GitHub App
+credential modules. This is the boundary of the foundation: what Terraform knows
+about the infrastructure, written where the platform can read it.
+
+Key names follow `providers/aws` wherever a key means the same thing, so a
+downstream moving between clouds keeps its tfvars.
+
+**Two things differ from the other providers, and both are DigitalOcean's doing.**
+
+The Secret carries *credentials* rather than identities. AWS puts IRSA role ARNs
+there and Azure puts client ids — on both, the identity substitutes for the
+secret and nothing confidential travels. DigitalOcean has no workload identity,
+so each component's scoped Spaces key travels instead. That is the honest cost,
+and it is why every bucket has its own key rather than sharing one.
+
+The ConfigMap is **extensible**, via `platform_outputs_extra` and
+`platform_outputs_extra_sensitive`. On AWS and Azure the provider knows every
+value the platform needs. Here one it cannot: Vault's seal lives in Google Cloud
+KMS, because DigitalOcean has no KMS at all, and that key belongs to the
+deployment. A downstream injects what only it knows rather than this module
+growing a dependency on a cloud it does not manage.
+
+### Notes for upgraders
+
+`platform_outputs_enabled` defaults to **false** here, unlike the AWS provider
+where it is true. This writes to the Kubernetes API, which a first apply has no
+cluster for and which a hosted CI runner cannot reach through the control plane
+firewall. Existing deployments are untouched until they opt in.
+
+The five values the handoff needs — `platform_repo_url`, `config_repo_url`,
+`client_gitops_repo_url`, `domain`, `letsencrypt_email` — are **optional** here
+and required on AWS. Copying them as required would have failed the plan of
+every existing DigitalOcean deployment on upgrade, before it could explain why.
+Empty defaults plus a precondition keeps both properties: a deployment that has
+not adopted the handoff is untouched, and one that turns it on without the
+values is told which are missing.
+
+The `kubernetes` provider is now configured. DigitalOcean has no exec-plugin
+auth: EKS shells out to `aws eks get-token` and AKS to `az aks get-credentials`,
+so both mint a token per run, while here the token is an attribute of the
+cluster resource and expires with `kubeconfig_expire_seconds`. A plan that
+refreshes picks up a fresh one; a plan run against a stale state without refresh
+does not. If authentication fails here, refresh before concluding the cluster is
+unreachable.
+
 ## [0.70.0] - 2026-08-22
 
 ### Added — Vault snapshot bucket for DigitalOcean

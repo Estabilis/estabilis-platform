@@ -23,14 +23,24 @@ provider "digitalocean" {
   spaces_secret_key = var.spaces_secret_key != "" ? var.spaces_secret_key : null
 }
 
-# The kubernetes and helm providers are NOT configured here. They authenticate
-# against the cluster this module creates, and nothing in this phase talks to
-# the Kubernetes API — they arrive with the ArgoCD seed in phase 3.
+# The kubernetes provider, for platform-outputs.tf and nothing else. The helm
+# provider is still absent: this module writes the handoff and stops, and ArgoCD
+# installs everything after it.
 #
-# Worth recording for when they do: DigitalOcean has no exec-plugin auth. EKS
-# uses `aws eks get-token` and AKS uses `az aks get-credentials`; here the
-# token has to be read out of the cluster resource, and it expires
-# (kubeconfig_expire_seconds, 7 days by default).
+# DIGITALOCEAN HAS NO EXEC-PLUGIN AUTH. EKS shells out to `aws eks get-token`
+# and AKS to `az aks get-credentials`, so on both the provider holds a command
+# and mints a fresh token per run. Here the token is an attribute of the cluster
+# resource and it EXPIRES — kubeconfig_expire_seconds, seven days by default.
+#
+# What that means in practice: a plan run against a state older than the expiry
+# refreshes the cluster first and picks up a new token, so it works. A plan run
+# from a stale state file without refresh does not. If a plan here fails
+# authenticating, refresh before believing the cluster is unreachable.
+provider "kubernetes" {
+  host                   = try(digitalocean_kubernetes_cluster.this.endpoint, null)
+  token                  = try(digitalocean_kubernetes_cluster.this.kube_config[0].token, null)
+  cluster_ca_certificate = try(base64decode(digitalocean_kubernetes_cluster.this.kube_config[0].cluster_ca_certificate), null)
+}
 
 # ---------------------------------------------------------------------------
 # CAF naming + tags — key names kept byte-compatible with the AWS and Azure
