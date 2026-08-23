@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.71.2] - 2026-08-23
+
+### Fixed — the platform-outputs variables rejected null
+
+The twenty-six variables added for the handoff were copied from
+`providers/aws`, which does not set `nullable = false` on them. Every other
+variable in this provider does, and for a reason that is load-bearing: a
+downstream wrapper declares each input with `default = null` and passes it
+through, and Terraform substitutes the module's default for null **only** when
+`nullable = false` is set. Without it the null survives — `count` on the
+namespace received null instead of a bool, and `dns_provider`'s validation ran
+`contains()` against null.
+
+Caught by pointing a real downstream at the module rather than by reading it.
+
 ## [0.71.1] - 2026-08-23
 
 ### Fixed — exposures were written into the ConfigMap as maps
