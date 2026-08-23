@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.75.0]
+
+### Fixed
+- `modules/platform-outputs` now derives `platform_version` and
+  `platform_revision` from the `VERSION` file at its own cloned source ref,
+  which both variable descriptions have always claimed it did. The derivation
+  lived only in `providers/aws` and `providers/azure`, so a caller consuming the
+  module directly got an empty string. Empty is not harmless: platform-root uses
+  `platformVersion` as the targetRevision of its `$values` source, so it
+  resolves to nothing and every child Application fails on a value file it
+  cannot read. Explicit input still wins, so existing callers are unchanged.
+
 ## [0.74.0]
 
 ### Added
