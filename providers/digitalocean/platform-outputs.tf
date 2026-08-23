@@ -173,6 +173,22 @@ resource "kubernetes_secret_v1" "platform_infrastructure" {
 
   data = merge(
     {
+      # Cloudflare, when it is the DNS provider. A KEY HERE, not a Secret of its
+      # own — which is what the Azure provider does and what this file used to
+      # get wrong.
+      #
+      # The alternative is modules/cloudflare-credentials, which writes a Secret
+      # into the namespace of whatever will read it. That cannot work in a
+      # handoff: this runs BEFORE the platform, so external-dns's namespace does
+      # not exist yet, and the apply fails with `namespaces "external-dns" not
+      # found`. The AWS provider works around it by forcing the namespace to
+      # argocd, which leaves a stray Secret in a namespace that is not its own.
+      #
+      # Putting it here needs no workaround. The namespace was created two
+      # resources ago, and external-dns-config distributes it once ArgoCD has
+      # made the namespace that consumes it.
+      "global.cloudflareApiToken" = var.dns_provider == "cloudflare" ? var.cloudflare_api_token : ""
+
       "storage.observability.accessKeyId"     = module.observability_storage.access_key_id != null ? module.observability_storage.access_key_id : ""
       "storage.observability.secretAccessKey" = module.observability_storage.secret_key != null ? module.observability_storage.secret_key : ""
       "storage.velero.accessKeyId"            = module.velero_storage.access_key_id != null ? module.velero_storage.access_key_id : ""
@@ -215,20 +231,13 @@ resource "kubernetes_secret_v1" "hub_cluster" {
 }
 
 # ---------------------------------------------------------------------------
-# Credentials the platform needs but Terraform does not own
+# The GitHub App, as an ArgoCD repository credential
+#
+# This one IS a Secret of its own, and legitimately: ArgoCD reads repository
+# credentials by label from its own namespace, which exists by the time this
+# runs. The Cloudflare token has no such consumer at handoff time, which is why
+# it travels in the Secret above instead.
 # ---------------------------------------------------------------------------
-
-module "cloudflare_credentials" {
-  source = "../../modules/cloudflare-credentials"
-  count  = var.platform_outputs_enabled && var.cloudflare_credentials_enabled ? 1 : 0
-
-  cloudflare_zone_id   = var.cloudflare_zone_id
-  cloudflare_api_token = var.cloudflare_api_token
-  domain               = var.domain
-  namespace            = var.cloudflare_credentials_namespace
-
-  depends_on = [kubernetes_namespace_v1.argocd]
-}
 
 module "github_app_credentials" {
   source = "../../modules/github-app-credentials"

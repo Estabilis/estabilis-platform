@@ -1,5 +1,35 @@
 # Changelog
 
+## [0.72.0] - 2026-08-23
+
+### Changed — the Cloudflare token travels in the handoff Secret
+
+`platform-outputs.tf` no longer calls `modules/cloudflare-credentials`. The
+token is a key on `platform-infrastructure-sensitive`,
+`global.cloudflareApiToken`, which is what the Azure provider does.
+
+The module writes a Secret into the namespace of whatever will read it, and
+that cannot work in a handoff. This runs BEFORE the platform, so external-dns's
+namespace does not exist yet — the apply fails with
+`namespaces "external-dns" not found`, observed rather than predicted. The AWS
+provider works around it by forcing the namespace to `argocd`, which leaves a
+Secret sitting in a namespace that is not its own and belongs to nothing there.
+
+As a key it needs no workaround: the namespace was created two resources
+earlier, and `external-dns-config` distributes the value once ArgoCD has made
+the namespace that consumes it.
+
+**Removed:** `cloudflare_credentials_enabled` and
+`cloudflare_credentials_namespace`. A deployment setting either will now fail
+the plan on an undeclared variable, which is the right kind of failure —
+loud, immediate, and pointing at the line to delete. Nothing had adopted them
+outside this repository's own deployment, which is being changed in the same
+breath.
+
+The GitHub App keeps its own Secret, and that is not inconsistent: ArgoCD reads
+repository credentials by label from its own namespace, which exists by the time
+this runs. The Cloudflare token has no such consumer at handoff time.
+
 ## [0.71.2] - 2026-08-23
 
 ### Fixed — the platform-outputs variables rejected null
