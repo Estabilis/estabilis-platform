@@ -1,5 +1,38 @@
 # Changelog
 
+## [0.74.0]
+
+### Added
+- DigitalOcean renders the secrets chain. `vault`, `vault-ingress`,
+  `cluster-secret-store` and `platform-secrets` were gated on
+  `provider in (aws|azure)` and emitted nothing on DigitalOcean — a downstream
+  override cannot reach a template that produces no object, so the chain was
+  unreachable rather than unconfigured. The gates now read
+  `has .Values.global.provider (list "aws" "azure" "digitalocean")`.
+- Vault auto-unseal on GCP Cloud KMS (`seal "gcpckms"`), reached through
+  Workload Identity Federation. DigitalOcean has no managed KMS, so the
+  alternatives were an external one or operator-held unseal shares re-entered
+  at every pod restart. No Google service account key is placed in the cluster:
+  a projected ServiceAccount token is exchanged for a short-lived token, and
+  the `credentials` field of the seal stanza is deliberately absent.
+- `vault.gcpKmsProject`, `gcpKmsRegion`, `gcpKmsKeyRing`, `gcpKmsCryptoKey`,
+  `gcpWifAudience` and `gcpWifConfigMap` in the platform-root values.
+- `core/values/digitalocean.yaml`.
+
+### Notes
+- Rendering for `aws` and `azure` is byte-identical to v0.73.0, verified with
+  `helm template` for both providers (2719 and 2823 lines, zero diff). The gate
+  change is additive by construction.
+- New prerequisite for DigitalOcean, which this chart does not create: a
+  ConfigMap (`vault-gcp-wif` by default) in the `vault` namespace holding
+  `credential-configuration.json`. It is cluster-specific fact and comes from
+  the deployment's Terraform, like `platform-infrastructure` (ADR 0010). It is
+  a ConfigMap rather than a Secret because it carries no private key — Google
+  documents the file as non-confidential. Without it the pod stays Pending on a
+  missing volume.
+- Requires `estabilis-platform-gitops` carrying
+  `values/platform/vault-digitalocean.yaml` (PR #53).
+
 ## [0.73.0] - 2026-08-23
 
 ### Changed — the handoff is a module, not part of the provider
