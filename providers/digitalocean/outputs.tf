@@ -275,3 +275,71 @@ output "vault_backup_bucket_endpoint" {
   description = "S3-compatible endpoint for the snapshot bucket."
   value       = module.vault_backup_storage.bucket_endpoint
 }
+
+# ============================================================================
+# For modules/platform-outputs
+# ============================================================================
+# The handoff runs in a root module of its own — it talks to the Kubernetes API
+# and must not put those resources in this state. These are what it reads,
+# through a terraform_remote_state of this deployment.
+#
+# The credentials are here because DigitalOcean has no workload identity: a
+# component that reads its bucket holds a key that opens that bucket, and the
+# key has to travel from where it is created to where it is used. Scoping is
+# the mitigation, which is why each bucket has its own.
+
+output "spaces_region" {
+  description = "Region of the component buckets."
+  value       = local.spaces_region_effective
+}
+
+output "observability_bucket_name" {
+  description = "Bucket Loki, Mimir and Tempo write to. Empty when disabled."
+  value       = module.observability_storage.bucket_name != null ? module.observability_storage.bucket_name : ""
+}
+
+output "observability_bucket_credentials" {
+  description = "Scoped key for the observability bucket."
+  value = {
+    access_key_id     = module.observability_storage.access_key_id != null ? module.observability_storage.access_key_id : ""
+    secret_access_key = module.observability_storage.secret_key != null ? module.observability_storage.secret_key : ""
+  }
+  sensitive = true
+}
+
+output "velero_bucket_name" {
+  description = "Bucket Velero writes backups to. Empty when disabled."
+  value       = module.velero_storage.bucket_name != null ? module.velero_storage.bucket_name : ""
+}
+
+output "velero_bucket_credentials" {
+  description = "Scoped key for the Velero bucket."
+  value = {
+    access_key_id     = module.velero_storage.access_key_id != null ? module.velero_storage.access_key_id : ""
+    secret_access_key = module.velero_storage.secret_key != null ? module.velero_storage.secret_key : ""
+  }
+  sensitive = true
+}
+
+output "cnpg_bucket_name" {
+  description = "Bucket CNPG writes backups to. Empty when disabled."
+  value       = module.cnpg_storage.bucket_name != null ? module.cnpg_storage.bucket_name : ""
+}
+
+output "cnpg_bucket_credentials" {
+  description = "Scoped key for the CNPG bucket."
+  value = {
+    access_key_id     = module.cnpg_storage.access_key_id != null ? module.cnpg_storage.access_key_id : ""
+    secret_access_key = module.cnpg_storage.secret_key != null ? module.cnpg_storage.secret_key : ""
+  }
+  sensitive = true
+}
+
+output "vault_backup_bucket_credentials" {
+  description = "Scoped key for the Vault snapshot bucket."
+  value = {
+    access_key_id     = module.vault_backup_storage.access_key_id != null ? module.vault_backup_storage.access_key_id : ""
+    secret_access_key = module.vault_backup_storage.secret_key != null ? module.vault_backup_storage.secret_key : ""
+  }
+  sensitive = true
+}

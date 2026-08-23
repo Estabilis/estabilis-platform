@@ -1,5 +1,47 @@
 # Changelog
 
+## [0.73.0] - 2026-08-23
+
+### Changed — the handoff is a module, not part of the provider
+
+`providers/digitalocean/platform-outputs.tf` is now `modules/platform-outputs`,
+called from a root module of the caller's choosing. **This is a breaking change
+for anyone who set `platform_outputs_enabled`**, and the reason is worth stating
+plainly.
+
+Everything else a provider does talks to a cloud API. The handoff talks to the
+**Kubernetes API**, and on DigitalOcean that endpoint sits behind a control
+plane firewall that allows a list of addresses — which a hosted CI runner, drawn
+from a shared pool, is not on. Putting those resources in the foundation's state
+meant every plan of the foundation needed cluster access, and the pipeline that
+had been applying it stopped working:
+
+```
+Error: Get "https://<cluster>.k8s.ondigitalocean.com/api/v1/namespaces/argocd":
+       dial tcp: i/o timeout
+```
+
+Observed on a live deployment, not predicted. Separating it keeps the foundation
+applicable by CI while the handoff waits for whatever can reach the cluster — a
+workstation today, an in-cluster runner once ArgoCD is up.
+
+`providers/digitalocean` no longer declares the `kubernetes` provider at all.
+
+### Added — outputs the module consumes
+
+Bucket names, the Spaces region, and one scoped credential per component bucket,
+so the handoff can read them through a `terraform_remote_state` of the
+foundation. The credentials are outputs because DigitalOcean has no workload
+identity: a component that reads its bucket holds a key that opens it, and that
+key has to travel from where it is created to where it is used.
+
+### Upgrading
+
+Move `platform_outputs_enabled` and the values around it out of the provider's
+tfvars and into a root module that calls `modules/platform-outputs`. Resources
+already created keep existing; `terraform state rm` them from the foundation and
+import them into the new state, which is safe while nothing consumes them yet.
+
 ## [0.72.0] - 2026-08-23
 
 ### Changed — the Cloudflare token travels in the handoff Secret
