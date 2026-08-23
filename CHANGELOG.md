@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.76.0]
+
+### Fixed
+- `cert-manager.yaml` no longer emits an empty `helm.parameters` key. On a
+  provider that is neither `aws` nor `azure`, with no git provenance injected,
+  every entry under it is skipped and the key renders with nothing beneath.
+  The API server reads that as null and rejects the Application —
+  `spec.sources[0].helm.parameters in body must be of type array: "null"` —
+  which fails the entire platform-root sync, not just cert-manager. It could
+  not surface while aws and azure were the only providers, because each always
+  contributes its identity annotation. Rendering for both is byte-identical.
+
 ## [0.75.0]
 
 ### Fixed
