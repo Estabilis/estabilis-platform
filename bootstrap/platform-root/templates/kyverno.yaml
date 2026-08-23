@@ -1,3 +1,5 @@
+{{- /* Honours components.kyverno. Covers kyverno and kyverno-policies. */ -}}
+{{- if ne (index .Values.components "kyverno" | toString) "false" }}
 {{- /* core: this component cannot be disabled — platform depends on it */ -}}
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -130,3 +132,4 @@ spec:
       # makes ArgoCD pin the entire .spec.rules array to the live state, silently
       # blocking every legitimate rule change and freezing the ClusterPolicies.
       - ServerSideApply=true
+{{- end }}

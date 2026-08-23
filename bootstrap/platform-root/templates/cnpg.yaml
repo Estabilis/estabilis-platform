@@ -1,3 +1,7 @@
+{{- /* Honours components.cnpg. This wraps ONLY the operator, the first
+       document in this file. The cnpg-cluster document below carries its
+       own provider gate and its own reasons. */ -}}
+{{- if ne (index .Values.components "cnpg" | toString) "false" }}
 {{- /* core: this component cannot be disabled — platform depends on it */ -}}
 {{- /* CRDs are applied by the upstart pipeline before this Application syncs */ -}}
 apiVersion: argoproj.io/v1alpha1
@@ -44,6 +48,7 @@ spec:
     syncOptions:
       - CreateNamespace=true
       - ServerSideApply=true
+{{- end }}
 ---
 {{- /* cnpg-cluster — provider-aware rendering (v0.20.0+).
 

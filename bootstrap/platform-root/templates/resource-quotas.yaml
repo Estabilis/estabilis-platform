@@ -1,3 +1,5 @@
+{{- /* Honours components.resource-quotas, added to values.yaml in this change. */ -}}
+{{- if ne (index .Values.components "resource-quotas" | toString) "false" }}
 {{- /* core: resource quotas for all platform namespaces */ -}}
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -55,3 +57,4 @@ spec:
         maxDuration: 3m
     syncOptions:
       - ServerSideApply=true
+{{- end }}
