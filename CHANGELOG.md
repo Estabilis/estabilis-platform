@@ -1,5 +1,33 @@
 # Changelog
 
+## [0.77.0]
+
+### Changed
+- Every component now honours its own toggle. Seven templates were marked
+  `core: cannot be disabled` and ignored the components map; five of them —
+  `argocd`, `cert-manager`, `kyverno`, `external-secrets`, `cnpg` — already had
+  a key there, documented as a toggle and defaulting to `true`, that nothing
+  read. Bringing a platform up on a new provider means enabling one component
+  at a time, and eleven Applications rendered regardless of every toggle being
+  false.
+- `cluster-secret-store` and `platform-secrets` follow `external-secrets`, and
+  `kyverno-exceptions` follows `kyverno`, rather than gaining keys of their own:
+  each emits custom resources of the operator it now depends on.
+
+### Added
+- `components.resource-quotas` (default `true`). It had no key at all and was
+  the one component nothing could switch off. Excluded from
+  `componentsForwarding`: forwarding it would add an entry to the map the
+  network-policies and resource-quotas child charts consume, changing rendered
+  output on deployments that changed nothing.
+
+### Notes
+- Every default is unchanged, so rendering for `aws` and `azure` is
+  byte-identical to v0.73.0 (2719 and 2823 lines, zero diff). With all toggles
+  false a deployment renders zero Applications; with only `argocd` true,
+  exactly one. The four AppProjects still render — they are the scaffolding
+  every Application references, not workload.
+
 ## [0.76.0]
 
 ### Fixed
