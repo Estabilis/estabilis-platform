@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.71.1] - 2026-08-23
+
+### Fixed — exposures were written into the ConfigMap as maps
+
+`platform-outputs.tf` assigned the six `*_exposures` variables straight into the
+ConfigMap. A ConfigMap holds strings and those variables are
+`map(object({...}))`, so the handoff could not have been applied — and a
+downstream passing them through hit the type error first, which is how this was
+found.
+
+They are now `jsonencode`d, matching what `providers/aws` does, with disabled
+entries dropped rather than shipped as `enabled: false`. The platform reads this
+to decide what to expose, and a list containing things it must not expose is one
+typo away from exposing them.
+
+Verified against the expression rather than the plan: an empty map encodes to
+`{}`, and a map with one enabled and one disabled entry encodes only the enabled
+one. The plan itself cannot show this before the cluster exists — the ConfigMap
+data depends on the cluster's reported version, so the whole map is unknown.
+
 ## [0.71.0] - 2026-08-23
 
 ### Added — the handoff to ArgoCD on DigitalOcean
