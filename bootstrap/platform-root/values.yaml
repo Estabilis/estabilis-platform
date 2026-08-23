@@ -133,6 +133,24 @@ vault:
   unsealKeyName: ""
   backupStorageAccount: ""
   backupContainer: ""
+  # DigitalOcean path — auto-unseal on GCP Cloud KMS.
+  #
+  # DigitalOcean has no managed key management service, so auto-unseal there has
+  # no in-provider option: either an external KMS, or operator-held unseal shares
+  # re-entered on every pod restart. These four locate the key.
+  gcpKmsProject: ""
+  gcpKmsRegion: ""
+  gcpKmsKeyRing: ""
+  gcpKmsCryptoKey: ""
+  # Workload Identity Federation, so no Google service account key is placed in
+  # the cluster. `gcpWifAudience` MUST be the full WIF provider path, in the
+  # `https://iam.googleapis.com/projects/.../providers/...` form the projected
+  # token uses — Google rejects the exchange on any mismatch.
+  gcpWifAudience: ""
+  # ConfigMap in the `vault` namespace holding credential-configuration.json.
+  # Provisioned by the deployment's Terraform, like platform-infrastructure
+  # (ADR 0010); the chart only references it.
+  gcpWifConfigMap: "vault-gcp-wif"
 
 # ---------------------------------------------------------------------------
 # Component Toggles
