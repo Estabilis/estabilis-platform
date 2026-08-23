@@ -214,6 +214,9 @@ components:
   velero: true               # optional: backup/restore (disable if handled externally)
   external-dns: true         # optional: DNS record management (disable if manual DNS)
   argocd-image-updater: false # optional: auto-update container images via registry polling (opt-in)
+  # ResourceQuotas for the platform namespaces. Had no key at all until now,
+  # so it was the one component nothing could switch off.
+  resource-quotas: true
   policy-reporter: false     # optional: kubernetes policy report dashboards (disabled by default — opt-in)
   metrics-server: true       # optional: AWS-only — Resource Metrics API server (kubectl top, HPA). Azure AKS provides natively
   snapshot-controller: true  # optional: AWS-only — VolumeSnapshotClass for Velero CSI backups (snapshot-controller addon installs CRDs+Deployment via providers/aws/eks.tf)

@@ -423,9 +423,18 @@ tolerations:
 {{- define "platform-root.componentsForwarding" -}}
 {{- /* Vault is intentionally NOT in this list — it's multi-provider (AWS + Azure) and gated separately on (provider in (aws|azure)) in vault.yaml. */ -}}
 {{- $awsOnly := list "aws-load-balancer-controller" "karpenter" "karpenter-resources" "metrics-server" "snapshot-controller" -}}
+{{- /* Never forwarded, on any provider. `resource-quotas` joined the components
+       map so its Application could be switched off like every other component.
+       Forwarding it would add a key to the map the network-policies and
+       resource-quotas child charts consume, changing rendered output on
+       deployments that changed nothing — and one of those charts is the very
+       thing being toggled. */ -}}
+{{- $notForwarded := list "resource-quotas" -}}
 components:
   {{- range $k, $v := .Values.components }}
-  {{- if and (has $k $awsOnly) (ne $.Values.global.provider "aws") }}
+  {{- if has $k $notForwarded }}
+  {{- /* never forwarded — see above */ -}}
+  {{- else if and (has $k $awsOnly) (ne $.Values.global.provider "aws") }}
   {{- /* skip AWS-only component on non-AWS provider — namespace doesn't exist */ -}}
   {{- else }}
   {{ $k | quote }}: {{ $v }}

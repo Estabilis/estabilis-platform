@@ -1,3 +1,7 @@
+{{- /* Honours components.cert-manager. Covers both Applications in this file:
+       cert-manager and cert-manager-config, which is its ClusterIssuers and
+       is meaningless without it. */ -}}
+{{- if ne (index .Values.components "cert-manager" | toString) "false" }}
 {{- /* core: this component cannot be disabled — platform depends on it */ -}}
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -181,3 +185,4 @@ spec:
         maxDuration: 3m
     syncOptions:
       - CreateNamespace=true
+{{- end }}
