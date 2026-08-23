@@ -31,8 +31,24 @@ spec:
                 "mode" $mode
                 "paths" (list "webhook" "cainjector" "startupapicheck")
                 "provider" .Values.global.provider) | nindent 10 }}
+        {{- /* The key is emitted only when something goes under it.
+               `parameters` is optional in the Application CRD, but an EMPTY one
+               is not the same as an absent one: it renders as `parameters:`
+               with nothing beneath, the API server reads that as null, and
+               rejects the Application with
+
+                 spec.sources[0].helm.parameters in body must be of type array: "null"
+
+               Every entry below is conditional — the provenance helper stays
+               silent unless git provenance was injected, and the two provider
+               branches cover aws and azure. On any other provider, with no
+               provenance, the block is empty. That could not surface while aws
+               and azure were the only providers, because each always
+               contributed its identity annotation. */}}
+        {{- $provenance := include "platform-root.provenanceParameters" $ }}
+        {{- if or (trim $provenance) (has .Values.global.provider (list "aws" "azure")) }}
         parameters:
-          {{- include "platform-root.provenanceParameters" $ | nindent 10 }}
+          {{- $provenance | nindent 10 }}
           {{- if eq .Values.global.provider "azure" }}
           {{- /* Azure Workload Identity client-id for the cert-manager
                 controller pod — dynamic per-cluster, so injected here. The
@@ -53,6 +69,7 @@ spec:
             value: "{{ .Values.identity.certManager.roleArn }}"
             forceString: true
           {{- end }}
+        {{- end }}
     - repoURL: {{ .Values.platformGitopsRepoUrl }}
       targetRevision: {{ .Values.platformGitopsVersion }}
       ref: values
