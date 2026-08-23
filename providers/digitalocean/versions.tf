@@ -20,11 +20,5 @@ terraform {
       source  = "hashicorp/random"
       version = "~> 3.8"
     }
-    # Only for the handoff in platform-outputs.tf. Nothing else here touches the
-    # Kubernetes API.
-    kubernetes = {
-      source  = "hashicorp/kubernetes"
-      version = "~> 2.30"
-    }
   }
 }

@@ -1,25 +1,22 @@
 # ---------------------------------------------------------------------------
 # The handoff from Terraform to ArgoCD
 #
-# Everything below writes into the cluster, and nothing above this file does.
-# That makes this the boundary of the foundation: what Terraform knows about
-# the infrastructure, written where the platform can read it.
+# What Terraform knows about the infrastructure, written where the platform can
+# read it. See README.md for why this is a module rather than part of a
+# provider — the short version is that it talks to the Kubernetes API, which a
+# hosted CI runner cannot reach, so it must not sit in the state of anything CI
+# needs to plan.
 #
-# Toggle via: platform_outputs_enabled = true. Off by default, because on a
-# first apply the cluster does not exist yet and there is nothing to write to.
+# Every input is a value. The caller decides whether they come from a sibling
+# module, a terraform_remote_state of the foundation, or literals.
 #
-# WHY THE CONFIGMAP IS EXTENSIBLE AND THE OTHER PROVIDERS' ARE NOT
-#
-# On AWS and Azure every value the platform needs is known to the provider that
-# creates the cluster. Here one is not: Vault's seal lives in Google Cloud KMS,
-# because DigitalOcean has no KMS at all, and that key belongs to the
-# deployment rather than to this module. `platform_outputs_extra` exists so a
-# downstream can inject what only it knows, without this module growing a
-# dependency on a cloud it does not manage.
+# EXTENSIBLE ON PURPOSE. platform_outputs_extra exists because a DigitalOcean
+# deployment knows things no provider module can: Vault's seal lives in Google
+# Cloud KMS, since DigitalOcean has no KMS at all, and that key belongs to the
+# deployment.
 # ---------------------------------------------------------------------------
 
 resource "kubernetes_namespace_v1" "argocd" {
-  count = var.platform_outputs_enabled ? 1 : 0
 
   metadata {
     name = var.argocd_namespace
@@ -31,11 +28,10 @@ resource "kubernetes_namespace_v1" "argocd" {
 }
 
 resource "kubernetes_config_map_v1" "platform_infrastructure" {
-  count = var.platform_outputs_enabled ? 1 : 0
 
   metadata {
     name      = "platform-infrastructure"
-    namespace = kubernetes_namespace_v1.argocd[0].metadata[0].name
+    namespace = kubernetes_namespace_v1.argocd.metadata[0].name
     labels = {
       "app.kubernetes.io/managed-by" = "terraform"
       "app.kubernetes.io/part-of"    = "estabilis-platform"
@@ -63,13 +59,13 @@ resource "kubernetes_config_map_v1" "platform_infrastructure" {
       "global.provider"    = "digitalocean"
       "global.environment" = var.environment
       "global.region"      = var.region
-      "global.clusterName" = local.cluster_name
-      "global.vpcUuid"     = local.vpc_uuid_effective
+      "global.clusterName" = var.cluster_name
+      "global.vpcUuid"     = var.vpc_uuid
 
       # Reported by the API rather than echoed from the variable: with
       # kubernetes_version_prefix the deployment tracks a series and the exact
       # patch is DigitalOcean's choice, not ours.
-      "global.kubernetesVersion" = digitalocean_kubernetes_cluster.this.version
+      "global.kubernetesVersion" = var.kubernetes_version
 
       # DNS and TLS. There is no DigitalOcean equivalent of Route 53 or Azure
       # DNS in this design — external-dns and cert-manager talk to Cloudflare,
@@ -98,12 +94,12 @@ resource "kubernetes_config_map_v1" "platform_infrastructure" {
       # by endpoint and bucket exactly as they would S3 — what differs is that
       # there is no instance identity here, so each bucket's key travels in the
       # Secret below rather than being assumed from a role.
-      "global.spacesEndpoint"          = "https://${local.spaces_region_effective}.digitaloceanspaces.com"
-      "global.spacesRegion"            = local.spaces_region_effective
-      "global.observabilityBucketName" = module.observability_storage.bucket_name != null ? module.observability_storage.bucket_name : ""
-      "global.veleroBackupBucketName"  = module.velero_storage.bucket_name != null ? module.velero_storage.bucket_name : ""
-      "global.cnpgBackupBucketName"    = module.cnpg_storage.bucket_name != null ? module.cnpg_storage.bucket_name : ""
-      "global.vaultBackupBucketName"   = module.vault_backup_storage.bucket_name != null ? module.vault_backup_storage.bucket_name : ""
+      "global.spacesEndpoint"          = "https://${var.spaces_region}.digitaloceanspaces.com"
+      "global.spacesRegion"            = var.spaces_region
+      "global.observabilityBucketName" = var.observability_bucket_name
+      "global.veleroBackupBucketName"  = var.velero_bucket_name
+      "global.cnpgBackupBucketName"    = var.cnpg_bucket_name
+      "global.vaultBackupBucketName"   = var.vault_backup_bucket_name
 
       "global.veleroBackupSchedule"       = var.velero_backup_schedule
       "global.veleroBackupRetentionHours" = tostring(var.velero_backup_retention_hours)
@@ -113,7 +109,7 @@ resource "kubernetes_config_map_v1" "platform_infrastructure" {
       # Empty unless a registry is managed here. Not the account's registry:
       # naming one this module did not create would tell the platform to pull
       # from something nobody here controls.
-      "global.registryEndpoint" = var.registry_enabled ? digitalocean_container_registry.this[0].endpoint : ""
+      "global.registryEndpoint" = var.registry_endpoint
 
       "global.slackAlertingEnabled" = tostring(var.slack_alerting_enabled)
       "global.openaiApiKeyEnabled"  = tostring(var.openai_api_key_enabled)
@@ -140,7 +136,7 @@ resource "kubernetes_config_map_v1" "platform_infrastructure" {
         var.domain,
         var.letsencrypt_email,
       ])) == 5
-      error_message = "platform_outputs_enabled = true needs platform_repo_url, config_repo_url, client_gitops_repo_url, domain and letsencrypt_email. Empty ones produce a ConfigMap that points ArgoCD at nothing, which fails later and further away than here."
+      error_message = "This module needs platform_repo_url, config_repo_url, client_gitops_repo_url, domain and letsencrypt_email. Empty ones produce a ConfigMap that points ArgoCD at nothing, which fails later and further away than here."
     }
   }
 }
@@ -160,11 +156,10 @@ resource "kubernetes_config_map_v1" "platform_infrastructure" {
 # ---------------------------------------------------------------------------
 
 resource "kubernetes_secret_v1" "platform_infrastructure" {
-  count = var.platform_outputs_enabled ? 1 : 0
 
   metadata {
     name      = "platform-infrastructure-sensitive"
-    namespace = kubernetes_namespace_v1.argocd[0].metadata[0].name
+    namespace = kubernetes_namespace_v1.argocd.metadata[0].name
     labels = {
       "app.kubernetes.io/managed-by" = "terraform"
       "app.kubernetes.io/part-of"    = "estabilis-platform"
@@ -189,14 +184,14 @@ resource "kubernetes_secret_v1" "platform_infrastructure" {
       # made the namespace that consumes it.
       "global.cloudflareApiToken" = var.dns_provider == "cloudflare" ? var.cloudflare_api_token : ""
 
-      "storage.observability.accessKeyId"     = module.observability_storage.access_key_id != null ? module.observability_storage.access_key_id : ""
-      "storage.observability.secretAccessKey" = module.observability_storage.secret_key != null ? module.observability_storage.secret_key : ""
-      "storage.velero.accessKeyId"            = module.velero_storage.access_key_id != null ? module.velero_storage.access_key_id : ""
-      "storage.velero.secretAccessKey"        = module.velero_storage.secret_key != null ? module.velero_storage.secret_key : ""
-      "storage.cnpg.accessKeyId"              = module.cnpg_storage.access_key_id != null ? module.cnpg_storage.access_key_id : ""
-      "storage.cnpg.secretAccessKey"          = module.cnpg_storage.secret_key != null ? module.cnpg_storage.secret_key : ""
-      "storage.vaultBackup.accessKeyId"       = module.vault_backup_storage.access_key_id != null ? module.vault_backup_storage.access_key_id : ""
-      "storage.vaultBackup.secretAccessKey"   = module.vault_backup_storage.secret_key != null ? module.vault_backup_storage.secret_key : ""
+      "storage.observability.accessKeyId"     = var.observability_access_key_id
+      "storage.observability.secretAccessKey" = var.observability_secret_access_key
+      "storage.velero.accessKeyId"            = var.velero_access_key_id
+      "storage.velero.secretAccessKey"        = var.velero_secret_access_key
+      "storage.cnpg.accessKeyId"              = var.cnpg_access_key_id
+      "storage.cnpg.secretAccessKey"          = var.cnpg_secret_access_key
+      "storage.vaultBackup.accessKeyId"       = var.vault_backup_access_key_id
+      "storage.vaultBackup.secretAccessKey"   = var.vault_backup_secret_access_key
     },
     var.platform_outputs_extra_sensitive,
   )
@@ -211,11 +206,11 @@ resource "kubernetes_secret_v1" "platform_infrastructure" {
 # ---------------------------------------------------------------------------
 
 resource "kubernetes_secret_v1" "hub_cluster" {
-  count = var.platform_outputs_enabled && var.hub_cluster_secret_enabled ? 1 : 0
+  count = var.hub_cluster_secret_enabled ? 1 : 0
 
   metadata {
     name      = "hub-cluster"
-    namespace = kubernetes_namespace_v1.argocd[0].metadata[0].name
+    namespace = kubernetes_namespace_v1.argocd.metadata[0].name
     labels = {
       "argocd.argoproj.io/secret-type" = "cluster"
       "estabilis.io/cluster-type"      = "hub"
@@ -224,7 +219,7 @@ resource "kubernetes_secret_v1" "hub_cluster" {
   }
 
   data = {
-    name   = local.cluster_name
+    name   = var.cluster_name
     server = "https://kubernetes.default.svc"
     config = jsonencode({ tlsClientConfig = { insecure = false } })
   }
@@ -241,11 +236,11 @@ resource "kubernetes_secret_v1" "hub_cluster" {
 
 module "github_app_credentials" {
   source = "../../modules/github-app-credentials"
-  count  = var.platform_outputs_enabled && var.github_app_credentials_enabled ? 1 : 0
+  count  = var.github_app_credentials_enabled ? 1 : 0
 
   github_app_id              = var.github_app_id
   github_app_installation_id = var.github_app_installation_id
   github_app_private_key     = var.github_app_private_key
   github_org_url             = var.github_org_url
-  namespace                  = kubernetes_namespace_v1.argocd[0].metadata[0].name
+  namespace                  = kubernetes_namespace_v1.argocd.metadata[0].name
 }

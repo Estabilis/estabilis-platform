@@ -23,24 +23,17 @@ provider "digitalocean" {
   spaces_secret_key = var.spaces_secret_key != "" ? var.spaces_secret_key : null
 }
 
-# The kubernetes provider, for platform-outputs.tf and nothing else. The helm
-# provider is still absent: this module writes the handoff and stops, and ArgoCD
-# installs everything after it.
+# NO KUBERNETES PROVIDER HERE, and that is the point.
 #
-# DIGITALOCEAN HAS NO EXEC-PLUGIN AUTH. EKS shells out to `aws eks get-token`
-# and AKS to `az aks get-credentials`, so on both the provider holds a command
-# and mints a fresh token per run. Here the token is an attribute of the cluster
-# resource and it EXPIRES — kubeconfig_expire_seconds, seven days by default.
+# The handoff to ArgoCD used to live in this module, and it broke the pipeline:
+# talking to the Kubernetes API put those resources in this state, so every plan
+# of the foundation needed cluster access — which a hosted CI runner does not
+# have, because the control plane firewall allows a list of addresses and a
+# shared runner pool is not on it.
 #
-# What that means in practice: a plan run against a state older than the expiry
-# refreshes the cluster first and picks up a new token, so it works. A plan run
-# from a stale state file without refresh does not. If a plan here fails
-# authenticating, refresh before believing the cluster is unreachable.
-provider "kubernetes" {
-  host                   = try(digitalocean_kubernetes_cluster.this.endpoint, null)
-  token                  = try(digitalocean_kubernetes_cluster.this.kube_config[0].token, null)
-  cluster_ca_certificate = try(base64decode(digitalocean_kubernetes_cluster.this.kube_config[0].cluster_ca_certificate), null)
-}
+# It is modules/platform-outputs now, called from a root module of its own. The
+# foundation stays applicable by CI; the handoff waits for whatever can reach
+# the cluster.
 
 # ---------------------------------------------------------------------------
 # CAF naming + tags — key names kept byte-compatible with the AWS and Azure
