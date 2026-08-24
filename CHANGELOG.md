@@ -1,5 +1,31 @@
 # Changelog
 
+## [0.79.0]
+
+### Added
+- `chartVersions` — a map that pins any third-party Helm chart to a version
+  other than the tested default. Twenty-three charts had their version written
+  into the template, so a deployment needing a different one had to fork or land
+  an upstream release that moved every other deployment with it.
+  Keyed by the chart's own name as it appears in the `chart:` field — `argo-cd`,
+  `cloudnative-pg`, `prometheus-node-exporter` — with one `traefik` entry
+  covering both the public and the internal Application, since they are the same
+  chart.
+
+### Changed
+- `vaultChartVersion` and `argocdChartVersion` now route through the same helper.
+  They still work; `chartVersions` wins when both are set.
+
+### Notes
+- Every default is unchanged. Verified two ways: with a values file that
+  supplies `identity`, and with a minimal one that supplies nothing the chart
+  should default — the second is the test v0.78.0 lacked. aws 2719 lines, azure
+  2823, zero diff against v0.73.0.
+- Bumping a chart bumps everything inside it, and there is deliberately no knob
+  for the contents: `argo-cd` 9.5.6 to 10.4.0 moves every Argo CD image from
+  v3.3.8 to v3.5.1 and Redis from 8.2.3 to 8.6.4. The chart is what was tested
+  together.
+
 ## [0.78.1]
 
 ### Fixed
