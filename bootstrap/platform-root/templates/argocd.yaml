@@ -16,7 +16,17 @@ spec:
   sources:
     - repoURL: https://argoproj.github.io/argo-helm
       chart: argo-cd
-      targetRevision: "9.5.6"
+      {{- /* Overridable, same mechanism vault.yaml already uses. The default is
+             the version this release was tested against; a deployment that needs
+             a different one sets `argocdChartVersion` in its platform-root
+             override rather than forking the template.
+
+             Whatever is set here MUST match what the deployment's bootstrap
+             installed. Argo CD manages itself through this Application, so a
+             bootstrap ahead of this value is silently pulled back to it on the
+             first sync — a downgrade across chart majors, performed by the
+             component being downgraded. */}}
+      targetRevision: "{{ default "9.5.6" .Values.argocdChartVersion }}"
       helm:
         valueFiles:
           - $values/core/components/argocd/values.yaml
