@@ -463,6 +463,31 @@ variable "default_node_pool" {
   })
   default  = {}
   nullable = false
+
+  validation {
+    condition     = coalesce(var.default_node_pool.auto_scale, true)
+    error_message = <<-EOT
+      default_node_pool.auto_scale = false leaves this pool's size unmanaged.
+
+      node_count is the only attribute Terraform ignores on the cluster
+      resource (lifecycle.ignore_changes in doks.tf), because with autoscaling
+      on the live count moves constantly and every plan would show a spurious
+      diff. That rule is unconditional, so turning autoscaling OFF makes
+      node_count both the authoritative setting AND the ignored one: the pool
+      can be resized behind Terraform's back and `plan` will keep reporting
+      "No changes".
+
+      For a pool that does not scale, pin it instead:
+
+        auto_scale = true
+        min_nodes  = 1
+        max_nodes  = 1
+
+      min_nodes and max_nodes are not ignored, so the floor stays under
+      Terraform's control while the pool behaves exactly as a fixed one. This
+      is what the description above means by "pinned (min == max)".
+    EOT
+  }
 }
 
 variable "additional_node_pools" {
