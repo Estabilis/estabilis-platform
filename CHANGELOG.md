@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.78.1]
+
+### Fixed
+- `identity.vault` was destroyed by the v0.78.0 insertion. `argocdChartVersion`
+  was placed by anchoring on the string `"vault:"`, which matched the one nested
+  under `identity:` — leading whitespace is not part of the match — so the new
+  block landed inside that mapping and its `clientId`/`roleArn` were reparented
+  to a second top-level `vault:` key. `vault.yaml` reads
+  `.Values.identity.vault.roleArn` and `.clientId` on both the aws and azure
+  branches, so v0.78.0 fails to render with vault enabled unless those values
+  are supplied explicitly.
+  `argocdChartVersion` now sits at top level and still works.
+
+### Notes
+- v0.78.0's verification did not catch this because the values file used to
+  render supplied `identity.vault` explicitly, masking the default it should
+  have been exercising. This release is verified twice: with that file, and with
+  a minimal one supplying nothing the chart should default. Both render
+  identically to v0.73.0.
+- The `check-yaml` hook did catch the duplicate key on the v0.78.0 pull request.
+  It was merged with the check red.
+
 ## [0.78.0]
 
 ### Added
