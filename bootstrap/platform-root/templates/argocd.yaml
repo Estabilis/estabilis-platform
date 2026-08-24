@@ -26,7 +26,7 @@ spec:
              bootstrap ahead of this value is silently pulled back to it on the
              first sync — a downgrade across chart majors, performed by the
              component being downgraded. */}}
-      targetRevision: "{{ default "9.5.6" .Values.argocdChartVersion }}"
+      targetRevision: "{{ include "platform-root.chartVersion" (dict "chart" "argo-cd" "default" "9.5.6" "legacy" .Values.argocdChartVersion "root" $) }}"
       helm:
         valueFiles:
           - $values/core/components/argocd/values.yaml

@@ -34,7 +34,7 @@ spec:
   sources:
     - repoURL: https://aws.github.io/eks-charts
       chart: aws-load-balancer-controller
-      targetRevision: "1.17.1"
+      targetRevision: "{{ include "platform-root.chartVersion" (dict "chart" "aws-load-balancer-controller" "default" "1.17.1" "root" $) }}"
       helm:
         valueFiles:
           - $values/values/platform/aws-load-balancer-controller.yaml

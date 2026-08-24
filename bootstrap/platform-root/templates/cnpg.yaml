@@ -14,7 +14,7 @@ spec:
   sources:
     - repoURL: https://cloudnative-pg.github.io/charts
       chart: cloudnative-pg
-      targetRevision: "0.28.0"
+      targetRevision: "{{ include "platform-root.chartVersion" (dict "chart" "cloudnative-pg" "default" "0.28.0" "root" $) }}"
       helm:
         valueFiles:
           - $values/core/components/cnpg/values.yaml

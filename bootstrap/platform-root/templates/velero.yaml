@@ -12,7 +12,7 @@ spec:
   sources:
     - repoURL: https://vmware-tanzu.github.io/helm-charts
       chart: velero
-      targetRevision: "11.4.0"
+      targetRevision: "{{ include "platform-root.chartVersion" (dict "chart" "velero" "default" "11.4.0" "root" $) }}"
       helm:
         valueFiles:
           - $values/core/components/velero/values.yaml

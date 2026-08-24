@@ -29,7 +29,7 @@ spec:
   sources:
     - repoURL: https://kubernetes-sigs.github.io/metrics-server/
       chart: metrics-server
-      targetRevision: "3.12.2"
+      targetRevision: "{{ include "platform-root.chartVersion" (dict "chart" "metrics-server" "default" "3.12.2" "root" $) }}"
       helm:
         valueFiles:
           - $values/values/platform/metrics-server.yaml

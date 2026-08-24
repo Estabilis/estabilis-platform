@@ -19,7 +19,7 @@ spec:
   sources:
     - repoURL: https://traefik.github.io/charts
       chart: traefik
-      targetRevision: "39.0.5"
+      targetRevision: "{{ include "platform-root.chartVersion" (dict "chart" "traefik" "default" "39.0.5" "root" $) }}"
       helm:
         releaseName: traefik-internal
         valueFiles:
