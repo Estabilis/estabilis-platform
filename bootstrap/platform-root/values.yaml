@@ -115,17 +115,7 @@ identity:
   # Vault (v0.28.0+ — multi-provider opt-in). Empty defaults so the
   # vault.yaml Application template can render even when vault_enabled
   # is false (or when terraform hasn't injected helm.parameters yet).
-  # Argo CD Helm chart version, empty to use the tested default (9.5.6, which
-# ships Argo CD v3.3.8). Declared here rather than left to the template's
-# `default` so it is discoverable by anyone reading this file — the equivalent
-# `vaultChartVersion` is not, and cannot be found without reading vault.yaml.
-#
-# Must agree with what the deployment's bootstrap installed: Argo CD manages
-# itself through the Application this feeds, so a mismatch is resolved silently
-# in favour of this value.
-argocdChartVersion: ""
-
-vault:
+  vault:
     clientId: ""
     roleArn: ""
 
@@ -161,6 +151,18 @@ vault:
   # Provisioned by the deployment's Terraform, like platform-infrastructure
   # (ADR 0010); the chart only references it.
   gcpWifConfigMap: "vault-gcp-wif"
+
+# Argo CD Helm chart version. Empty uses the tested default (9.5.6, which ships
+# Argo CD v3.3.8); set it to override.
+#
+# Declared here rather than left to the template's `default` function. The
+# equivalent `vaultChartVersion` is not, and cannot be found without reading
+# vault.yaml — a value nobody can discover is not really configurable.
+#
+# Must agree with what the deployment's bootstrap installed. Argo CD manages
+# itself through the Application this feeds, so a bootstrap ahead of this value
+# is silently pulled back to it on the first sync.
+argocdChartVersion: ""
 
 # ---------------------------------------------------------------------------
 # Component Toggles
