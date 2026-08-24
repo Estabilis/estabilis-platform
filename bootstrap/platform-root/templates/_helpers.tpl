@@ -483,3 +483,45 @@ argocd-ingress.yaml.
 {{- end -}}
 {{- end -}}
 {{- end -}}
+
+{{- /*
+  chartVersion — which version of a third-party Helm chart to install.
+
+  Precedence, first non-empty wins:
+
+    1. chartVersions.<chart>   the map, keyed by the chart's OWN name as it
+                               appears in the `chart:` field — `argo-cd`, not
+                               `argocd`; `cloudnative-pg`, not `cnpg`; and one
+                               `traefik` entry covering both the public and the
+                               internal Application, because they are the same
+                               chart.
+    2. .legacy                 the per-component key that predates the map
+                               (vaultChartVersion, argocdChartVersion). Still
+                               honoured so nothing that already sets one breaks.
+    3. .default                the version this release was tested against.
+
+  WHY A MAP AND NOT ONE KEY PER COMPONENT
+
+    Twenty-three charts had their version written into the template, so a
+    deployment that needed a different one had to fork or wait for an upstream
+    release that would move every other deployment with it. Twenty-three
+    separate `<name>ChartVersion` keys would have solved that and left the
+    values file unreadable.
+
+  ⚠️ A CHART VERSION AND WHAT IS INSTALLED ARE THE SAME DECISION
+
+    Bumping a chart bumps everything inside it. argo-cd 9.5.6 -> 10.4.0 moves
+    every Argo CD image from v3.3.8 to v3.5.1 and Redis from 8.2.3 to 8.6.4.
+    There is no separate knob for the contents, and there should not be: the
+    chart is what was tested together.
+*/ -}}
+{{- define "platform-root.chartVersion" -}}
+{{- $v := "" -}}
+{{- with .root.Values.chartVersions -}}
+{{- $v = default "" (index . $.chart) -}}
+{{- end -}}
+{{- if not $v -}}
+{{- $v = default "" .legacy -}}
+{{- end -}}
+{{- default .default $v -}}
+{{- end -}}

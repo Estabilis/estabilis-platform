@@ -13,7 +13,7 @@ spec:
   sources:
     - repoURL: https://kyverno.github.io/kyverno
       chart: kyverno
-      targetRevision: "3.7.1"
+      targetRevision: "{{ include "platform-root.chartVersion" (dict "chart" "kyverno" "default" "3.7.1" "root" $) }}"
       helm:
         valueFiles:
           - $values/values/platform/kyverno.yaml

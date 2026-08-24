@@ -11,7 +11,7 @@ spec:
   sources:
     - repoURL: https://grafana.github.io/helm-charts
       chart: beyla
-      targetRevision: "1.16.5"
+      targetRevision: "{{ include "platform-root.chartVersion" (dict "chart" "beyla" "default" "1.16.5" "root" $) }}"
       helm:
         releaseName: beyla
         valueFiles:

@@ -35,7 +35,7 @@ spec:
   sources:
     - repoURL: https://helm.releases.hashicorp.com
       chart: vault
-      targetRevision: "{{ default "0.29.1" .Values.vaultChartVersion }}"
+      targetRevision: "{{ include "platform-root.chartVersion" (dict "chart" "vault" "default" "0.29.1" "legacy" .Values.vaultChartVersion "root" $) }}"
       helm:
         valueFiles:
           - $values/values/platform/vault.yaml

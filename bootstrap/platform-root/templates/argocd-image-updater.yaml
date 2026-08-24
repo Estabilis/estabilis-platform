@@ -73,7 +73,7 @@ spec:
     # See: https://github.com/argoproj-labs/argocd-image-updater/pull/1190
     - repoURL: https://argoproj.github.io/argo-helm
       chart: argocd-image-updater
-      targetRevision: "0.14.0"
+      targetRevision: "{{ include "platform-root.chartVersion" (dict "chart" "argocd-image-updater" "default" "0.14.0" "root" $) }}"
       helm:
         valueFiles:
           - $values/values/platform/argocd-image-updater.yaml

@@ -12,7 +12,7 @@ spec:
   sources:
     - repoURL: https://prometheus-community.github.io/helm-charts
       chart: kube-state-metrics
-      targetRevision: "5.27.0"
+      targetRevision: "{{ include "platform-root.chartVersion" (dict "chart" "kube-state-metrics" "default" "5.27.0" "root" $) }}"
       helm:
         valueFiles:
           - $values/values/platform/kube-state-metrics.yaml

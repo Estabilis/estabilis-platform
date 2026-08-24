@@ -12,7 +12,7 @@ spec:
   sources:
     - repoURL: https://prometheus-community.github.io/helm-charts
       chart: prometheus-node-exporter
-      targetRevision: "4.43.1"
+      targetRevision: "{{ include "platform-root.chartVersion" (dict "chart" "prometheus-node-exporter" "default" "4.43.1" "root" $) }}"
       helm:
         valueFiles:
           - $values/values/platform/node-exporter.yaml

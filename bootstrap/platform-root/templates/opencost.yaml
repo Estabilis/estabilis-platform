@@ -52,7 +52,7 @@ spec:
   sources:
     - repoURL: https://opencost.github.io/opencost-helm-chart
       chart: opencost
-      targetRevision: "2.3.2"
+      targetRevision: "{{ include "platform-root.chartVersion" (dict "chart" "opencost" "default" "2.3.2" "root" $) }}"
       helm:
         valueFiles:
           - $values/core/components/opencost/values.yaml

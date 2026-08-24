@@ -152,8 +152,43 @@ vault:
   # (ADR 0010); the chart only references it.
   gcpWifConfigMap: "vault-gcp-wif"
 
-# Argo CD Helm chart version. Empty uses the tested default (9.5.6, which ships
-# Argo CD v3.3.8); set it to override.
+# ---------------------------------------------------------------------------
+# Chart versions
+# ---------------------------------------------------------------------------
+#
+# Pin a third-party chart to a version other than the one this release was
+# tested against. Keyed by the chart's OWN name, as it appears in the `chart:`
+# field of the Application — `argo-cd`, not `argocd`; `cloudnative-pg`, not
+# `cnpg`; `prometheus-node-exporter`, not `node-exporter`. One `traefik` entry
+# covers both the public and the internal Application, because they are the
+# same chart.
+#
+# Empty or absent means "use the tested default", which is what every entry
+# below is. Nothing here changes unless a deployment sets it.
+#
+# ⚠️ Bumping a chart bumps everything inside it. There is no separate knob for
+# the contents, and there should not be — the chart is what was tested together.
+# argo-cd 9.5.6 to 10.4.0, for instance, moves every Argo CD image from v3.3.8
+# to v3.5.1 and Redis from 8.2.3 to 8.6.4.
+#
+# The tested defaults, for reference (they live in the templates, not here, so
+# that a release cannot ship a default this file disagrees with):
+#
+#   argo-cd 9.5.6            cert-manager 1.20.0        kyverno 3.7.1
+#   vault 0.29.1             cloudnative-pg 0.28.0      external-dns 1.20.0
+#   traefik 39.0.5           velero 11.4.0              trivy-operator 0.32.0
+#   grafana 10.5.15          loki 6.54.0                mimir-distributed 6.0.5
+#   alloy 1.6.2              tempo 1.24.4               pyroscope 1.19.0
+#   opencost 2.3.2           kube-state-metrics 5.27.0  beyla 1.16.5
+#   prometheus-node-exporter 4.43.1                     argocd-image-updater 0.14.0
+#   karpenter 1.12.0         karpenter-crd 1.12.0       metrics-server 3.12.2
+#   aws-load-balancer-controller 1.17.1
+#
+chartVersions: {}
+
+# Argo CD Helm chart version. Superseded by `chartVersions.argo-cd`, which is
+# where new deployments should set this; kept because deployments already set
+# it, and `chartVersions` wins when both are present.
 #
 # Declared here rather than left to the template's `default` function. The
 # equivalent `vaultChartVersion` is not, and cannot be found without reading
