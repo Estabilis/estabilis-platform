@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.78.0]
+
+### Added
+- `argocdChartVersion` — the Argo CD Helm chart version is now overridable, the
+  same way `vaultChartVersion` already was. It was hardcoded at `9.5.6`, so a
+  deployment needing a different Argo CD had no way to say so short of forking
+  the template. Unlike `vaultChartVersion`, this one is declared in
+  `values.yaml`: a value that cannot be found without reading the template is
+  not really configurable.
+
+### Notes
+- The default is unchanged, so rendering for `aws` and `azure` is
+  byte-identical to v0.73.0 (2719 and 2823 lines, zero diff).
+- Argo CD manages itself through the Application this feeds, so whatever is set
+  must match what the deployment's bootstrap installed. A bootstrap ahead of
+  this value is silently pulled back to it on the first sync — across chart
+  majors, a downgrade performed by the component being downgraded.
+
 ## [0.77.0]
 
 ### Changed
