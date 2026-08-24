@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.80.0]
+
+### Fixed
+- `default_node_pool.auto_scale = false` is now rejected, because it leaves the
+  pool's size unmanaged. `node_count` is the only attribute in the cluster
+  resource's `lifecycle.ignore_changes` — necessary while autoscaling moves the
+  live count — but the rule is unconditional, so turning autoscaling off makes
+  `node_count` both the authoritative setting and the ignored one. A deployment
+  that did this sat at two nodes while `terraform plan` reported `No changes`,
+  and the count had to be corrected through the API.
+  The variable's description already prescribed the alternative — pinned
+  (`min == max`), where `min_nodes`/`max_nodes` are not ignored — and the
+  validation now says so where the mistake is made rather than in prose above
+  it.
+
 ## [0.79.0]
 
 ### Added
