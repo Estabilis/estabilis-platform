@@ -1,3 +1,9 @@
+{{- /* Mimir and Tempo take the S3 endpoint as a HOST, with no scheme, and
+       decide TLS from `insecure`. global.spacesEndpoint is a URL because
+       every other consumer wants one, so it is stripped here — once —
+       rather than in three overlays that could each get it wrong. Loki is
+       the exception and takes the URL as given. */ -}}
+{{- $spacesHost := trimPrefix "https://" (trimPrefix "http://" (.Values.global.spacesEndpoint | default "")) -}}
 {{- /* observability: downstream can disable via components.grafana: false */ -}}
 {{- if ne (index .Values.components "grafana") false }}
 apiVersion: argoproj.io/v1alpha1
@@ -123,6 +129,23 @@ spec:
             value: "{{ .Values.global.region }}"
           - name: serviceAccount.annotations.eks\.amazonaws\.com/role-arn
             value: "{{ .Values.identity.loki.roleArn }}"
+        {{- else if eq .Values.global.provider "digitalocean" }}
+        parameters:
+          {{- /* No role annotation: Spaces has no instance roles. The key
+                 reaches Loki through the environment, from a Secret the
+                 deployment's Terraform provisions — see
+                 loki-values-digitalocean.yaml. */}}
+          - name: loki.storage.bucketNames.chunks
+            value: "{{ .Values.global.observabilityBucketName }}"
+          - name: loki.storage.bucketNames.ruler
+            value: "{{ .Values.global.observabilityBucketName }}"
+          - name: loki.storage.bucketNames.admin
+            value: "{{ .Values.global.observabilityBucketName }}"
+          {{- /* Loki takes the full URL, unlike Mimir and Tempo. */}}
+          - name: loki.storage.s3.endpoint
+            value: "{{ .Values.global.spacesEndpoint }}"
+          - name: loki.storage.s3.region
+            value: "{{ .Values.global.spacesRegion | default .Values.global.region }}"
         {{- end }}
     - repoURL: {{ .Values.platformRepoUrl }}
       targetRevision: {{ .Values.platformVersion }}
@@ -198,6 +221,24 @@ spec:
             value: "{{ .Values.global.observabilityBucketName }}"
           - name: serviceAccount.annotations.eks\.amazonaws\.com/role-arn
             value: "{{ .Values.identity.mimir.roleArn }}"
+        {{- else if eq .Values.global.provider "digitalocean" }}
+        parameters:
+          {{- /* $spacesHost, not spacesEndpoint: Mimir's S3 client takes a host
+                 with no scheme. A value carrying "https://" produces a hostname
+                 containing a scheme and every request fails DNS resolution,
+                 which reads as a network problem rather than a config one. */}}
+          - name: mimir.structuredConfig.common.storage.s3.bucket_name
+            value: "{{ .Values.global.observabilityBucketName }}"
+          - name: mimir.structuredConfig.common.storage.s3.region
+            value: "{{ .Values.global.spacesRegion | default .Values.global.region }}"
+          - name: mimir.structuredConfig.common.storage.s3.endpoint
+            value: "{{ $spacesHost }}"
+          - name: mimir.structuredConfig.blocks_storage.s3.bucket_name
+            value: "{{ .Values.global.observabilityBucketName }}"
+          - name: mimir.structuredConfig.ruler_storage.s3.bucket_name
+            value: "{{ .Values.global.observabilityBucketName }}"
+          - name: mimir.structuredConfig.alertmanager_storage.s3.bucket_name
+            value: "{{ .Values.global.observabilityBucketName }}"
         {{- end }}
     - repoURL: {{ .Values.platformRepoUrl }}
       targetRevision: {{ .Values.platformVersion }}
@@ -326,6 +367,15 @@ spec:
             value: "{{ .Values.global.region }}"
           - name: serviceAccount.annotations.eks\.amazonaws\.com/role-arn
             value: "{{ .Values.identity.tempo.roleArn }}"
+        {{- else if eq .Values.global.provider "digitalocean" }}
+        parameters:
+          {{- /* Host, not URL — same as Mimir. */}}
+          - name: tempo.storage.trace.s3.bucket
+            value: "{{ .Values.global.observabilityBucketName }}"
+          - name: tempo.storage.trace.s3.endpoint
+            value: "{{ $spacesHost }}"
+          - name: tempo.storage.trace.s3.region
+            value: "{{ .Values.global.spacesRegion | default .Values.global.region }}"
         {{- end }}
     - repoURL: {{ .Values.platformRepoUrl }}
       targetRevision: {{ .Values.platformVersion }}

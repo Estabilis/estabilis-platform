@@ -1,5 +1,39 @@
 # Changelog
 
+## [0.87.0]
+
+### Added
+- Loki, Mimir and Tempo on DigitalOcean:
+  `{loki,mimir,tempo}-values-digitalocean.yaml` and DigitalOcean branches in
+  platform-root's `grafana-stack.yaml`.
+
+  The backend is `s3` pointed at Spaces. There is no ServiceAccount annotation
+  because there is no IRSA and no workload identity to annotate — the key
+  reaches each component through the environment, from a Secret the
+  deployment's Terraform provisions, and the config carries `${...}` references
+  resolved by `-config.expand-env=true`. Written as literal values the key would
+  be rendered in cleartext onto the Argo CD Application spec.
+
+  THREE COMPONENTS, THREE SPELLINGS, and using the wrong one is accepted by the
+  chart and ignored by the binary: Loki takes `accessKeyId`/`secretAccessKey`,
+  Mimir takes `access_key_id`/`secret_access_key`, Tempo takes
+  `access_key`/`secret_key`.
+
+  THE ENDPOINT IS A URL FOR LOKI AND A HOST FOR THE OTHER TWO. Mimir's and
+  Tempo's S3 clients take a host with no scheme and decide TLS from `insecure`;
+  a value carrying `https://` produces a hostname containing a scheme and every
+  request fails DNS resolution, which reads as a network problem. platform-root
+  strips the scheme once, in a template local, rather than in three overlays
+  that could each get it wrong.
+
+  Loki's keys go on `singleBinary`, not `global`. The chart has
+  `global.extraArgs` and `global.extraEnvFrom`, they are documented in its
+  values, and the single-binary StatefulSet does not consume them — setting them
+  renders a chart that looks configured, with a config full of unresolved
+  placeholders and a container with no `envFrom` at all.
+
+  AWS and Azure render unchanged.
+
 ## [0.86.0]
 
 ### Added

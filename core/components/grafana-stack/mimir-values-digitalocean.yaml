@@ -1,0 +1,69 @@
+# DigitalOcean-specific Mimir values
+# Loaded in addition to mimir-values.yaml when provider=digitalocean.
+#
+# Wiring (injected via helm.parameters from platform-root grafana-stack.yaml's
+# DigitalOcean branch):
+#   - mimir.structuredConfig.common.storage.s3.bucket_name  → global.observabilityBucketName
+#   - mimir.structuredConfig.common.storage.s3.endpoint     → global.spacesEndpoint host
+#   - mimir.structuredConfig.common.storage.s3.region       → global.spacesRegion
+#   - the three per-class bucket_name fields                → same bucket
+#
+# THE ENDPOINT IS A HOST, NOT A URL. Mimir's S3 client takes `endpoint` without
+# a scheme and decides TLS from `insecure`. Passing "https://..." here produces
+# a hostname containing a scheme and every request fails DNS resolution, which
+# reads as a network problem rather than a configuration one. platform-root
+# strips the scheme before injecting.
+#
+# ONE BUCKET, THREE PREFIXES. Mimir's own validator rejects two storage classes
+# sharing a bucket with the same (empty) storage_prefix, so blocks, ruler and
+# alertmanager are separated by prefix inside the shared observability bucket —
+# the same layout the AWS overlay uses.
+#
+# CREDENTIALS ARRIVE AS ENVIRONMENT, NOT AS VALUES. `${...}` here are
+# references; Mimir already runs with `-config.expand-env=true` by default in
+# this chart, so it resolves them at startup from what `extraEnvFrom` mounts.
+# Written as literal values they would be rendered in cleartext onto the Argo CD
+# Application spec.
+#
+# The Secret's keys ARE the environment variable names, so it must carry exactly
+# SPACES_ACCESS_KEY_ID and SPACES_SECRET_ACCESS_KEY.
+
+mimir:
+  structuredConfig:
+    common:
+      storage:
+        backend: s3
+        s3:
+          bucket_name: ""   # injected
+          endpoint: ""      # injected — host only, no scheme
+          region: ""        # injected
+          access_key_id: "${SPACES_ACCESS_KEY_ID}"
+          secret_access_key: "${SPACES_SECRET_ACCESS_KEY}"
+          insecure: false
+    blocks_storage:
+      backend: s3
+      storage_prefix: "blocks"
+      s3:
+        bucket_name: ""     # injected
+    ruler_storage:
+      backend: s3
+      storage_prefix: "ruler"
+      s3:
+        bucket_name: ""     # injected
+    alertmanager_storage:
+      backend: s3
+      storage_prefix: "alertmanager"
+      s3:
+        bucket_name: ""     # injected
+
+global:
+  # No Azure Workload Identity labels and no IRSA annotation: DigitalOcean has
+  # neither, which is why the credentials come through the environment below.
+  podLabels: {}
+  extraEnvFrom:
+    - secretRef:
+        name: observability-spaces-credentials
+
+serviceAccount:
+  create: true
+  name: grafana-mimir
