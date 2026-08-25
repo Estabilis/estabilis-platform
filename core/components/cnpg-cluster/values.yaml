@@ -14,6 +14,29 @@ global:
   cnpgBackupSchedule: "0 2 * * *"
 postgres:
   instances: 3
+
+  # HOW HARD THE REPLICAS ARE KEPT APART.
+  #
+  # CNPG defaults podAntiAffinityType to "preferred" when the field is absent,
+  # and the field WAS absent here. That is the wrong default for a three-node
+  # HA Postgres and it fails quietly: the scheduler places replicas together
+  # whenever spreading them is inconvenient, the Cluster reports three healthy
+  # instances, and `instances: 3` reads like three-node redundancy while two of
+  # them share a fate. Nothing surfaces it until the node those two are on goes
+  # away.
+  #
+  # "required" converts that into a visible, recoverable state instead: the
+  # instance that cannot be placed stays Pending, which the cluster autoscaler
+  # answers by adding a node. A pod that is Pending because redundancy cannot
+  # be satisfied is a better outcome than a pod that is Running and does not
+  # provide it.
+  #
+  # Left at "preferred" so no existing deployment changes on upgrade. Set it to
+  # "required" wherever `instances` is meant literally — and check that the
+  # node pool can actually grow to that many, because required anti-affinity
+  # with nowhere to go is Pending forever.
+  antiAffinity:
+    type: preferred
   resources:
     requests:
       cpu: "100m"

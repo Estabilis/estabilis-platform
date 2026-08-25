@@ -33,6 +33,24 @@
 
   AWS and Azure render unchanged — three objects each.
 
+- `postgres.antiAffinity.type` on `cnpg-cluster`, for all three providers.
+
+  CNPG defaults `podAntiAffinityType` to `preferred` when the field is absent,
+  and the field was absent. That is the wrong default for a three-instance HA
+  Postgres and it fails quietly: the scheduler places replicas together
+  whenever spreading them is inconvenient, the Cluster reports three healthy
+  instances, and `instances: 3` reads like three-node redundancy while two of
+  them share a fate. Nothing surfaces it until that node goes away.
+
+  `required` turns it into a visible, recoverable state instead — the instance
+  that cannot be placed stays Pending, which a cluster autoscaler answers by
+  adding a node. Pending because redundancy cannot be satisfied is a better
+  outcome than Running without providing it.
+
+  Default stays `preferred`, so no existing deployment changes behaviour on
+  upgrade; the rendered spec gains the field explicitly, which is the value the
+  operator was already applying.
+
 ## [0.85.0]
 
 ### Added

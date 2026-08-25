@@ -71,6 +71,7 @@ spec:
   # matches the MNG node group annotations written by
   # providers/aws/eks.tf.
   affinity:
+    podAntiAffinityType: {{ .Values.postgres.antiAffinity.type | quote }}
     tolerations:
       - key: "estabilis.io/workload-type"
         operator: "Equal"

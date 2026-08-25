@@ -63,6 +63,7 @@ spec:
     retentionPolicy: "{{ .Values.global.cnpgBackupRetentionDays }}d"
 
   affinity:
+    podAntiAffinityType: {{ .Values.postgres.antiAffinity.type | quote }}
     tolerations:
       - key: "estabilis.io/workload-type"
         operator: "Equal"
