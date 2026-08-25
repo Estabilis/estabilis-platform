@@ -1,0 +1,133 @@
+{{- /*
+  platform-postgres on DigitalOcean.
+
+  WHY THIS EXISTS AT ALL
+
+    Grafana does not have an alternative. core/components/grafana-stack's
+    grafana-values.yaml hardcodes
+
+      database.host: platform-postgres-rw.cnpg-system.svc.cluster.local:5432
+      persistence.enabled: false
+      envFromSecrets: grafana-db-credentials (optional: false)
+
+    so there is no SQLite fallback and the pod will not start without the
+    credentials Secret. grafana-db then declares a postgresql.cnpg.io Database
+    against `platform-postgres` by name. Pointing Grafana at a managed
+    PostgreSQL instead would mean changing all three, in three charts.
+
+  BACKUP AUTHENTICATION IS A STATIC KEY, AND IT HAS TO BE
+
+    The AWS branch uses `inheritFromIAMRole` and Azure uses
+    `inheritFromAzureAD`. DigitalOcean has neither — Spaces has no instance
+    roles — so `s3Credentials` names a Secret instead. The key is scoped to
+    the backup bucket by the spaces-bucket-with-key module, so what it reaches
+    if it leaks is the backups.
+
+    The Secret is NOT created here. It is provisioned by the deployment's
+    Terraform, the same way Velero's is: putting the key in a helm value would
+    render it in cleartext onto the Application spec.
+
+  NO ZONE ANTI-AFFINITY, unlike AWS
+
+    The AWS branch sets `topologyKey: topology.kubernetes.io/zone`. A DOKS
+    cluster's node pool lives in ONE datacenter — nyc3 is a datacenter, not a
+    multi-zone region — so every node carries the same zone label and a zone
+    anti-affinity rule can never be satisfied. With the default
+    `enablePodAntiAffinity` and hostname topology, replicas spread across
+    NODES, which is the redundancy actually available here.
+*/ -}}
+{{- if eq .Values.global.provider "digitalocean" }}
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: platform-postgres
+  namespace: cnpg-system
+  {{- include "estabilis.metadata" . | nindent 2 }}
+spec:
+  instances: {{ .Values.postgres.instances }}
+
+  resources:
+    requests:
+      cpu: {{ .Values.postgres.resources.requests.cpu | quote }}
+      memory: {{ .Values.postgres.resources.requests.memory | quote }}
+    limits:
+      cpu: {{ .Values.postgres.resources.limits.cpu | quote }}
+      memory: {{ .Values.postgres.resources.limits.memory | quote }}
+
+  imageName: ghcr.io/cloudnative-pg/postgresql:18.1
+
+  storage:
+    size: {{ .Values.postgres.storage.size }}
+
+  postgresql:
+    parameters:
+      max_slot_wal_keep_size: {{ .Values.postgres.wal.maxSlotKeepSize | quote }}
+
+  bootstrap:
+    initdb:
+      database: app
+      owner: app
+
+  managed:
+    roles:
+      - name: grafana
+        ensure: present
+        login: true
+        inherit: true
+        superuser: false
+        connectionLimit: -1
+        passwordSecret:
+          name: grafana-db-credentials
+
+  {{- if .Values.global.cnpgBackupBucketName }}
+  backup:
+    barmanObjectStore:
+      destinationPath: "s3://{{ .Values.global.cnpgBackupBucketName }}/platform-postgres"
+      endpointURL: "{{ required "global.spacesEndpoint is required on DigitalOcean when a backup bucket is set" .Values.global.spacesEndpoint }}"
+      s3Credentials:
+        accessKeyId:
+          name: {{ .Values.backupCredentialsSecret.name | quote }}
+          key: {{ .Values.backupCredentialsSecret.accessKeyIdKey | quote }}
+        secretAccessKey:
+          name: {{ .Values.backupCredentialsSecret.name | quote }}
+          key: {{ .Values.backupCredentialsSecret.secretAccessKeyKey | quote }}
+    retentionPolicy: "{{ .Values.global.cnpgBackupRetentionDays }}d"
+  {{- end }}
+
+  affinity:
+    tolerations:
+      - key: "estabilis.io/workload-type"
+        operator: "Equal"
+        value: "platform"
+        effect: "NoSchedule"
+    nodeAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          preference:
+            matchExpressions:
+              - key: "estabilis.io/pool-type"
+                operator: In
+                values: ["spot"]
+        - weight: 10
+          preference:
+            matchExpressions:
+              - key: "estabilis.io/pool-type"
+                operator: In
+                values: ["regular"]
+{{- if .Values.global.cnpgBackupBucketName }}
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: ScheduledBackup
+metadata:
+  name: platform-postgres-daily
+  namespace: cnpg-system
+spec:
+  schedule: "{{ .Values.global.cnpgBackupSchedule }}"
+  backupOwnerReference: self
+  cluster:
+    name: platform-postgres
+{{- end }}
+{{- /* No ServiceAccount document. The AWS branch emits one to carry the IRSA
+       role annotation; there is no annotation to carry here, and CNPG creates
+       the ServiceAccount it needs on its own. */ -}}
+{{- end }}

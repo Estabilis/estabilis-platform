@@ -65,7 +65,13 @@ spec:
       The AWS branch lands in v0.20.0, replacing the Azure-only gate
       that used to guard this Application. Closes the gap flagged in
       Estabilis/estabilis-platform-tools#186. */ -}}
-{{- if or (eq .Values.global.provider "azure") (eq .Values.global.provider "aws") }}
+{{- /* DigitalOcean joins the gate. It is not optional there the way it might
+       look: grafana-values.yaml hardcodes
+       platform-postgres-rw.cnpg-system.svc.cluster.local with
+       persistence.enabled false, and grafana-db declares a Database against
+       `platform-postgres` by name, so Grafana has no database without this
+       Cluster. */ -}}
+{{- if has .Values.global.provider (list "azure" "aws" "digitalocean") }}
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -108,6 +114,14 @@ spec:
             value: "{{ .Values.global.region }}"
           - name: identity.cnpg.roleArn
             value: "{{ .Values.identity.cnpg.roleArn }}"
+          {{- else if eq .Values.global.provider "digitalocean" }}
+          {{- /* No identity parameter: Spaces has no instance roles, so Barman
+                 reads a static key from a Secret the deployment's Terraform
+                 provisions. Naming it here would put it on this spec. */}}
+          - name: global.cnpgBackupBucketName
+            value: "{{ .Values.global.cnpgBackupBucketName }}"
+          - name: global.spacesEndpoint
+            value: "{{ .Values.global.spacesEndpoint }}"
           {{- end }}
     - repoURL: {{ .Values.platformRepoUrl }}
       targetRevision: {{ .Values.platformVersion }}

@@ -1,5 +1,38 @@
 # Changelog
 
+## [0.86.0]
+
+### Added
+- `platform-postgres` on DigitalOcean:
+  `core/components/cnpg-cluster/templates/cluster-digitalocean.yaml`, and
+  DigitalOcean added to the `cnpg-cluster` gate in platform-root.
+
+  Grafana has no alternative to it. `grafana-values.yaml` hardcodes
+  `platform-postgres-rw.cnpg-system.svc.cluster.local` with
+  `persistence.enabled: false` and `envFromSecrets: grafana-db-credentials`
+  marked `optional: false`, so there is no SQLite fallback and the pod does not
+  start without the credentials Secret. `grafana-db` then declares a Database
+  against `platform-postgres` by name. Pointing Grafana at a managed PostgreSQL
+  instead would mean changing three charts, not one value.
+
+  Backup authentication is a static key in a Secret, not `inheritFromIAMRole`
+  or `inheritFromAzureAD`: Spaces has no instance roles. The Secret is named
+  here and provisioned by the deployment's Terraform — a key passed as a helm
+  value is rendered in cleartext onto the Application spec.
+
+  No zone anti-affinity, unlike the AWS branch. A DOKS node pool lives in one
+  datacenter — nyc3 is a datacenter, not a multi-zone region — so every node
+  carries the same zone label and `topologyKey:
+  topology.kubernetes.io/zone` can never be satisfied. Replicas spread across
+  nodes instead, which is the redundancy that exists there.
+
+  The backup block and the ScheduledBackup are both gated on
+  `cnpgBackupBucketName`, so a deployment with no bucket gets a working cluster
+  with no backups rather than a cluster that fails to reconcile. With a bucket
+  and no `spacesEndpoint`, it fails naming the field.
+
+  AWS and Azure render unchanged — three objects each.
+
 ## [0.85.0]
 
 ### Added

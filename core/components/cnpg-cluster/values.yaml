@@ -1,11 +1,14 @@
 global:
-  provider: ""                         # injected by platform-root (azure|aws)
+  provider: ""                         # injected by platform-root (azure|aws|digitalocean)
   # Azure only:
   storageAccountName: ""
   cnpgBackupContainerName: "cnpg-backup"
   # AWS only:
   cnpgBackupBucketName: ""
   region: ""
+  # DigitalOcean only: Spaces is S3-compatible, so the same
+  # cnpgBackupBucketName is used with an explicit endpoint.
+  spacesEndpoint: ""
   # Provider-agnostic:
   cnpgBackupRetentionDays: 7
   cnpgBackupSchedule: "0 2 * * *"
@@ -55,3 +58,15 @@ identity:
   cnpg:
     clientId: ""                       # Azure only (Workload Identity)
     roleArn: ""                        # AWS only (IRSA)
+
+# DigitalOcean only. Spaces has no instance roles, so Barman authenticates
+# with a static key — and the key is NOT a value here.
+#
+# The Secret is provisioned by the deployment's Terraform, out of band, for the
+# same reason Velero's is: a key passed as a helm value is rendered in cleartext
+# onto the Argo CD Application spec, readable by anyone with Argo CD access.
+# This block only names it.
+backupCredentialsSecret:
+  name: cnpg-spaces-credentials
+  accessKeyIdKey: ACCESS_KEY_ID
+  secretAccessKeyKey: SECRET_ACCESS_KEY
