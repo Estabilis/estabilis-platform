@@ -102,6 +102,12 @@ global:
   veleroStorageAccountName: ""
   veleroBackupContainerName: ""
 
+  # DigitalOcean object storage — injected by terraform. Spaces is
+  # S3-compatible, so every component that backs onto it uses an S3 client
+  # pointed at this endpoint rather than at AWS.
+  spacesEndpoint: ""
+  spacesRegion: ""
+
   # Backup/Observability — injected by terraform from client tfvars (with defaults in variables.tf)
   veleroBackupSchedule: ""
   veleroBackupRetentionHours: ""
