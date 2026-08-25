@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.81.0]
 
 ### Added
 - `global.gcpSecretManagerProject`, `global.gcpSecretManagerServiceAccount` and
