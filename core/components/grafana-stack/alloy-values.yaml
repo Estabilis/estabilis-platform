@@ -1261,19 +1261,19 @@ controller:
       cpu: 200m
       memory: 192Mi
 
-# `controller.tolerations`, NOT top-level. The alloy chart nests its workload
-# settings under `controller` — unlike loki, mimir, tempo, grafana and
-# pyroscope, whose charts read `tolerations` at the root, which is why the same
-# stanza is correct in their files and was wrong here.
-#
-# A top-level `tolerations` on this chart is accepted by Helm, written into no
-# object, and silently ignored. Measured on a live cluster: the DaemonSet's
-# tolerations list was EMPTY while this file had one.
-#
-# It cost nothing for as long as no node carried a taint. The first tainted
-# node is where it surfaces — as a DaemonSet quietly having one fewer pod than
-# the cluster has nodes, which is not an error anywhere.
-controller:
+  # HERE, AND NOT AT THE TOP LEVEL. The alloy chart nests workload settings
+  # under `controller`; loki, mimir, tempo, grafana and pyroscope read
+  # `tolerations` at the root, which is why the identical stanza is correct in
+  # their files and was wrong in this one.
+  #
+  # A top-level `tolerations` on this chart is accepted by Helm, written into
+  # no object, and silently ignored. Measured on a live cluster: the
+  # DaemonSet's tolerations list was EMPTY while this file carried one.
+  #
+  # It cost nothing for as long as no node had a taint — a setting that does
+  # not exist behaves exactly like a setting that is satisfied. The first
+  # tainted node surfaces it, as a DaemonSet with one fewer pod than the
+  # cluster has nodes: not an error, not a status, not visible in Argo CD.
   tolerations:
     - key: "estabilis.io/workload-type"
       operator: "Equal"
