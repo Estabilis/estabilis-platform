@@ -153,15 +153,33 @@ spec:
           - name: identity.certManager.clientId
             value: "{{ .Values.identity.certManager.clientId }}"
           {{- else if eq $dnsProvider "cloudflare" }}
+          {{- /* The token reaches cert-manager-config one of two ways, and the
+                 choice is "is there a store holding it?", NOT "is this AWS?".
+
+                 Passing a KEY makes the chart take its ExternalSecret branch,
+                 and the token never appears on this Application spec. Passing
+                 the TOKEN renders it in cleartext, readable by anyone with Argo
+                 CD access — which is what v0.62.0 stopped for AWS and what any
+                 provider with a secret store should also avoid.
+
+                 AWS keeps deriving its key from secretsPathPrefix: that path
+                 predates this and nothing about it changes. Every other
+                 provider supplies the key directly, because it knows its own
+                 store's addressing — a Secrets Manager path, a flat Key Vault
+                 name and a Google secret id have nothing in common to derive.
+
+                 Requires estabilis-platform-gitops >= v0.42.11, where that
+                 branch reads .Values.kvSecrets.cloudflareApiToken instead of a
+                 hardcoded flat Key Vault name. */}}
+          {{- $tokenKey := "" }}
           {{- if and (eq .Values.global.provider "aws") .Values.global.secretsPathPrefix }}
-          {{- /* AWS: pass the Secrets Manager path so cert-manager-config takes
-                its ExternalSecret branch instead of rendering the token in
-                cleartext onto this Application spec. Requires
-                estabilis-platform-gitops >= v0.42.11, where that branch reads
-                .Values.kvSecrets.cloudflareApiToken instead of a hardcoded flat
-                Key Vault name (which never resolves against AWS SM paths). */}}
+          {{- $tokenKey = printf "%s/platform-cloudflare-api-token" .Values.global.secretsPathPrefix }}
+          {{- else if .Values.global.cloudflareApiTokenSecretKey }}
+          {{- $tokenKey = .Values.global.cloudflareApiTokenSecretKey }}
+          {{- end }}
+          {{- if $tokenKey }}
           - name: kvSecrets.cloudflareApiToken
-            value: "{{ .Values.global.secretsPathPrefix }}/platform-cloudflare-api-token"
+            value: "{{ $tokenKey }}"
           {{- else }}
           - name: global.cloudflareApiToken
             value: "{{ .Values.global.cloudflareApiToken }}"

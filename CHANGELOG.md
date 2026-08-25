@@ -1,5 +1,38 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+- `global.gcpSecretManagerProject`, `global.gcpSecretManagerServiceAccount` and
+  `global.gcpWorkloadIdentityAudience` — a Google Secret Manager backend for the
+  `cluster-secret-store` component, for clouds with no managed secret store.
+  DigitalOcean is the case: Vault is the platform's intended store but arrives
+  at wave 6, while cert-manager needs its DNS-01 token at wave 2.
+  `cluster-secret-store` now selects the store BACKEND rather than assuming it
+  follows the cloud, and on DigitalOcean renders no Application at all unless
+  the project is set — a store that cannot authenticate syncs green while every
+  ExternalSecret referring to it fails somewhere else.
+  Only the `//iam.googleapis.com/...` form of the audience is stored: the `aud`
+  the projected Kubernetes token must carry is the same path with an `https:`
+  prefix, and the template derives it, so the two cannot drift apart. Requires
+  `estabilis-platform-gitops` with the `gcpsm` provider.
+
+- `global.cloudflareApiTokenSecretKey` — the key of the Cloudflare token inside
+  the deployment's secret store. When set, `cert-manager-config` and
+  `external-dns-config` take their ExternalSecret branch and the token never
+  appears on an Application spec.
+
+### Changed
+- The Cloudflare token gate in `cert-manager.yaml` and `external-dns.yaml` now
+  asks "does this deployment have a store holding the token?" instead of "is
+  this AWS?". v0.62.0 stopped the token travelling in cleartext through
+  Application specs, but only for AWS; every other provider still fell to the
+  branch that injects it, and an Application is a CRD, outside the envelope
+  encryption that protects the Secret it produces.
+  AWS is untouched — it keeps deriving its key from `secretsPathPrefix`. Azure
+  keeps its direct injection by default and can now opt out of it by setting
+  `cloudflareApiTokenSecretKey`.
+
 ## [0.80.0]
 
 ### Fixed
