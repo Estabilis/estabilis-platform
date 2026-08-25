@@ -1,3 +1,4 @@
+{{- if .Values.grafanaEnabled }}
 # grafana-db-credentials in grafana — Grafana reads GF_DATABASE_PASSWORD env var
 apiVersion: external-secrets.io/v1
 kind: ExternalSecret
@@ -102,4 +103,5 @@ spec:
       remoteRef:
         key: {{ .Values.kvSecrets.openaiApiKey | quote }}
         nullBytePolicy: Ignore
+{{- end }}
 {{- end }}

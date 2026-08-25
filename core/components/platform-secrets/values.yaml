@@ -15,6 +15,31 @@ acrLoginServer: ""
 # its own `components.opencost` value.
 opencostEnabled: true
 
+# Grafana ExternalSecrets — only created when grafanaEnabled is true.
+#
+# Covers grafana-db-credentials and grafana-admin-credentials in the `grafana`
+# namespace AND grafana-db-credentials in `cnpg-system`, which is the same
+# password placed where CloudNativePG can create the database user.
+#
+# Default true so existing deployments render exactly as before. The
+# platform-root template passes this from its own `components.grafana`, the
+# same way it already does for opencost — without it a deployment that turned
+# Grafana off still emitted three ExternalSecrets for keys the store does not
+# hold, and sat permanently Degraded on a component it does not run.
+grafanaEnabled: true
+
+# argocd-redis ExternalSecret — only created when argocdRedisEnabled is true.
+#
+# Default true, which is every deployment whose Redis password lives in the
+# secret store. Set false where the password is provisioned some other way —
+# on DigitalOcean the platform tier's Terraform generates it directly as a
+# Kubernetes Secret, and with this on there would be two sources of truth for
+# the same value: the ExternalSecret uses creationPolicy Merge, so it does not
+# fight for the object, but it does overwrite the `auth` field the moment the
+# store holds a different one, restarting Redis and every ArgoCD component
+# that authenticates to it.
+argocdRedisEnabled: true
+
 # GitHub App credentials Secret is wired by the estabilis-platform
 # `github-app-credentials` module (providers/aws/github-app.tf). When
 # present, it covers all repos under the configured org via ArgoCD's
