@@ -59,6 +59,30 @@ spec:
             value: "{{ .Values.global.veleroBackupSchedule }}"
           - name: schedules.platform-daily.template.ttl
             value: "{{ .Values.global.veleroBackupRetentionHours }}h0m0s"
+        {{- else if eq .Values.global.provider "digitalocean" }}
+        parameters:
+        {{- /* Spaces, through the AWS plugin — it is S3-compatible and there is
+               no velero-plugin-for-digitalocean. What makes this DigitalOcean
+               rather than AWS is the endpoint and the credentials.
+
+               NO ROLE ANNOTATION, because Spaces has no instance roles. The
+               scoped key reaches Velero as a Secret that the deployment's
+               Terraform provisions — see values-digitalocean.yaml. Passing it
+               here would put it on this Application spec in cleartext.
+
+               NO volumeSnapshotLocation region either: that list is emptied in
+               the overlay, because the AWS plugin's snapshotter talks to EC2
+               and DigitalOcean volumes are snapshotted through CSI. */}}
+          - name: configuration.backupStorageLocation[0].bucket
+            value: "{{ .Values.global.veleroBackupBucketName }}"
+          - name: configuration.backupStorageLocation[0].config.region
+            value: "{{ .Values.global.spacesRegion | default .Values.global.region }}"
+          - name: configuration.backupStorageLocation[0].config.s3Url
+            value: "{{ .Values.global.spacesEndpoint }}"
+          - name: schedules.platform-daily.schedule
+            value: "{{ .Values.global.veleroBackupSchedule }}"
+          - name: schedules.platform-daily.template.ttl
+            value: "{{ .Values.global.veleroBackupRetentionHours }}h0m0s"
         {{- end }}
     - repoURL: {{ .Values.platformRepoUrl }}
       targetRevision: {{ .Values.platformVersion }}

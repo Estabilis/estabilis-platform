@@ -1,5 +1,34 @@
 # Changelog
 
+## [0.85.0]
+
+### Added
+- Velero on DigitalOcean: `core/components/velero/values-digitalocean.yaml` and
+  a `digitalocean` branch in platform-root's `velero.yaml`, plus
+  `global.spacesEndpoint` and `global.spacesRegion`.
+
+  The provider is `aws`, deliberately — Spaces is S3-compatible and there is no
+  velero-plugin-for-digitalocean, so the AWS plugin talks to it through `s3Url`.
+  What makes it DigitalOcean is the endpoint and where the credentials come
+  from.
+
+  Credentials are static, because Spaces has no instance roles: a key scoped to
+  the backup bucket reaches Velero as a Secret the deployment's Terraform
+  provisions. `credentials.existingSecret`, never `secretContents` — the latter
+  would put the key into a helm value and from there onto the Application spec.
+
+  `volumeSnapshotLocation` is emptied rather than inherited. Helm replaces lists
+  instead of merging them, which is what makes that possible. The base's entry
+  would register a location whose snapshotter cannot exist — the AWS plugin
+  snapshots EC2 volumes, not DigitalOcean ones — and Velero would accept volume
+  backups and fail them one at a time. Volume backup goes through CSI, which the
+  base already enables.
+
+  `checksumAlgorithm` is set empty: the AWS SDK began sending
+  `x-amz-checksum-crc32` by default and Spaces rejects it.
+
+  AWS and Azure render unchanged — 6 and 9 parameters, as before.
+
 ## [0.84.0]
 
 ### Fixed

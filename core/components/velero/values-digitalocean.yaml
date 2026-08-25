@@ -1,0 +1,80 @@
+# DigitalOcean-specific Velero values
+# Loaded in addition to values.yaml when provider=digitalocean.
+#
+# Wiring (injected via helm.parameters from platform-root velero.yaml's
+# DigitalOcean branch):
+#   - configuration.backupStorageLocation[0].bucket        → global.veleroBackupBucketName
+#   - configuration.backupStorageLocation[0].config.region → global.spacesRegion
+#   - configuration.backupStorageLocation[0].config.s3Url  → global.spacesEndpoint
+#   - schedules.platform-daily.schedule                    → global.veleroBackupSchedule
+#   - schedules.platform-daily.template.ttl                → global.veleroBackupRetentionHours (h0m0s suffix)
+#
+# THE PROVIDER IS `aws`, AND THAT IS NOT A MISTAKE. Spaces is S3-compatible and
+# there is no velero-plugin-for-digitalocean; the AWS plugin speaks to it
+# through `s3Url`. The only thing that makes this DigitalOcean rather than AWS
+# is the endpoint and where the credentials come from.
+#
+# STATIC CREDENTIALS, because Spaces has no instance roles. AWS uses IRSA and
+# Azure uses workload identity — neither exists here, so a scoped Spaces key
+# reaches Velero as a Secret. The key is scoped to this one bucket by the
+# `spaces-bucket-with-key` module, so what it can reach if it leaks is the
+# backups themselves and nothing else in the account.
+#
+# The Secret is NOT created by this chart. `credentials.useSecret: false` with
+# `existingSecret` means the deployment's Terraform provisions it — the same
+# way the Vault credential ConfigMap is provisioned — so the key never passes
+# through a helm parameter and never lands on the Application spec.
+
+configuration:
+  backupStorageLocation:
+    - name: default
+      provider: aws
+      bucket: ""                 # injected
+      credential:
+        name: velero-spaces-credentials
+        key: cloud
+      config:
+        region: ""               # injected
+        s3Url: ""                # injected
+        # Spaces serves virtual-hosted-style addressing, which is what the AWS
+        # SDK does by default. Path style is left off deliberately rather than
+        # forgotten.
+        s3ForcePathStyle: "false"
+        # No checksum algorithm. The AWS SDK started sending
+        # x-amz-checksum-crc32 by default, which Spaces rejects; an empty value
+        # is the documented way to turn it off in the plugin.
+        checksumAlgorithm: ""
+
+  # EMPTIED, not left at the base's `[{name: default}]`. Helm REPLACES lists
+  # rather than merging them, which is what makes this work.
+  #
+  # A volumeSnapshotLocation needs a volume snapshotter, and the AWS plugin's
+  # snapshotter talks to EC2, not to DigitalOcean block storage. Leaving the
+  # base entry would register a location whose snapshotter cannot exist, and
+  # Velero would accept backup requests for volumes and fail them one at a
+  # time. Volume backup here goes through CSI — `features: EnableCSI` in the
+  # base values — with DigitalOcean's own CSI driver taking the snapshots.
+  volumeSnapshotLocation: []
+
+# The AWS plugin, which is what actually speaks S3 to Spaces.
+initContainers:
+  - name: velero-plugin-for-aws
+    image: velero/velero-plugin-for-aws:v1.12.0
+    imagePullPolicy: IfNotPresent
+    volumeMounts:
+      - mountPath: /target
+        name: plugins
+
+# Provisioned by the deployment's Terraform, not by this chart. Velero's own
+# `credentials.secretContents` would put the Spaces key into a helm value, and
+# from there onto the Application spec in cleartext.
+credentials:
+  useSecret: true
+  existingSecret: velero-spaces-credentials
+
+# DOKS node pools carry the platform's own taint, not a cloud-specific one.
+tolerations:
+  - key: "estabilis.io/workload-type"
+    operator: "Equal"
+    value: "platform"
+    effect: "NoSchedule"
