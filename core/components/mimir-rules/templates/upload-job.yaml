@@ -62,6 +62,13 @@ spec:
             {{- end }}
             {{- if .Values.ruleGroups.platformOperational.enabled }}
             - /etc/rules/tier3-operational.yaml
+            {{- /* Same condition the ConfigMap uses to emit the key. Without
+                   this the file is mounted and never handed to mimirtool, so
+                   the Traefik group exists in the ConfigMap and is missing
+                   from the Ruler. */}}
+            {{- if .Values.ruleGroups.platformOperational.traefik }}
+            - /etc/rules/tier3-traefik.yaml
+            {{- end }}
             {{- end }}
             {{- range $name, $_ := .Values.customRuleGroups }}
             - /etc/rules/custom-{{ $name }}.yaml
