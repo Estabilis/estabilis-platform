@@ -1,0 +1,87 @@
+# DigitalOcean-specific Loki values
+# Loaded in addition to loki-values.yaml when provider=digitalocean.
+#
+# Wiring (injected via helm.parameters from platform-root grafana-stack.yaml's
+# DigitalOcean branch):
+#   - loki.storage.bucketNames.{chunks,ruler,admin} → global.observabilityBucketName
+#   - loki.storage.s3.endpoint                      → global.spacesEndpoint
+#   - loki.storage.s3.region                        → global.spacesRegion
+#
+# THE BACKEND IS `s3`, POINTED AT SPACES. Spaces is S3-compatible; the only
+# thing that makes this DigitalOcean is the endpoint and where the credentials
+# come from. There is no ServiceAccount annotation because there is no IRSA and
+# no workload identity to annotate.
+#
+# CREDENTIALS ARRIVE AS ENVIRONMENT, NOT AS VALUES
+#
+#   `accessKeyId` and `secretAccessKey` here are `${...}` REFERENCES, not
+#   secrets. The chart writes them verbatim into Loki's config, and
+#   `-config.expand-env=true` makes Loki resolve them at startup from the
+#   environment that `extraEnvFrom` mounts.
+#
+#   Written as literal values instead, the key would be rendered in cleartext
+#   onto the Argo CD Application spec — a CRD, outside the envelope encryption
+#   that protects the Secret it came from. Same reasoning as Velero's and
+#   CNPG's credentials.
+#
+#   The Secret's KEYS ARE THE ENVIRONMENT VARIABLE NAMES. `extraEnvFrom` with a
+#   secretRef mounts every key as a variable of that name, so the Secret must
+#   carry exactly SPACES_ACCESS_KEY_ID and SPACES_SECRET_ACCESS_KEY. Renaming
+#   either in Terraform silently breaks the expansion — Loki starts with an
+#   empty key and fails on the first write, not at boot.
+
+# `singleBinary`, NOT `global`. The chart HAS global.extraArgs and
+# global.extraEnvFrom — they are documented in its values and they are not
+# consumed by the single-binary StatefulSet. Setting them renders a chart that
+# looks configured, with a config full of unresolved ${...} placeholders and a
+# container with no envFrom at all. Verified by rendering the container's args
+# and envFrom, not by reading the values file.
+#
+# This deployment runs deploymentMode SingleBinary (loki-values.yaml). A
+# distributed deployment would need the same two keys on each component
+# instead.
+singleBinary:
+  # Loki does NOT expand environment variables in its config by default.
+  # Without this the config keeps the literal string "${SPACES_ACCESS_KEY_ID}"
+  # and every S3 call fails authentication with a key that is not a key.
+  extraArgs:
+    - "-config.expand-env=true"
+  extraEnvFrom:
+    - secretRef:
+        name: observability-spaces-credentials
+
+  serviceAccount:
+    create: false
+    name: grafana-loki
+
+loki:
+  storage:
+    type: s3
+    bucketNames:
+      chunks: ""   # injected
+      ruler: ""    # injected
+      admin: ""    # injected
+    s3:
+      endpoint: ""          # injected
+      region: ""            # injected
+      accessKeyId: "${SPACES_ACCESS_KEY_ID}"
+      secretAccessKey: "${SPACES_SECRET_ACCESS_KEY}"
+      # Spaces serves virtual-hosted-style addressing, which is the SDK
+      # default. Path style is off deliberately rather than forgotten.
+      s3ForcePathStyle: false
+      insecure: false
+  compactor:
+    delete_request_store: s3
+  schemaConfig:
+    configs:
+      - from: "2024-01-01"
+        store: tsdb
+        object_store: s3
+        schema: v13
+        index:
+          prefix: loki_index_
+          period: 24h
+
+serviceAccount:
+  create: true
+  name: grafana-loki

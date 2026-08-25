@@ -1,0 +1,52 @@
+# DigitalOcean-specific Tempo values
+# Loaded in addition to tempo-values.yaml when provider=digitalocean.
+#
+# Wiring (injected via helm.parameters from platform-root grafana-stack.yaml's
+# DigitalOcean branch):
+#   - tempo.storage.trace.s3.bucket    → global.observabilityBucketName
+#   - tempo.storage.trace.s3.endpoint  → global.spacesEndpoint host
+#   - tempo.storage.trace.s3.region    → global.spacesRegion
+#
+# THE ENDPOINT IS A HOST, NOT A URL — the same trap as Mimir. Tempo's S3 client
+# takes the host and decides TLS from `insecure`. platform-root strips the
+# scheme before injecting.
+#
+# THE FIELD NAMES ARE `access_key` AND `secret_key`, not access_key_id /
+# secret_access_key. Tempo, Mimir and Loki each spell these differently — Loki
+# uses accessKeyId/secretAccessKey, Mimir uses access_key_id/secret_access_key.
+# Using another component's spelling is accepted by the chart and ignored by the
+# binary, which then falls back to an empty credential and fails on first write.
+#
+# CREDENTIALS ARRIVE AS ENVIRONMENT, NOT AS VALUES. `${...}` are references
+# resolved at startup by `-config.expand-env=true` from what extraEnvFrom
+# mounts, so the key is never rendered onto the Argo CD Application spec.
+#
+# The Secret's keys ARE the environment variable names: SPACES_ACCESS_KEY_ID
+# and SPACES_SECRET_ACCESS_KEY.
+#
+# WAL STAYS ON THE LOCAL PVC. Tempo 2.x always writes WAL locally regardless of
+# backend, and only immutable blocks ship to object storage — so the PVC's
+# growth bound is WAL turnover, not retention.
+
+tempo:
+  storage:
+    trace:
+      backend: s3
+      s3:
+        bucket: ""        # injected
+        endpoint: ""      # injected — host only, no scheme
+        region: ""        # injected
+        access_key: "${SPACES_ACCESS_KEY_ID}"
+        secret_key: "${SPACES_SECRET_ACCESS_KEY}"
+        insecure: false
+
+  # Tempo does not expand environment variables in its config by default.
+  extraArgs:
+    "config.expand-env": "true"
+  extraEnvFrom:
+    - secretRef:
+        name: observability-spaces-credentials
+
+serviceAccount:
+  create: true
+  name: grafana-tempo
