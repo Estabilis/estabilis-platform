@@ -1261,11 +1261,24 @@ controller:
       cpu: 200m
       memory: 192Mi
 
-tolerations:
-  - key: "estabilis.io/workload-type"
-    operator: "Equal"
-    value: "platform"
-    effect: "NoSchedule"
+  # HERE, AND NOT AT THE TOP LEVEL. The alloy chart nests workload settings
+  # under `controller`; loki, mimir, tempo, grafana and pyroscope read
+  # `tolerations` at the root, which is why the identical stanza is correct in
+  # their files and was wrong in this one.
+  #
+  # A top-level `tolerations` on this chart is accepted by Helm, written into
+  # no object, and silently ignored. Measured on a live cluster: the
+  # DaemonSet's tolerations list was EMPTY while this file carried one.
+  #
+  # It cost nothing for as long as no node had a taint — a setting that does
+  # not exist behaves exactly like a setting that is satisfied. The first
+  # tainted node surfaces it, as a DaemonSet with one fewer pod than the
+  # cluster has nodes: not an error, not a status, not visible in Argo CD.
+  tolerations:
+    - key: "estabilis.io/workload-type"
+      operator: "Equal"
+      value: "platform"
+      effect: "NoSchedule"
 
 serviceAccount:
   create: true
