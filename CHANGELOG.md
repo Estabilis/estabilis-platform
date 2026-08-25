@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.84.0]
+
+### Fixed
+- The traefik Application had no `ServerSideApply=true`, and the chart ships
+  the Gateway API CRDs — `httproutes.gateway.networking.k8s.io` is 368733
+  bytes, measured from the rendered manifests of chart 39.0.5.
+
+  A client-side apply writes the whole object into the
+  `last-applied-configuration` annotation, capped at 262144 bytes, so the sync
+  fails with `Too long: must have at most 262144 bytes` **on the CRD** — which
+  reads as a Kubernetes limit on the resource rather than as the apply mode
+  being wrong, and the CRD is the one thing an operator cannot make smaller.
+
+  kyverno, external-secrets, cert-manager and cnpg-operator all carried it
+  already. traefik was the one that did not, and it ships the largest single
+  CRD of any component.
+
 ## [0.83.0]
 
 ### Fixed

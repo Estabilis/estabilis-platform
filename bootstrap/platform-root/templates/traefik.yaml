@@ -46,4 +46,19 @@ spec:
         maxDuration: 3m
     syncOptions:
       - CreateNamespace=true
+      # REQUIRED, not defensive. The chart ships the Gateway API CRDs, and
+      # httproutes.gateway.networking.k8s.io is 368733 bytes — measured from
+      # the rendered manifests of chart 39.0.5, not estimated.
+      #
+      # A client-side apply writes the whole object into the
+      # kubectl.kubernetes.io/last-applied-configuration annotation, which the
+      # API server caps at 262144 bytes. Without this the sync fails with
+      # "Too long: must have at most 262144 bytes" ON THE CRD, which reads as
+      # a Kubernetes limit on the resource rather than as the apply mode being
+      # wrong — and the CRD is the one thing an operator cannot make smaller.
+      #
+      # kyverno, external-secrets, cert-manager and cnpg-operator all carry
+      # this already. traefik was the one that did not, and it ships the
+      # largest single CRD of any component here.
+      - ServerSideApply=true
 {{- end }}
