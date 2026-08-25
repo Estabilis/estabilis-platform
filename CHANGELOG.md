@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.89.1]
+
+### Fixed
+- Alloy's tolerations were written at the top level and had never taken effect.
+  The alloy chart nests workload settings under `controller`, unlike loki,
+  mimir, tempo, grafana and pyroscope, whose charts read `tolerations` at the
+  root — which is why the same stanza is correct in their files and was wrong
+  in this one.
+
+  A top-level `tolerations` there is accepted by Helm, written into no object,
+  and silently ignored. Measured on a live cluster: the DaemonSet's tolerations
+  list was empty while the values file had one.
+
+  It cost nothing for as long as no node carried a taint. The first tainted
+  node is where it surfaces — as a DaemonSet quietly having one fewer pod than
+  the cluster has nodes, which is not an error anywhere and which no
+  Application status reports.
+
 ## [0.89.0]
 
 ### Added
