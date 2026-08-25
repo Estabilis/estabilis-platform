@@ -1,3 +1,7 @@
+{{- /* Grafana's database password, placed where CloudNativePG can read it.
+       Gated on grafanaEnabled and not on cnpg: the secret IS grafana's, and a
+       CNPG with no Grafana has nothing to do with it. */ -}}
+{{- if .Values.grafanaEnabled }}
 # grafana-db-credentials in cnpg-system — CNPG managed role secret
 apiVersion: external-secrets.io/v1
 kind: ExternalSecret
@@ -23,3 +27,4 @@ spec:
       remoteRef:
         key: {{ .Values.kvSecrets.grafanaDbPassword | quote }}
         nullBytePolicy: Ignore
+{{- end }}

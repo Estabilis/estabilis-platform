@@ -183,6 +183,22 @@ vault:
   gcpWifConfigMap: "vault-gcp-wif"
 
 # ---------------------------------------------------------------------------
+# platform-secrets
+# ---------------------------------------------------------------------------
+#
+# The Grafana ExternalSecrets follow `components.grafana` automatically and
+# need nothing here. This is the one switch that is NOT a component toggle.
+platformSecrets:
+  # The argocd-redis ExternalSecret. True everywhere the Redis password lives
+  # in the secret store; false where it is provisioned some other way — on
+  # DigitalOcean the platform tier's Terraform generates it directly as a
+  # Kubernetes Secret, and leaving this on gives one value two sources of
+  # truth. creationPolicy is Merge, so the ExternalSecret never fights for the
+  # object, but it does overwrite the `auth` field as soon as the store holds
+  # a different one, restarting Redis and everything authenticating to it.
+  argocdRedisEnabled: true
+
+# ---------------------------------------------------------------------------
 # Chart versions
 # ---------------------------------------------------------------------------
 #

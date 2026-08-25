@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.82.0]
+
+### Fixed
+- `platform-secrets` emitted Grafana's three ExternalSecrets and the
+  `argocd-redis` one unconditionally, so a deployment with Grafana off sat
+  permanently Degraded on keys nobody had provisioned — the store returns
+  `PermissionDenied` for a secret that does not exist, which reads as a broken
+  binding rather than as a missing component.
+  `grafanaEnabled` now follows `components.grafana`, the same way
+  `opencostEnabled` already follows `components.opencost`.
+
+### Added
+- `platformSecrets.argocdRedisEnabled` — the one switch here that is not a
+  component toggle. Default true, which is every deployment whose Redis
+  password lives in the secret store. False where it is provisioned some other
+  way: on DigitalOcean the platform tier's Terraform generates it straight into
+  a Kubernetes Secret, and leaving the ExternalSecret on gives one value two
+  sources of truth. `creationPolicy: Merge` means it never fights for the
+  object, but it does overwrite the `auth` field the moment the store holds
+  something different — restarting Redis and every ArgoCD component that
+  authenticates to it.
+
+  Defaults keep every existing deployment rendering byte-identically.
+
 ## [0.81.0]
 
 ### Added
