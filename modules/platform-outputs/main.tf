@@ -55,6 +55,23 @@ resource "kubernetes_namespace_v1" "argocd" {
       "app.kubernetes.io/part-of"    = "estabilis-platform"
     }
   }
+
+  # Argo CD manages this namespace too, and writes its own metadata onto it —
+  # including `argocd.argoproj.io/sync-options: ServerSideApply=true` and the
+  # estabilis.io/* provenance annotations the platform chart applies.
+  #
+  # Without this guard the two overwrite each other: every terraform apply of
+  # this tier strips those annotations, and Argo CD puts them back on its next
+  # sync. Between the two the argocd namespace has no ServerSideApply option,
+  # which is the setting large CRDs depend on — the 262144-byte
+  # last-applied-configuration limit is a sync failure, not a warning.
+  #
+  # It also means an unrelated apply shows a diff on this resource forever.
+  # Observed on a DigitalOcean deployment while planning a change that had
+  # nothing to do with namespaces.
+  lifecycle {
+    ignore_changes = [metadata[0].labels, metadata[0].annotations]
+  }
 }
 
 resource "kubernetes_config_map_v1" "platform_infrastructure" {
