@@ -1,5 +1,30 @@
 # Changelog
 
+## [0.89.0]
+
+### Added
+- `default_node_pool.taints`. The additional pools have had taints all along;
+  the default one is rendered as an inline `node_pool` block on the cluster
+  resource rather than as a separate resource, and that block was written
+  without them. The provider supports `taint` there.
+
+  It matters because of what this pool IS. DigitalOcean recommends keeping "at
+  least one fixed node pool of the smallest size with one node", so it exists
+  as a FLOOR rather than as capacity — and without a taint the scheduler treats
+  a 4 GB floor node as a candidate for anything.
+
+  Observed on a deployment: it filled with Argo CD's application-controller
+  (1 GiB), repo-server (512 MiB) and server (256 MiB), leaving 82 MiB. At that
+  point a DaemonSet could no longer be placed on it, and everything running
+  there — including a Postgres replica — went uncollected. Nothing reported a
+  problem: the pods were Running, the Applications Healthy, and the DaemonSet
+  simply had one fewer pod than nodes.
+
+  Empty by default. Adding a taint to an existing pool changes scheduling on
+  every deployment that upgrades, and `NoSchedule` does not evict what is
+  already there, so this is opt-in and its effect is deliberate. A `dynamic`
+  block means an empty list renders byte-identically to before.
+
 ## [0.88.1]
 
 ### Fixed
