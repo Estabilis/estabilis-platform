@@ -18,18 +18,25 @@ spec:
     name: grafana-db-credentials
     creationPolicy: Owner
     template:
-      # kubernetes.io/basic-auth, because CloudNativePG's declarative role
-      # management documents it: "The Secret must be of type
-      # kubernetes.io/basic-auth. The username ... should match the role we are
-      # setting the password for."
+      # NO `type` HERE, AND THAT IS A DELIBERATE REVERSAL.
       #
-      # An Opaque Secret with the same two keys IS accepted today — measured on
-      # CNPG 1.29, where the password was applied from one. This is conformance
-      # with a documented contract rather than a fix for a live break: a future
-      # version that starts enforcing the type would stop applying passwords,
-      # and it would do it the way everything else here fails — silently, with
-      # the role reported as `reconciled`.
-      type: kubernetes.io/basic-auth
+      # CNPG's docs say "The Secret must be of type kubernetes.io/basic-auth".
+      # v0.88.0 set it for conformance and it BROKE THE UPGRADE PATH: a Secret's
+      # type is immutable, External Secrets does not recreate to change it, and
+      # every deployment with an existing Opaque Secret stopped syncing with
+      #
+      #   unable to update secret grafana-db-credentials: Secret is invalid:
+      #   type: Invalid value: "kubernetes.io/basic-auth": field is immutable
+      #
+      # measured on a live cluster, not predicted. The v0.88.0 note claimed ESO
+      # "recreates the Secret once". It does not — it fails and leaves the
+      # ExternalSecret Ready=False.
+      #
+      # Opaque IS accepted by CNPG 1.29; the password applies from one. So the
+      # type buys conformance with a documented contract at the cost of a manual
+      # step on every existing deployment, and the contract is not being
+      # enforced. Not worth it. Revisit only alongside a documented migration —
+      # delete the Secret, let ESO recreate — never as a silent template change.
       metadata:
         labels:
           # WITHOUT THIS THE PASSWORD IS APPLIED LATE, NOT NEVER, and the
