@@ -37,21 +37,36 @@ spec:
           - name: identity.externalDns.clientId
             value: "{{ .Values.identity.externalDns.clientId }}"
           {{- else if eq $dnsProvider "cloudflare" }}
-          {{- if and (eq .Values.global.provider "aws") .Values.global.secretsPathPrefix }}
-          {{- /* AWS: hand the chart the Secrets Manager PATH, not the token.
-                Injecting the token as a helm parameter writes it in cleartext
-                onto this Application spec — and an Application is a CRD, so it
-                sits outside the EKS `resources: ["secrets"]` envelope
-                encryption, unlike the Secret it ends up producing.
+          {{- /* Hand the chart the KEY, not the token. Injecting the token as a
+                 helm parameter writes it in cleartext onto this Application
+                 spec — and an Application is a CRD, so it sits outside the EKS
+                 `resources: ["secrets"]` envelope encryption, unlike the Secret
+                 it ends up producing.
 
-                Same prefixing convention as platform-secrets.yaml: secrets live
-                under estabilis/<deploymentId>/*, which is the IRSA scope of the
-                external-secrets role. */}}
+                 The question is "does this deployment have a store holding the
+                 token?", not "is this AWS?". AWS keeps deriving its key from
+                 secretsPathPrefix — the estabilis/<deploymentId>/* convention
+                 shared with platform-secrets.yaml, which is also the IRSA scope
+                 of the external-secrets role. Any other provider supplies the
+                 key directly, because store addressing has nothing in common to
+                 derive: a Secrets Manager path, a flat Key Vault name and a
+                 Google secret id look nothing alike.
+
+                 Requires estabilis-platform-gitops with the configurable
+                 remoteRef in external-dns-config. Before that the key was
+                 hardcoded and this parameter was silently ignored. */}}
+          {{- $tokenKey := "" }}
+          {{- if and (eq .Values.global.provider "aws") .Values.global.secretsPathPrefix }}
+          {{- $tokenKey = printf "%s/platform-cloudflare-api-token" .Values.global.secretsPathPrefix }}
+          {{- else if .Values.global.cloudflareApiTokenSecretKey }}
+          {{- $tokenKey = .Values.global.cloudflareApiTokenSecretKey }}
+          {{- end }}
+          {{- if $tokenKey }}
           - name: kvSecrets.cloudflareApiToken
-            value: "{{ .Values.global.secretsPathPrefix }}/platform-cloudflare-api-token"
+            value: "{{ $tokenKey }}"
           {{- else }}
-          {{- /* Azure and any deployment without a secrets path prefix keep the
-                direct injection. */}}
+          {{- /* No store: the token is injected directly, in cleartext, and the
+                 deployment has accepted that. */}}
           - name: global.cloudflareApiToken
             value: "{{ .Values.global.cloudflareApiToken }}"
           {{- end }}

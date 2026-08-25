@@ -58,6 +58,36 @@ global:
   cloudflareZoneId: ""    # injected by terraform when dnsProvider=cloudflare
   cloudflareApiToken: ""  # injected by terraform when dnsProvider=cloudflare (sensitive)
 
+  # Key of the Cloudflare token INSIDE the platform's secret store, for
+  # deployments that have one. When this is set, cert-manager-config takes its
+  # ExternalSecret branch and the token never appears on an Application spec;
+  # when it is empty, `cloudflareApiToken` above is rendered in cleartext and
+  # anyone with Argo CD read access can see it.
+  #
+  # AWS does not need this: its key is derived from `secretsPathPrefix`, which
+  # predates this value and keeps working untouched.
+  cloudflareApiTokenSecretKey: ""
+
+  # --- Google Secret Manager, for deployments whose cloud has no secret store
+  #
+  # DigitalOcean is the case this exists for. Empty on every other provider,
+  # and empty here means "no store": the cluster-secret-store Application does
+  # not render at all rather than rendering one that cannot authenticate.
+  gcpSecretManagerProject: ""
+
+  # Google service account External Secrets impersonates after federating.
+  # Access is then authorised by ITS bindings — typically
+  # roles/secretmanager.secretAccessor scoped to one secret — rather than on
+  # the federated principal, which keeps IAM written against one stable member.
+  gcpSecretManagerServiceAccount: ""
+
+  # The workload identity pool PROVIDER path, in the `//iam.googleapis.com/...`
+  # form. Only this form is stored: the `aud` the projected Kubernetes token
+  # must carry is the same path with an `https:` prefix, and the templates
+  # derive it rather than take a second value that can drift out of step with
+  # this one.
+  gcpWorkloadIdentityAudience: ""
+
   # Azure resource outputs — injected by terraform
   clusterName: ""
   resourceGroup: ""
