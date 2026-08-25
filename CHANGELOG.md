@@ -1,5 +1,46 @@
 # Changelog
 
+## [0.90.0]
+
+### Added
+- `mimir-rules/values-digitalocean.yaml`. The component shipped overlays for aws
+  and azure only, so a DigitalOcean deployment fell back to the base
+  `uploadJob.enabled: false`.
+
+  That default is right only when the Ruler mounts its rules from a ConfigMap.
+  It does not here: `mimir-values-digitalocean.yaml` sets
+  `ruler_storage.backend: s3` against the Spaces observability bucket with
+  `storage_prefix: ruler` — the same layout the AWS overlay uses, and the exact
+  condition `values-aws.yaml` flips this switch for. With an object-storage
+  backend the mount is inert and the rules have to be pushed over the Ruler API.
+
+  Left alone it is silent: the ConfigMap is created, the Application reports
+  Synced/Healthy, and no alert ever fires.
+
+  `ruleGroups.platformOperational.traefik` is deliberately not copied from AWS.
+  It is false there because an ALB fronts the cluster and the Traefik series
+  never exist; on DigitalOcean Traefik is the ingress, so the base default of
+  true is correct.
+
+### Fixed
+- The Traefik rule group was built and never uploaded. `configmap.yaml` emits
+  `tier3-traefik.yaml` whenever `ruleGroups.platformOperational.traefik` is
+  true, but the upload job's args listed tier1, tier2 and tier3-operational
+  only. The file was mounted at `/etc/rules` and never handed to `mimirtool`.
+
+  So the group lived in the ConfigMap and never reached the Ruler, and
+  `TraefikHighError5xx` could not fire. The ConfigMap had the key, the Job
+  succeeded, the Application was Synced/Healthy.
+
+  It stayed hidden because no configuration hit both halves at once: aws is the
+  only overlay that enabled `uploadJob`, and it sets `traefik: false`. The
+  breaking combination — upload enabled AND traefik enabled — first appears on
+  DigitalOcean. Measured there before the fix: four keys in the ConfigMap,
+  three namespaces in `/prometheus/config/v1/rules`.
+
+  The argument now carries the same condition the ConfigMap uses, so the two
+  lists cannot drift apart again.
+
 ## [0.89.1]
 
 ### Fixed
