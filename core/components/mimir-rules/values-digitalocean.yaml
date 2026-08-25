@@ -1,0 +1,26 @@
+# mimir-rules — DigitalOcean overlay
+#
+# Mirrors values-aws.yaml on the one setting that matters, and deliberately
+# differs on the other.
+
+# The Ruler reads rules from object storage, not from the mounted ConfigMap.
+#
+# mimir-values-digitalocean.yaml sets `ruler_storage.backend: s3` against the
+# Spaces observability bucket with `storage_prefix: ruler` — the same layout the
+# AWS overlay uses. With an object-storage backend the ConfigMap mount is a
+# no-op, so the rules have to be pushed over the Ruler API by the upload job.
+#
+# Leaving this false is silent: the ConfigMap is created, the Application
+# reports Synced/Healthy, and no alert ever fires. Verified on
+# nsights-platform-digitalocean-nyc3-prd, whose running Ruler config carries
+# `ruler_storage.backend: s3` and `ruler.enable_api: true` (the job needs the
+# API enabled to push).
+uploadJob:
+  enabled: true
+
+# NOT copied from AWS: `ruleGroups.platformOperational.traefik`.
+#
+# values-aws.yaml sets it to false because an ALB fronts an AWS cluster and the
+# Traefik series never exist there. On DigitalOcean Traefik IS the ingress,
+# behind a DO load balancer, so the base default of `true` is the correct one
+# and the group has data to alert on.
