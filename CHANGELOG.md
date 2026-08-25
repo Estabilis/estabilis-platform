@@ -1,5 +1,56 @@
 # Changelog
 
+## [0.86.0]
+
+### Added
+- `platform-postgres` on DigitalOcean:
+  `core/components/cnpg-cluster/templates/cluster-digitalocean.yaml`, and
+  DigitalOcean added to the `cnpg-cluster` gate in platform-root.
+
+  Grafana has no alternative to it. `grafana-values.yaml` hardcodes
+  `platform-postgres-rw.cnpg-system.svc.cluster.local` with
+  `persistence.enabled: false` and `envFromSecrets: grafana-db-credentials`
+  marked `optional: false`, so there is no SQLite fallback and the pod does not
+  start without the credentials Secret. `grafana-db` then declares a Database
+  against `platform-postgres` by name. Pointing Grafana at a managed PostgreSQL
+  instead would mean changing three charts, not one value.
+
+  Backup authentication is a static key in a Secret, not `inheritFromIAMRole`
+  or `inheritFromAzureAD`: Spaces has no instance roles. The Secret is named
+  here and provisioned by the deployment's Terraform — a key passed as a helm
+  value is rendered in cleartext onto the Application spec.
+
+  No zone anti-affinity, unlike the AWS branch. A DOKS node pool lives in one
+  datacenter — nyc3 is a datacenter, not a multi-zone region — so every node
+  carries the same zone label and `topologyKey:
+  topology.kubernetes.io/zone` can never be satisfied. Replicas spread across
+  nodes instead, which is the redundancy that exists there.
+
+  The backup block and the ScheduledBackup are both gated on
+  `cnpgBackupBucketName`, so a deployment with no bucket gets a working cluster
+  with no backups rather than a cluster that fails to reconcile. With a bucket
+  and no `spacesEndpoint`, it fails naming the field.
+
+  AWS and Azure render unchanged — three objects each.
+
+- `postgres.antiAffinity.type` on `cnpg-cluster`, for all three providers.
+
+  CNPG defaults `podAntiAffinityType` to `preferred` when the field is absent,
+  and the field was absent. That is the wrong default for a three-instance HA
+  Postgres and it fails quietly: the scheduler places replicas together
+  whenever spreading them is inconvenient, the Cluster reports three healthy
+  instances, and `instances: 3` reads like three-node redundancy while two of
+  them share a fate. Nothing surfaces it until that node goes away.
+
+  `required` turns it into a visible, recoverable state instead — the instance
+  that cannot be placed stays Pending, which a cluster autoscaler answers by
+  adding a node. Pending because redundancy cannot be satisfied is a better
+  outcome than Running without providing it.
+
+  Default stays `preferred`, so no existing deployment changes behaviour on
+  upgrade; the rendered spec gains the field explicitly, which is the value the
+  operator was already applying.
+
 ## [0.85.0]
 
 ### Added
