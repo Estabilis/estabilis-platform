@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.83.0]
+
+### Fixed
+- external-dns' Cloudflare zone filter never reached the pod. platform-root
+  passed `zoneIdFilters[0]`, and the external-dns chart has no such value — it
+  knows `domainFilters` and `extraArgs` and nothing else — so Argo CD accepted
+  the parameter, Helm discarded it, and nothing reported anything. The comment
+  in the template called it defence in depth; the depth was not there.
+
+  Found on a live deployment: the running pod carried `--domain-filter` and
+  `--policy=sync` and no `--zone-id-filter` at all. Confirmed against chart
+  1.20.0 by rendering it.
+
+  It now goes through `extraArgs.zone-id-filter`, verified end to end —
+  platform-root parameter, chart values, pod argument.
+
+  This matters because the policy is `sync`, which deletes records. The other
+  fences are real (the TXT registry owner-id, and `domainFilters`), but this is
+  the only one scoped to a zone ID rather than to a name, and a token with
+  access to more than one zone is the case it exists for.
+
 ## [0.82.0]
 
 ### Fixed

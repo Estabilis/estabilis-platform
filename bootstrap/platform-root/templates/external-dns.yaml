@@ -133,11 +133,24 @@ spec:
             value: "{{ .Values.identity.externalDns.clientId }}"
           {{- else if eq $dnsProvider "cloudflare" }}
           # Cloudflare — CF_API_TOKEN is injected via env/secretKeyRef in
-          # values-cloudflare.yaml; nothing extra needed here. zoneIdFilters
-          # scopes external-dns to a single zone (defence in depth — token
-          # is already scoped to that zone).
+          # values-cloudflare.yaml; nothing extra needed here.
+          #
+          # THE ZONE FILTER GOES THROUGH extraArgs, NOT A `zoneIdFilters` VALUE.
+          # The chart does not have one — it knows `domainFilters` and
+          # `extraArgs` and nothing else — so `zoneIdFilters[0]` was accepted by
+          # Argo CD, passed to Helm, and silently discarded. The comment that
+          # used to sit here called it defence in depth; the depth was not
+          # there. Confirmed against chart 1.20.0 by rendering it, and on a live
+          # deployment where the running pod had --domain-filter and
+          # --policy=sync and no --zone-id-filter at all.
+          #
+          # It matters because the policy is `sync`, which DELETES records. The
+          # remaining fences are real — the TXT registry owner-id, and
+          # domainFilters — but this one is the only one scoped to a zone ID
+          # rather than to a name, and a token with access to more than one zone
+          # is exactly the case it exists for.
           {{- if .Values.global.cloudflareZoneId }}
-          - name: zoneIdFilters[0]
+          - name: extraArgs.zone-id-filter
             value: "{{ .Values.global.cloudflareZoneId }}"
           {{- end }}
           {{- else if eq $dnsProvider "aws" }}
