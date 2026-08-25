@@ -18,6 +18,40 @@ spec:
     name: grafana-db-credentials
     creationPolicy: Owner
     template:
+      # kubernetes.io/basic-auth, because CloudNativePG's declarative role
+      # management documents it: "The Secret must be of type
+      # kubernetes.io/basic-auth. The username ... should match the role we are
+      # setting the password for."
+      #
+      # An Opaque Secret with the same two keys IS accepted today — measured on
+      # CNPG 1.29, where the password was applied from one. This is conformance
+      # with a documented contract rather than a fix for a live break: a future
+      # version that starts enforcing the type would stop applying passwords,
+      # and it would do it the way everything else here fails — silently, with
+      # the role reported as `reconciled`.
+      type: kubernetes.io/basic-auth
+      metadata:
+        labels:
+          # WITHOUT THIS THE PASSWORD IS APPLIED LATE, NOT NEVER, and the
+          # difference matters for what it costs to diagnose.
+          #
+          # "Label the Secret with cnpg.io/reload: true ... Password changes in
+          # labeled Secrets are applied immediately, while changes in unlabeled
+          # Secrets are only applied at a subsequent reconciliation, for example
+          # when the operator refreshes its internal cache."
+          #
+          # Observed on a fresh bootstrap: the ExternalSecret resolved, the
+          # Secret existed with the right keys, the Cluster reported the role
+          # as `reconciled` — and `pg_authid.rolpassword` was NULL. Nothing in
+          # any status said otherwise; `managedRolesStatus.passwordStatus` was
+          # missing its `resourceVersion` field, which is the only place the
+          # difference shows. A forced reconcile applied it in seconds.
+          #
+          # It matters most on ROTATION. On first bootstrap the wait is
+          # invisible because nothing is connecting yet. Rotate the password
+          # later and the new value sits unapplied while Grafana keeps using
+          # the old one, until whenever the operator next refreshes.
+          cnpg.io/reload: "true"
       data:
         username: grafana
         password: |-

@@ -1,5 +1,32 @@
 # Changelog
 
+## [0.88.0]
+
+### Fixed
+- The `grafana-db-credentials` Secret in `cnpg-system` now carries
+  `cnpg.io/reload: "true"` and type `kubernetes.io/basic-auth`.
+
+  Without the label CloudNativePG applies a password change only "at a
+  subsequent reconciliation, for example when the operator refreshes its
+  internal cache" — its own words. Observed on a fresh bootstrap: the
+  ExternalSecret resolved, the Secret had the right keys, the Cluster reported
+  the role as `reconciled`, and `pg_authid.rolpassword` was NULL. The only
+  place the difference showed was a missing `resourceVersion` under
+  `managedRolesStatus.passwordStatus`. A forced reconcile applied it in
+  seconds.
+
+  It costs little on first bootstrap, where nothing is connecting yet. It costs
+  a real window on ROTATION: the new password sits unapplied while the consumer
+  keeps using the old one.
+
+  The type is conformance rather than a live fix — an Opaque Secret with the
+  same keys is accepted on CNPG 1.29, measured. A future version that enforces
+  the documented type would stop applying passwords silently, with the role
+  still reported as `reconciled`.
+
+  Changing a Secret's type forces External Secrets to recreate it, so expect
+  one recreation on upgrade.
+
 ## [0.87.0]
 
 ### Added
