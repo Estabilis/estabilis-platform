@@ -460,6 +460,30 @@ variable "default_node_pool" {
     max_nodes  = optional(number, 1)
     labels     = optional(map(string), {})
     tags       = optional(list(string), [])
+
+    # TAINTS ON THE DEFAULT POOL, which the additional pools have had all
+    # along. The asymmetry was not a decision — this pool is rendered as an
+    # inline `node_pool` block on the cluster resource rather than as a
+    # separate resource, and the block was written without it. The provider
+    # supports `taint` there; nothing here did.
+    #
+    # It matters because of what this pool IS. DigitalOcean recommends keeping
+    # "at least one fixed node pool of the smallest size with one node", so it
+    # exists as a floor rather than as capacity — and without a taint the
+    # scheduler treats a 4 GB floor node as a candidate for anything. On one
+    # deployment that filled it with Argo CD's controller (1 GiB), repo-server
+    # (512 MiB) and server (256 MiB), leaving 82 MiB, at which point a
+    # DaemonSet could no longer be placed on it and everything running there
+    # went uncollected.
+    #
+    # Empty by default: adding a taint to an existing pool changes scheduling
+    # on every deployment that upgrades, and NoSchedule does not evict what is
+    # already there — so this is opt-in and its effect is deliberate.
+    taints = optional(list(object({
+      key    = string
+      value  = optional(string, "")
+      effect = string
+    })), [])
   })
   default  = {}
   nullable = false

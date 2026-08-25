@@ -55,6 +55,18 @@ resource "digitalocean_kubernetes_cluster" "this" {
 
     labels = var.default_node_pool.labels
     tags   = distinct(concat(local.do_tags, var.default_node_pool.tags))
+
+    # A `dynamic` block and not a static one: with an empty list this emits
+    # nothing at all, so every deployment that does not set taints renders
+    # byte-identically to before.
+    dynamic "taint" {
+      for_each = var.default_node_pool.taints
+      content {
+        key    = taint.value.key
+        value  = taint.value.value
+        effect = taint.value.effect
+      }
+    }
   }
 
   dynamic "control_plane_firewall" {
