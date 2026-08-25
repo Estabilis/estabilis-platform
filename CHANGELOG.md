@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.88.1]
+
+### Fixed
+- Reverted the Secret `type` change from v0.88.0. It broke the upgrade path.
+
+  A Secret's `type` is immutable and External Secrets does NOT recreate to
+  change it — it fails and leaves the ExternalSecret `Ready=False`:
+
+  ```
+  unable to update secret grafana-db-credentials: Secret is invalid:
+  type: Invalid value: "kubernetes.io/basic-auth": field is immutable
+  ```
+
+  The v0.88.0 note claimed ESO "recreates the Secret once". That was wrong,
+  and it was measured wrong on a live cluster rather than predicted.
+
+  The `cnpg.io/reload` label — the actual fix, and the reason that release
+  existed — stays. Labels are mutable, so it applies to an existing Secret with
+  no recreation and no interruption.
+
+  Anyone who applied v0.88.0 and is stuck: delete the Secret and let External
+  Secrets recreate it, or take v0.88.1 and the label applies on its own.
+
 ## [0.88.0]
 
 ### Fixed
