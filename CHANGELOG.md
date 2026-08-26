@@ -1,5 +1,38 @@
 # Changelog
 
+## [0.91.0]
+
+### Added
+- `componentAutoSync.enabled` — emit `automated` on every Application that
+  declares none. Most do not, which means most components only move when
+  someone syncs them by hand, and an out-of-band `kubectl edit` on any of them
+  stays as the running state until somebody notices.
+
+  It does not touch Applications that declare their own policy. Measured
+  against a real downstream's values: 9 with a policy before, 32 after, and the
+  9 unchanged.
+
+  `prune` is hardcoded `false` and not exposed. ADR 0029's risk classes —
+  Coupled, CRD-owning, Foundational — are about PRUNING: pruning a CRD between
+  chart versions deletes every CR instance in the cluster, pruning a
+  `ClusterSecretStore` cascade-fails everything that reads it. The ADR itself
+  calls sync mode, self-heal and prune orthogonal axes, and this moves only the
+  first two. The rendered diff carries zero new `prune: true`.
+
+  The upstart spec already declares this shape as its bootstrap fallback
+  (`post.enable-auto-sync: {apps: all, self-heal: true, prune: false}`), firing
+  once for Apps that arrive without a policy. This is the same rule applied
+  continuously.
+
+  DEFAULT OFF, verified rather than intended: rendered against a real
+  downstream's overrides, the output with this disabled is byte-identical to
+  v0.90.1. The first attempt was not — `nindent` emits an indented blank line
+  even when the helper produces nothing, 23 of them. The helper now carries its
+  own indentation and the call sites drop `nindent`.
+
+  `selfHeal` is a switch and not a default because it has a cost: a hot-fix
+  applied with kubectl during an incident is reverted on the next reconcile.
+
 ## [0.90.1]
 
 ### Fixed
