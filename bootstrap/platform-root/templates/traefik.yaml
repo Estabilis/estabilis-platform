@@ -37,6 +37,7 @@ spec:
     server: https://kubernetes.default.svc
     namespace: traefik
   syncPolicy:
+    {{- include "platform-root.autoSyncWhenUndeclared" $ }}
     {{- include "platform-root.managedNamespaceMetadataExcluded" . | nindent 4 }}
     retry:
       limit: 10

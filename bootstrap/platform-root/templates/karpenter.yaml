@@ -49,6 +49,7 @@ spec:
     server: https://kubernetes.default.svc
     namespace: karpenter
   syncPolicy:
+    {{- include "platform-root.autoSyncWhenUndeclared" $ }}
     retry:
       limit: 10
       backoff:
@@ -101,6 +102,7 @@ spec:
     server: https://kubernetes.default.svc
     namespace: karpenter
   syncPolicy:
+    {{- include "platform-root.autoSyncWhenUndeclared" $ }}
     {{- include "platform-root.managedNamespaceMetadataExcluded" . | nindent 4 }}
     retry:
       limit: 10
@@ -148,6 +150,7 @@ spec:
     server: https://kubernetes.default.svc
     namespace: karpenter
   syncPolicy:
+    {{- include "platform-root.autoSyncWhenUndeclared" $ }}
     retry:
       limit: 10
       backoff:

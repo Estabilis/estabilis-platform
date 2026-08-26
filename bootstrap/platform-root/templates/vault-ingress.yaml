@@ -70,6 +70,7 @@ spec:
     server: https://kubernetes.default.svc
     namespace: vault
   syncPolicy:
+    {{- include "platform-root.autoSyncWhenUndeclared" $ }}
     retry:
       limit: 10
       backoff:

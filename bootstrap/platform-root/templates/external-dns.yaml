@@ -87,6 +87,7 @@ spec:
         - /spec/data/0/remoteRef/decodingStrategy
         - /spec/data/0/remoteRef/metadataPolicy
   syncPolicy:
+    {{- include "platform-root.autoSyncWhenUndeclared" $ }}
     {{- include "platform-root.managedNamespaceMetadataExcluded" . | nindent 4 }}
     retry:
       limit: 10
@@ -177,6 +178,7 @@ spec:
         - /spec/data/0/remoteRef/decodingStrategy
         - /spec/data/0/remoteRef/metadataPolicy
   syncPolicy:
+    {{- include "platform-root.autoSyncWhenUndeclared" $ }}
     {{- include "platform-root.managedNamespaceMetadataExcluded" . | nindent 4 }}
     retry:
       limit: 10
