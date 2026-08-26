@@ -28,6 +28,7 @@ spec:
     server: https://kubernetes.default.svc
     namespace: cnpg-system
   syncPolicy:
+    {{- include "platform-root.autoSyncWhenUndeclared" $ }}
     retry:
       limit: 10
       backoff:
@@ -67,6 +68,7 @@ spec:
     server: https://kubernetes.default.svc
     namespace: grafana
   syncPolicy:
+    {{- include "platform-root.autoSyncWhenUndeclared" $ }}
     {{- include "platform-root.managedNamespaceMetadataExcludedPrivileged" . | nindent 4 }}
     retry:
       limit: 10
@@ -155,6 +157,7 @@ spec:
     server: https://kubernetes.default.svc
     namespace: grafana
   syncPolicy:
+    {{- include "platform-root.autoSyncWhenUndeclared" $ }}
     {{- include "platform-root.managedNamespaceMetadataExcludedPrivileged" . | nindent 4 }}
     retry:
       limit: 10
@@ -248,6 +251,7 @@ spec:
     server: https://kubernetes.default.svc
     namespace: grafana
   syncPolicy:
+    {{- include "platform-root.autoSyncWhenUndeclared" $ }}
     {{- include "platform-root.managedNamespaceMetadataExcludedPrivileged" . | nindent 4 }}
     retry:
       limit: 10
@@ -278,6 +282,7 @@ spec:
     server: https://kubernetes.default.svc
     namespace: grafana
   syncPolicy:
+    {{- include "platform-root.autoSyncWhenUndeclared" $ }}
     retry:
       limit: 10
       backoff:
@@ -320,6 +325,7 @@ spec:
     server: https://kubernetes.default.svc
     namespace: grafana
   syncPolicy:
+    {{- include "platform-root.autoSyncWhenUndeclared" $ }}
     {{- include "platform-root.managedNamespaceMetadataExcludedPrivileged" . | nindent 4 }}
     retry:
       limit: 10
@@ -385,6 +391,7 @@ spec:
     server: https://kubernetes.default.svc
     namespace: grafana
   syncPolicy:
+    {{- include "platform-root.autoSyncWhenUndeclared" $ }}
     {{- include "platform-root.managedNamespaceMetadataExcludedPrivileged" . | nindent 4 }}
     retry:
       limit: 10
@@ -433,6 +440,7 @@ spec:
     server: https://kubernetes.default.svc
     namespace: grafana
   syncPolicy:
+    {{- include "platform-root.autoSyncWhenUndeclared" $ }}
     {{- include "platform-root.managedNamespaceMetadataExcludedPrivileged" . | nindent 4 }}
     retry:
       limit: 10

@@ -291,6 +291,7 @@ spec:
         - .spec.volumeClaimTemplates[]?.apiVersion
         - .spec.volumeClaimTemplates[]?.kind
   syncPolicy:
+    {{- include "platform-root.autoSyncWhenUndeclared" $ }}
     {{- include "platform-root.managedNamespaceMetadataExcluded" . | nindent 4 }}
     retry:
       limit: 10

@@ -64,6 +64,7 @@ spec:
     server: https://kubernetes.default.svc
     namespace: grafana
   syncPolicy:
+    {{- include "platform-root.autoSyncWhenUndeclared" $ }}
     retry:
       limit: 10
       backoff:

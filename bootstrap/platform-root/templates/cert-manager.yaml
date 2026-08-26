@@ -94,6 +94,7 @@ spec:
         - .webhooks[].namespaceSelector
   {{- end }}
   syncPolicy:
+    {{- include "platform-root.autoSyncWhenUndeclared" $ }}
     {{- include "platform-root.managedNamespaceMetadataExcluded" . | nindent 4 }}
     retry:
       limit: 10
@@ -194,6 +195,7 @@ spec:
     server: https://kubernetes.default.svc
     namespace: cert-manager
   syncPolicy:
+    {{- include "platform-root.autoSyncWhenUndeclared" $ }}
     {{- include "platform-root.managedNamespaceMetadataExcluded" . | nindent 4 }}
     retry:
       limit: 10

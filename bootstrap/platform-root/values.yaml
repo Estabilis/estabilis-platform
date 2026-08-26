@@ -388,6 +388,38 @@ deploymentId: ""
 clientHubAppNamespaces: []
 
 # ---------------------------------------------------------------------------
+# Auto-sync for components that do not declare their own
+# ---------------------------------------------------------------------------
+# Each Application template decides its own `automated` block by risk class
+# (ADR 0029). Most do not have one, which means most components only move when
+# someone syncs them by hand — and an out-of-band `kubectl edit` on any of them
+# stays as the running state until somebody notices.
+#
+# Turning this on emits `automated` on every Application that declares none.
+# It does NOT touch the ones that do: a component that chose its own policy
+# keeps it.
+#
+# PRUNE IS ALWAYS FALSE HERE, and that is the whole reason this is safe.
+# ADR 0029's risk classes — Coupled, CRD-owning, Foundational — are about
+# PRUNING. Pruning a CRD between chart versions deletes every CR instance in
+# the cluster; pruning a ClusterSecretStore cascade-fails everything that reads
+# it. Sync mode, self-heal and prune are orthogonal axes, and this only moves
+# the first two.
+#
+# selfHeal reverts out-of-band changes. That is the point, and it is also the
+# cost: a hot-fix applied with kubectl during an incident is undone on the next
+# reconcile. For platform components, whose state should match git exactly,
+# that is the behaviour you want. It is why this is a switch and not a default.
+#
+# The upstart spec already declares this shape as its bootstrap fallback
+# (`post.enable-auto-sync: {apps: all, self-heal: true, prune: false}`), which
+# only ever fires for Apps arriving without an automated block. This is the
+# same rule, applied continuously instead of once.
+componentAutoSync:
+  enabled: false
+  selfHeal: true
+
+# ---------------------------------------------------------------------------
 # Extra sourceRepos for the `platform-apps` AppProject (ADR 0027).
 # ---------------------------------------------------------------------------
 # By default `platform-apps` accepts only `configRepoUrl` (the wrapper

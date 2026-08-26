@@ -525,3 +525,22 @@ argocd-ingress.yaml.
 {{- end -}}
 {{- default .default $v -}}
 {{- end -}}
+
+{{- /*
+  autoSyncWhenUndeclared — emit an `automated` block, or nothing.
+
+  Included in the syncPolicy of every Application that does not declare its own.
+  Renders nothing when componentAutoSync.enabled is false, so a deployment that
+  has not opted in gets byte-identical output to before this existed.
+
+  prune is hardcoded false rather than exposed. ADR 0029 decides pruning
+  per-App by risk class, and a global switch that could turn it on everywhere
+  would undo that decision for CRD-owning and Foundational components at once.
+*/ -}}
+{{- define "platform-root.autoSyncWhenUndeclared" -}}
+{{- if (.Values.componentAutoSync | default dict).enabled }}
+    automated:
+      selfHeal: {{ (.Values.componentAutoSync | default dict).selfHeal | default false }}
+      prune: false
+{{- end }}
+{{- end -}}

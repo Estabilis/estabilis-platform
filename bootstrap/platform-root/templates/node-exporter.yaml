@@ -39,6 +39,7 @@ spec:
     server: https://kubernetes.default.svc
     namespace: node-exporter
   syncPolicy:
+    {{- include "platform-root.autoSyncWhenUndeclared" $ }}
     {{- include "platform-root.managedNamespaceMetadataExcludedPrivileged" . | nindent 4 }}
     retry:
       limit: 10
