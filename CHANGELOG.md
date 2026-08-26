@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.90.1]
+
+### Fixed
+- `platform-outputs` stopped stripping Argo CD's own annotations from the
+  `argocd` namespace. Argo CD manages that namespace too and writes metadata
+  onto it; `kubernetes_namespace_v1.argocd` declared none of it and had no
+  `ignore_changes`, so the two overwrote each other.
+
+  Every apply of that tier removed six annotations, including
+  `argocd.argoproj.io/sync-options: ServerSideApply=true`. Argo CD restored them
+  on its next sync, so it self-healed — but in between, the `argocd` namespace
+  carried no ServerSideApply option, which is the setting large CRDs depend on
+  and where the 262144-byte `last-applied-configuration` limit is a sync failure
+  rather than a warning.
+
+  It also left a permanent diff: every plan of an unrelated change proposed
+  deleting those six annotations. That is how it was found — planning a Vault
+  backup CronJob on a DigitalOcean deployment, on a resource the change did not
+  touch.
+
+  The downstream namespaces Argo CD adopts (velero, cert-manager) have carried
+  this guard from the start; this brings the module in line.
+
 ## [0.90.0]
 
 ### Added
