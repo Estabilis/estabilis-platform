@@ -422,7 +422,13 @@ tolerations:
 */ -}}
 {{- define "platform-root.componentsForwarding" -}}
 {{- /* Vault is intentionally NOT in this list — it's multi-provider (AWS + Azure) and gated separately on (provider in (aws|azure)) in vault.yaml. */ -}}
-{{- $awsOnly := list "aws-load-balancer-controller" "karpenter" "karpenter-resources" "metrics-server" "snapshot-controller" -}}
+{{- $awsOnly := list "aws-load-balancer-controller" "karpenter" "karpenter-resources" "snapshot-controller" -}}
+{{- /* metrics-server is NOT AWS-only: neither EKS nor DOKS ships one, so its
+       Application renders on both and its namespace exists on both. Leaving it
+       in $awsOnly would skip forwarding on DigitalOcean and leave that namespace
+       without the NetworkPolicy and ResourceQuota every other one gets — a hole
+       that looks like nothing rather than like an error. */ -}}
+{{- $awsAndDigitalOcean := list "metrics-server" -}}
 {{- /* Never forwarded, on any provider. `resource-quotas` joined the components
        map so its Application could be switched off like every other component.
        Forwarding it would add a key to the map the network-policies and
@@ -436,6 +442,8 @@ components:
   {{- /* never forwarded — see above */ -}}
   {{- else if and (has $k $awsOnly) (ne $.Values.global.provider "aws") }}
   {{- /* skip AWS-only component on non-AWS provider — namespace doesn't exist */ -}}
+  {{- else if and (has $k $awsAndDigitalOcean) (not (has $.Values.global.provider (list "aws" "digitalocean"))) }}
+  {{- /* same reason, for components that render on AWS and DigitalOcean */ -}}
   {{- else }}
   {{ $k | quote }}: {{ $v }}
   {{- end }}

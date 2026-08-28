@@ -528,3 +528,20 @@ clientHubAppExtraSourceRepos: []
 #     argocd: regular-only
 #     velero: spot-only
 scheduling: {}
+
+# ---------------------------------------------------------------------------
+# Observability
+# ---------------------------------------------------------------------------
+observability:
+  # Value of the `cluster` external label alloy stamps on every metric it sends
+  # to Mimir.
+  #
+  # Empty keeps the historical literal "estabilis", which is what every existing
+  # deployment has been writing since the beginning — so leaving this alone
+  # changes nothing, and the label stays comparable with the data already stored.
+  #
+  # Set it to the cluster's own name on a deployment that wants dashboards to say
+  # WHICH cluster rather than which platform. Note the cost before you do: series
+  # written before the change keep the old value, so a query spanning the moment
+  # sees two series instead of one. Cheap on a young deployment, not on an old one.
+  clusterLabel: ""
