@@ -1,5 +1,45 @@
 # Changelog
 
+## [0.92.0]
+
+### Added
+- `observability.clusterLabel` — the value alloy stamps as the `cluster`
+  external label on every metric it sends to Mimir. Empty by default, which
+  keeps the historical literal `"estabilis"` that every installation has been
+  writing since the beginning; a deployment that sets nothing renders and
+  behaves exactly as before.
+
+  The label was a constant, identical everywhere, and not the name of any
+  cluster. Setting this makes dashboards say WHICH cluster instead of which
+  platform.
+
+  The value travels as a value rather than as a template. `alloy-values.yaml`
+  reaches the alloy chart as plain YAML and is rendered by that chart's own
+  `tpl` over `configMap.content`, in a context where platform-root's
+  `.Values.global` does not exist — so platform-root passes
+  `global.clusterLabel` through the Application's `valuesObject`, and only when
+  the deployment set it.
+
+  Worth knowing before turning it on: series written earlier keep the old label,
+  so a query spanning the change sees two series instead of one.
+
+### Changed
+- `metrics-server` now renders on DigitalOcean as well as AWS. AKS ships
+  metrics-server with the managed control plane; EKS does not, and neither does
+  DOKS — measured on a 1.36 cluster, where
+  `kubectl get apiservice v1beta1.metrics.k8s.io` returns NotFound and
+  `kubectl top nodes` answers "Metrics API not available". Without it
+  `kubectl top`, HPA and anything reading the Resource Metrics API stay broken.
+
+  `componentsForwarding` moves `metrics-server` out of `$awsOnly` into a list of
+  its own. Left where it was, the component would be skipped when forwarding to
+  the network-policies and resource-quotas charts, and the namespace would come
+  up on DigitalOcean with neither — a hole that looks like nothing rather than
+  like an error.
+
+Azure and AWS are untouched: `helm template bootstrap/platform-root` before and
+after is byte-identical for both (2570 and 2677 lines).
+
 ## [0.91.0]
 
 ### Added
