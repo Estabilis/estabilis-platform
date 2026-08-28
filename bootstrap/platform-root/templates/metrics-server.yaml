@@ -2,10 +2,14 @@
   metrics-server — Resource Metrics API server (`v1beta1.metrics.k8s.io`).
 
   AKS provides metrics-server natively as part of the managed control
-  plane, so this Application is only emitted on AWS. EKS does not
-  include metrics-server in its default addon set; without it,
+  plane, so this Application is not emitted on Azure. EKS and DOKS do
+  not include metrics-server in their default addon sets; without it,
   `kubectl top`, HPA, and any controller that reads the Resource
   Metrics API stay broken.
+
+  DOKS was measured, not assumed: on a 1.36 cluster
+  `kubectl get apiservice v1beta1.metrics.k8s.io` returns NotFound and
+  `kubectl top nodes` answers "Metrics API not available".
 
   Pinned to chart 3.12.x (image v0.7.x) — same configuration validated
   on the legacy cortex-eks-prod cluster.
@@ -15,7 +19,7 @@
   `$values` ref is the gitops repo. No detour through
   `estabilis-platform/core/components/`.
 */ -}}
-{{- if eq .Values.global.provider "aws" }}
+{{- if has .Values.global.provider (list "aws" "digitalocean") }}
 {{- if ne (index .Values.components "metrics-server") false }}
 apiVersion: argoproj.io/v1alpha1
 kind: Application

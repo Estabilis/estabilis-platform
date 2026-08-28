@@ -317,6 +317,19 @@ spec:
                 "mode" (default "auto" (index .Values.scheduling "alloy"))
                 "paths" (list "controller")
              ) | nindent 10 }}
+          {{- /* Cluster label for remote_write. Emitted ONLY when the deployment
+                sets observability.clusterLabel, so a chart that does not set it
+                renders byte-for-byte as before and keeps writing "estabilis".
+
+                It has to arrive as a VALUE rather than being templated inside
+                alloy-values.yaml: that file reaches the alloy chart as plain
+                YAML and is templated by the chart's own `tpl` over
+                configMap.content, where platform-root's `.Values.global` does
+                not exist. */}}
+          {{- with .Values.observability.clusterLabel }}
+          global:
+            clusterLabel: {{ . | quote }}
+          {{- end }}
     - repoURL: {{ .Values.platformRepoUrl }}
       targetRevision: {{ .Values.platformVersion }}
       ref: values

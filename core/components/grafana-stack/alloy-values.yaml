@@ -1215,7 +1215,10 @@ alloy:
       // Forward metrics to Mimir
       prometheus.remote_write "mimir" {
         external_labels = {
-          cluster = "estabilis",
+          // `default` keeps the historical literal when platform-root passes
+          // nothing, so a deployment that changes nothing keeps writing
+          // "estabilis" and stays comparable with its own stored history.
+          cluster = "{{ .Values.global.clusterLabel | default "estabilis" }}",
         }
         endpoint {
           url = "http://grafana-mimir-gateway.grafana.svc.cluster.local/api/v1/push"
