@@ -67,12 +67,18 @@ spec:
         namespace: "{{ `{{ .path.basename }}` }}"
       syncPolicy:
         {{- /*
-          Auto-sync is opt-out via .Values.clientApps.autoSync (default true).
-          When false, generated Applications stay OutOfSync until the
-          operator triggers `argocd app sync` manually. Useful for
-          production environments that gate every workload deploy and
-          for cold bootstraps where workload syncs would race with
-          platform components still coming up. See values.yaml comment.
+          Auto-sync is opt-IN via .Values.clientApps.autoSync, which
+          DEFAULTS TO FALSE. This comment said "opt-out (default true)"
+          and the value in values.yaml has always been false — so anyone
+          reading only the template concluded auto-sync was already on,
+          and anyone reading only the value concluded the template was
+          stale. Both were reading it correctly; the comment was wrong.
+
+          While it is false, generated Applications stay OutOfSync until
+          the operator runs `argocd app sync`. That default suits
+          environments that gate every workload deploy, and cold
+          bootstraps where workload syncs would race with platform
+          components still coming up. See the values.yaml comment.
         */}}
         {{- if .Values.clientApps.autoSync }}
         automated:
