@@ -342,6 +342,21 @@ components:
 # Platform Add-ons — private components deployed via OCI Helm charts.
 # Downstream activates add-ons via overrides/platform-root/values.yaml.
 # Each entry creates an ArgoCD Application with project: platform.
+#
+# Per-addon keys: repoURL, chart, targetRevision, namespace, syncWave, values,
+# bridge, extraSyncOptions.
+#
+# `extraSyncOptions` is a list appended to the Application's sync options,
+# which always begin with CreateNamespace=true. Reach for it when a chart
+# ships CRDs large enough that client-side apply fails on the 262144-byte
+# annotation limit:
+#
+#   platformAddons:
+#     my-operator:
+#       chart: my-operator
+#       targetRevision: "1.2.3"
+#       extraSyncOptions:
+#         - ServerSideApply=true
 platformAddons: {}
 
 # Custom Applications — clients can deploy their own apps via overrides.

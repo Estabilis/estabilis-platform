@@ -24,6 +24,18 @@ https://argo-cd.readthedocs.io/en/stable/user-guide/helm/#helm-chart-repositorie
 
 ACR convention used here: charts live under `<acr>/charts/<name>`, so the
 default repoURL is `<acr>/charts` and the chart field is the bare name.
+
+`extraSyncOptions` — APPENDED to `CreateNamespace=true`, never replacing it.
+The name says extra because that is what it is: an addon always gets its own
+namespace created, and a key that replaced the list would let a caller drop
+that by accident while looking like it only added something. The case this
+exists for is `ServerSideApply=true`, which a chart shipping large CRDs needs:
+client-side apply writes the whole manifest into the
+`kubectl.kubernetes.io/last-applied-configuration` annotation, and an
+annotation cannot exceed 262144 bytes, so the apply is rejected by the API
+server and the Application never syncs. Kyverno hit this first and its
+dedicated template hardcodes the option; addons come from downstream values
+and cannot.
 */ -}}
 {{- $acrLoginServer := .Values.global.acrLoginServer -}}
 {{- range $name, $addon := .Values.platformAddons }}
@@ -98,6 +110,9 @@ spec:
             maxDuration: 3m
         syncOptions:
           - CreateNamespace=true
+          {{- range $addon.extraSyncOptions }}
+          - {{ . }}
+          {{- end }}
 {{- else }}
 {{- /* --- Plain addon: Application (existing path, unchanged) --- */}}
 apiVersion: argoproj.io/v1alpha1
@@ -139,5 +154,8 @@ spec:
         maxDuration: 3m
     syncOptions:
       - CreateNamespace=true
+      {{- range $addon.extraSyncOptions }}
+      - {{ . }}
+      {{- end }}
 {{- end }}
 {{- end }}
