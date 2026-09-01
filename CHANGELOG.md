@@ -1,5 +1,37 @@
 # Changelog
 
+## [0.93.0]
+
+### Added
+- `platformAddons.<name>.extraSyncOptions` — a list of ArgoCD sync options
+  appended to the ones an addon Application already gets.
+
+  Until now an addon whose chart ships large CRDs could not be installed at all.
+  ArgoCD applies client side by default, which writes the whole manifest into the
+  `kubectl.kubernetes.io/last-applied-configuration` annotation, and an
+  annotation cannot exceed 262144 bytes. The API server rejects the CRD, so the
+  Application never syncs and the CRDs never come into existence. Seen with
+  `gha-runner-scale-set-controller` 0.14.2, whose four `actions.github.com` CRDs
+  all exceed the limit.
+
+  The platform already knew this failure. `CLAUDE.md` records it for Kyverno,
+  and `kyverno.yaml`, `vault.yaml`, `hubble-ui.yaml` and `platform-secrets.yaml`
+  set `ServerSideApply=true`. Those are dedicated templates that can hardcode
+  the option. Addons are declared in downstream values and had no way to ask:
+  `syncOptions` was a fixed list holding only `CreateNamespace=true`.
+
+  The list is appended, never replaced, and the key is named for that. A key
+  that replaced the list would let a caller drop `CreateNamespace=true` while
+  looking like it only added something, and the addon would then fail on a
+  missing namespace, which reads as an unrelated problem.
+
+  Both render paths accept it, the plain Application and the bridge
+  ApplicationSet, so an addon does not change behaviour by gaining a bridge.
+
+Every provider renders exactly as before when no addon sets the key:
+`helm template bootstrap/platform-root` is byte-identical for aws (2570 lines),
+azure (2677) and digitalocean (2422).
+
 ## [0.92.0]
 
 ### Added
