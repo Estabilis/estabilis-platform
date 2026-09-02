@@ -1,5 +1,60 @@
 # Changelog
 
+## [0.94.0]
+
+### Added
+- `environment` — a metric label carried from the pod label
+  `estabilis.io/environment`, in the generic pod job and in the CNPG instances
+  job.
+
+  The platform's metrics had no environment dimension. Nothing in a series said
+  whether it belonged to production or to staging, so no dashboard could put an
+  application next to the datastore it uses. Measured on a cluster running two
+  environments of one application, both databases reported `datname=riskops`
+  and `usename=riskops_worker` — identical apart from the cluster name, and the
+  names follow no shared convention: production was called `postgres`, staging
+  `<app>-stg-pg`.
+
+  It is declared, not inferred, because every inference fails on its first
+  exception. Namespace suffixes do not survive a datastore in a shared
+  namespace; resource names do not survive one called `postgres`; a map kept in
+  each dashboard rots independently in each dashboard.
+
+  On a CNPG Cluster the label reaches the instance pods through
+  `spec.inheritedMetadata.labels`, which is the CRD's own mechanism for putting
+  a label on every pod it manages.
+
+  An absent label produces an absent series label. A dashboard filtering by
+  environment then shows nothing rather than another environment's data, which
+  is the failure this exists to prevent.
+
+### Changed
+- The generic `pod_metrics` job now attaches `namespace` and `pod`.
+
+  Every dedicated scrape job already did. The generic one did not, so the
+  platform's own components were attributable and the workloads running on it
+  were not — backwards, since the workloads are the ones that come in many
+  copies. A workload metric arrived identified only by `instance`, which is the
+  pod IP: two deployments of the same application in different namespaces
+  produced label sets identical apart from that IP.
+
+  The IP is scrape time churn, not identity. Measured over seven days on a
+  cluster running two namespaces of one queue based application, a single
+  metric in a single state produced **77 distinct series**, all differing only
+  by pod IP. Not usable as a filter, and not usable to read history.
+
+  **MIGRATION.** This changes the identity of every existing `pod_metrics`
+  series. Charts and rules already reading these metrics get a discontinuity on
+  the day this lands: the old series stop and new ones start. Nothing is lost,
+  and nothing continues on the same line either. Plan when it lands rather than
+  discovering it in a graph.
+
+### Fixed
+- `hub-client-apps` — a comment stated the opposite of the value's default.
+
+Provider independent: no overlay redefines the changed blocks, so aws, azure
+and digitalocean render identically.
+
 ## [0.93.0]
 
 ### Added
