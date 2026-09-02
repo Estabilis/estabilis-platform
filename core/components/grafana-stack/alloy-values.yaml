@@ -82,6 +82,21 @@ alloy:
           action        = "replace"
         }
 
+        // ENVIRONMENT IS A DECLARED LABEL, NOT AN INFERRED ONE. Nothing in a
+        // pod's identity says which environment it belongs to, and every
+        // attempt to infer it fails on the first exception: namespace suffixes
+        // do not survive a datastore that lives in a shared namespace, and
+        // resource names do not survive one called `postgres`.
+        //
+        // So the platform reads it from a label the operator puts on the
+        // resource. Absent label means absent series label, which is the
+        // honest outcome: a dashboard filtering by environment shows nothing
+        // rather than showing another environment's data.
+        rule {
+          source_labels = ["__meta_kubernetes_pod_label_estabilis_io_environment"]
+          target_label  = "environment"
+        }
+
         // WITHOUT THESE TWO, A WORKLOAD METRIC ARRIVES IDENTIFIED ONLY BY
         // `instance`, WHICH IS THE POD IP. Every dedicated scrape job below
         // attaches `namespace`; this one did not, so the platform's own
@@ -697,6 +712,14 @@ alloy:
         rule {
           source_labels = ["__meta_kubernetes_pod_label_role"]
           target_label  = "role"
+        }
+
+        // Same declared label as the generic job above. On a CNPG Cluster it
+        // is set through `spec.inheritedMetadata.labels`, which is the CRD's
+        // own mechanism for putting a label on every instance pod.
+        rule {
+          source_labels = ["__meta_kubernetes_pod_label_estabilis_io_environment"]
+          target_label  = "environment"
         }
       }
 
