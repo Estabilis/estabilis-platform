@@ -81,6 +81,31 @@ alloy:
           target_label  = "__metrics_path__"
           action        = "replace"
         }
+
+        // WITHOUT THESE TWO, A WORKLOAD METRIC ARRIVES IDENTIFIED ONLY BY
+        // `instance`, WHICH IS THE POD IP. Every dedicated scrape job below
+        // attaches `namespace`; this one did not, so the platform's own
+        // components were attributable and the workloads running on it were
+        // not. That is backwards: the workloads are the ones that come in
+        // many copies.
+        //
+        // Two deployments of the same application in different namespaces
+        // produce label sets that are byte identical apart from that IP, so
+        // neither a dashboard nor an alert rule can tell production from
+        // staging. And the IP is scrape time churn, not identity: measured on
+        // a cluster running two namespaces of the same queue based
+        // application, a single metric in a single state produced 77 distinct
+        // series over seven days, all differing only by pod IP. It cannot be
+        // used as a filter, and it cannot be used to read history either.
+        rule {
+          source_labels = ["__meta_kubernetes_namespace"]
+          target_label  = "namespace"
+        }
+
+        rule {
+          source_labels = ["__meta_kubernetes_pod_name"]
+          target_label  = "pod"
+        }
       }
 
       prometheus.scrape "pod_metrics" {
