@@ -49,6 +49,9 @@ spec:
         connectionLimit: -1
         passwordSecret:
           name: grafana-db-credentials
+      {{- with .Values.postgres.extraRoles }}
+      {{- toYaml . | nindent 6 }}
+      {{- end }}
 
   # Backup to S3 via Barman Cloud.
   #

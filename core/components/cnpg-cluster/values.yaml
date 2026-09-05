@@ -77,6 +77,38 @@ postgres:
     # 1GB fits the 4Gi default alongside max_wal_size (1GB) and wal_keep_size
     # (512MB). Raise it together with storage.size, never alone.
     maxSlotKeepSize: "1GB"
+
+  # MORE LOGINS ON THE PLATFORM DATABASE, declared by the deployment.
+  #
+  # The cluster manages exactly one role, `grafana`, and it is a literal in
+  # every provider template: nothing a values file could say would add a
+  # second one. So a deployment that wants another tool to keep its data
+  # here (a metrics ingester, a report writer) had no declarative path to
+  # a role of its own. The options were to hand it Grafana's login, to run
+  # CREATE ROLE by hand on the primary and remember that it happened, or to
+  # stand up a whole second cluster for one schema.
+  #
+  # This list is appended verbatim to `spec.managed.roles`, so each entry
+  # takes the CNPG role shape (name, ensure, login, passwordSecret, inRoles
+  # and so on) and CNPG reconciles it exactly as it does `grafana`. The
+  # passwordSecret must exist in the cluster's namespace; an ExternalSecret
+  # next to the deployment's other database logins is the usual source.
+  #
+  # Databases are not declared here on purpose. CNPG has a Database CRD for
+  # that, which any Application allowed into the namespace can carry, and it
+  # names the owner role that this list creates.
+  #
+  # Empty by default: no existing deployment changes on upgrade.
+  extraRoles: []
+  # extraRoles:
+  #   - name: reporting
+  #     ensure: present
+  #     login: true
+  #     inherit: true
+  #     superuser: false
+  #     connectionLimit: -1
+  #     passwordSecret:
+  #       name: reporting-db-credentials
 identity:
   cnpg:
     clientId: ""                       # Azure only (Workload Identity)
