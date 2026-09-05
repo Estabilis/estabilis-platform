@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.95.0]
+
+### Added
+- `postgres.extraRoles` on `cnpg-cluster` (#258): a list appended verbatim to
+  `spec.managed.roles` after `grafana`, in the aws, azure and digitalocean
+  templates alike.
+
+  The cluster managed exactly one role, and it was a literal in each provider
+  template, so a deployment that wanted another tool to keep its data on the
+  platform database had no declarative path to a login of its own. The
+  alternatives were to hand the tool Grafana's credentials, to run `CREATE
+  ROLE` by hand on the primary and remember that it happened, or to stand up a
+  second cluster for one schema.
+
+  Each entry takes the CNPG role shape and the operator reconciles it exactly
+  as it does `grafana`. The `passwordSecret` must exist in the cluster
+  namespace. Databases are deliberately not declared here: CNPG's `Database`
+  CRD covers that and names the owner this list creates.
+
+  Empty by default. `helm template bootstrap/platform-root` is byte-identical
+  to v0.94.0 for the three providers (aws 2570, azure 2677, digitalocean 2422
+  lines), and so is `core/components/cnpg-cluster` on its own.
+
 ## [0.94.0]
 
 ### Added
