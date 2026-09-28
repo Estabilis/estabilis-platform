@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.96.0]
 
 ### Added
 - `spaces-bucket-with-key-protected`: a protected sibling of
