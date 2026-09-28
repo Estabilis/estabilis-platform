@@ -1,5 +1,30 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+- `spaces-bucket-with-key-protected`: a protected sibling of
+  `spaces-bucket-with-key`, for buckets that hold data a plan must never be able
+  to destroy.
+
+  The plain module gates its resources on `count = var.enabled ? 1 : 0`, so a
+  single flag flipped to false removes the bucket and its key on the next apply.
+  That is the right shape for scratch and the wrong one for a bucket that holds
+  evidence or documents — the same class of asset a database is, protected by
+  nothing.
+
+  The protected variant differs in three ways, none of which is a variable,
+  because `lifecycle { prevent_destroy = ... }` takes a literal: the bucket
+  carries `prevent_destroy = true`, `force_destroy` is fixed to `false`, and
+  there is no `enabled` toggle, since "turn it off" and "delete the data" are the
+  same operation on a bucket. `versioning_enabled` defaults `true` here rather
+  than `false`. The scoped key keeps no protection, so rotation stays an ordinary
+  apply — only the bucket is frozen.
+
+  DigitalOcean only; the plain module has no aws/azure counterpart either. No
+  existing template or module changes, so `helm template bootstrap/platform-root`
+  is byte-identical to v0.95.0 for the three providers.
+
 ## [0.95.0]
 
 ### Added
