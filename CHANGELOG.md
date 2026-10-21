@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.97.0]
 
 ### Changed
 - `grafana-stack`: alloy's continuous profiling now follows
