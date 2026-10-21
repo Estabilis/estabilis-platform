@@ -1,5 +1,31 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+- `grafana-stack`: alloy's continuous profiling now follows
+  `components.pyroscope`. The eBPF block in `alloy-values.yaml`
+  (`discovery.kubernetes`/`discovery.relabel "profile_pods"`,
+  `pyroscope.ebpf "local"`, `pyroscope.write "default"`) is rendered only while
+  `global.profiling.enabled` is not `false`, and platform-root sets that key on
+  the alloy Application only when the deployment turns pyroscope off.
+
+  Before this, `components.pyroscope: false` removed the server and nothing
+  else: every alloy pod kept profiling every pod on its node (hundreds of eBPF
+  targets, ~2 GB/day on a seven-node cluster) and pushing to a Service that no
+  longer existed, with retries and dropped bytes on each node for as long as the
+  toggle stayed off. The block had no gate of its own, and the only downstream
+  lever would have been overriding `alloy.configMap.content` wholesale.
+
+  Same shape as `observability.clusterLabel`: the key travels as a VALUE into
+  the alloy chart because its `tpl` over `configMap.content` cannot see
+  platform-root's `.Values.components`, and it is emitted only on the non-default
+  path so nothing else changes. `helm template bootstrap/platform-root` is
+  byte-identical for aws (2570 lines), azure (2677) and digitalocean (2422);
+  the alloy chart's rendered ConfigMap is byte-identical with the default values
+  and loses exactly the four profiling blocks with `global.profiling.enabled:
+  false`.
+
 ## [0.96.0]
 
 ### Added

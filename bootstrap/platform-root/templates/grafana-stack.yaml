@@ -326,9 +326,22 @@ spec:
                 YAML and is templated by the chart's own `tpl` over
                 configMap.content, where platform-root's `.Values.global` does
                 not exist. */}}
-          {{- with .Values.observability.clusterLabel }}
+          {{- /* Profiling follows components.pyroscope. alloy-values.yaml gates
+                its eBPF block on `global.profiling.enabled`; the key is emitted
+                ONLY when pyroscope is turned off, so every deployment that keeps
+                the default renders byte-for-byte as before. Same reasoning as
+                clusterLabel: it must travel as a VALUE because the alloy chart's
+                `tpl` cannot see platform-root's `.Values.components`. */}}
+          {{- $profilingOff := eq (index .Values.components "pyroscope" | toString) "false" }}
+          {{- if or .Values.observability.clusterLabel $profilingOff }}
           global:
+            {{- with .Values.observability.clusterLabel }}
             clusterLabel: {{ . | quote }}
+            {{- end }}
+            {{- if $profilingOff }}
+            profiling:
+              enabled: false
+            {{- end }}
           {{- end }}
     - repoURL: {{ .Values.platformRepoUrl }}
       targetRevision: {{ .Values.platformVersion }}
