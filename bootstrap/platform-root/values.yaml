@@ -330,7 +330,7 @@ components:
   mimir: true                # observability: metrics storage
   alloy: true                # observability: telemetry collector (DaemonSet)
   tempo: true                # observability: distributed tracing
-  pyroscope: true            # observability: continuous profiling
+  pyroscope: true            # observability: continuous profiling (false also stops alloy's eBPF profiling)
   beyla: false               # observability: eBPF auto-instrumentation. Opt-in per cluster; per-pod opt-in via `estabilis.io/instrument-with-beyla: "true"` label.
   grafana-dashboards: true   # observability: pre-built dashboards
   mimir-rules: true          # observability: alerting rules

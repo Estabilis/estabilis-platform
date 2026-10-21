@@ -28,6 +28,15 @@ alloy:
     limits:
       cpu: 500m
       memory: 1Gi
+  # The "Continuous profiling" section of the config below is wrapped in
+  # `{{- if ne ((default (dict) .Values.global.profiling).enabled | toString) "false" }}`
+  # … `{{- end }}`, evaluated by the chart's own `tpl` over `configMap.content`.
+  # platform-root sets `global.profiling.enabled: false` on this Application
+  # only when the deployment turns `components.pyroscope` off
+  # (bootstrap/platform-root/templates/grafana-stack.yaml); with nothing set the
+  # section renders exactly as it always has. Without the gate, disabling
+  # Pyroscope alone left every node profiling every pod and pushing to a Service
+  # that no longer existed.
   configMap:
     content: |
       // Discover Kubernetes pods for log collection
@@ -1226,6 +1235,7 @@ alloy:
       // =====================================================================
       // Continuous profiling (eBPF → Pyroscope)
       // =====================================================================
+      {{- if ne ((default (dict) .Values.global.profiling).enabled | toString) "false" }}
 
       // Discover pods on the same node for eBPF profiling
       discovery.kubernetes "profile_pods" {
@@ -1259,6 +1269,7 @@ alloy:
           url = "http://grafana-pyroscope.grafana.svc.cluster.local:4040"
         }
       }
+      {{- end }}
 
       // Forward metrics to Mimir
       prometheus.remote_write "mimir" {
