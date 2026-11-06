@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.98.0]
 
 ### Fixed
 - `grafana-stack`: alloy's `loki.source.kubernetes "pod_logs"` now has
