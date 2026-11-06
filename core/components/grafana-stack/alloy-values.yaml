@@ -44,10 +44,24 @@ alloy:
         role = "pod"
       }
 
-      // Collect logs from discovered pods
+      // Collect logs from discovered pods.
+      //
+      // `clustering` IS WHAT MAKES THIS ONE TAIL PER POD INSTEAD OF PER
+      // INSTANCE. alloy runs as a DaemonSet and `discovery.kubernetes "pods"`
+      // has no node filter, so every instance discovers EVERY pod in the
+      // cluster. Without `clustering`, every instance then tails every pod's
+      // log through the API server: N instances read and ship each line N
+      // times, and Loki drops the N-1 duplicates after the work is done (on an
+      // eight-node cluster each instance shipped ~140 lines/s while Loki kept
+      // ~1/8 of what its distributor received). With it, the cluster hashes the
+      // targets across the instances and each pod is tailed exactly once. Same
+      // block, same reason, as the prometheus.scrape jobs below.
       loki.source.kubernetes "pod_logs" {
         targets    = discovery.kubernetes.pods.targets
         forward_to = [loki.write.default.receiver]
+        clustering {
+          enabled = true
+        }
       }
 
       // Forward logs to Loki

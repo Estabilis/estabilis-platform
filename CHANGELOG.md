@@ -1,5 +1,25 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+- `grafana-stack`: alloy's `loki.source.kubernetes "pod_logs"` now has
+  `clustering { enabled = true }`. alloy is a DaemonSet and
+  `discovery.kubernetes "pods"` has no node filter, so every instance
+  discovered every pod in the cluster, and without clustering every instance
+  tailed every pod's log through the API server: N instances read and shipped
+  each line N times, and Loki discarded the N-1 duplicates after the work was
+  done. Measured on an eight-node cluster: each alloy instance shipped
+  ~140 lines/s (near-identical across instances) while Loki's distributor
+  received ~1,100 lines/s and kept ~1/8 of that. With clustering the targets
+  are hashed across the instances and each pod is tailed once; `alloy.clustering`
+  is already enabled in this file and the `prometheus.scrape` jobs use the same
+  block.
+
+  The rendered ConfigMap changes, so alloy pods restart once on rollout. A
+  restart or a membership change re-hashes the targets, so a stream can briefly
+  be opened by two instances; Loki's duplicate handling covers that window.
+
 ## [0.97.0]
 
 ### Changed
