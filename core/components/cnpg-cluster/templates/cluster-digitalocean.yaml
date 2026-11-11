@@ -54,7 +54,7 @@ spec:
       cpu: {{ .Values.postgres.resources.limits.cpu | quote }}
       memory: {{ .Values.postgres.resources.limits.memory | quote }}
 
-  imageName: ghcr.io/cloudnative-pg/postgresql:18.1
+  imageName: {{ .Values.postgres.imageName }}
 
   storage:
     size: {{ .Values.postgres.storage.size }}
@@ -62,6 +62,14 @@ spec:
   postgresql:
     parameters:
       max_slot_wal_keep_size: {{ .Values.postgres.wal.maxSlotKeepSize | quote }}
+    {{- with .Values.postgres.sharedPreloadLibraries }}
+    shared_preload_libraries:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+    {{- with .Values.postgres.extensions }}
+    extensions:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
 
   bootstrap:
     initdb:

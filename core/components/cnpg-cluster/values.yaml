@@ -100,6 +100,45 @@ postgres:
   #
   # Empty by default: no existing deployment changes on upgrade.
   extraRoles: []
+
+  # ---------------------------------------------------------------------------
+  # Image, preloaded libraries and extension images
+  # ---------------------------------------------------------------------------
+  #
+  # The defaults render exactly what this chart rendered before these keys
+  # existed: the same image, no shared_preload_libraries, no extensions. A
+  # deployment that sets none of them sees no change on upgrade.
+  #
+  # imageName: the operand image. Changing it is a rolling restart of every
+  # instance (replicas first, then a switchover). A minor upgrade within the
+  # same major (18.x) is binary compatible and needs no dump. Moving between
+  # Debian releases (the plain `18.1` tag is bullseye; `18.x-system-trixie` is
+  # trixie) changes glibc: databases created with a libc collation other than
+  # C/POSIX can then return text indexes in a different order and need a
+  # REINDEX, so check `pg_database.datcollate` before moving. The `-system-`
+  # variant is the one that still carries barman-cloud, which the in-tree
+  # barmanObjectStore backup below needs.
+  imageName: ghcr.io/cloudnative-pg/postgresql:18.1
+
+  # sharedPreloadLibraries: spec.postgresql.shared_preload_libraries. Changing
+  # the list restarts every instance (it is a postmaster setting).
+  sharedPreloadLibraries: []
+
+  # extensions: spec.postgresql.extensions, extension images mounted with
+  # Kubernetes ImageVolume (PostgreSQL 18+, CloudNativePG 1.27+, Kubernetes
+  # with the ImageVolume feature on). The image's own build has to match the
+  # operand: a library built against a newer 18.x or another Debian release
+  # fails to load ("undefined symbol" / GLIBC), which stops the instance on
+  # restart, so prove the pair on a throwaway Cluster first. The extension
+  # still has to be created per database (the Database CRD's `extensions`).
+  extensions: []
+  # extensions:
+  #   - name: pg_search
+  #     image:
+  #       reference: docker.io/paradedb/paradedb-extension:0.26.6-18-trixie
+  #     extension_control_path: [share]
+  #     dynamic_library_path: [lib]
+  #     ld_library_path: [system]
   # extraRoles:
   #   - name: reporting
   #     ensure: present
