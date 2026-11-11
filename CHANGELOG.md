@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.99.0]
+
+### Added
+- `cnpg-cluster`: `postgres.imageName`, `postgres.sharedPreloadLibraries` and
+  `postgres.extensions` render `spec.imageName`,
+  `spec.postgresql.shared_preload_libraries` and `spec.postgresql.extensions`
+  on aws, azure and digitalocean. The defaults are what the templates
+  hard-coded (`ghcr.io/cloudnative-pg/postgresql:18.1`, no preload, no
+  extension images), so a deployment that sets none of them renders the same
+  Cluster: `helm template core/components/cnpg-cluster` is byte-identical per
+  provider, with and without a backup bucket, and `helm template
+  bootstrap/platform-root` is byte-identical (aws 2570, azure 2677,
+  digitalocean 2422 lines).
+
+  Extension images are mounted with Kubernetes ImageVolume (PostgreSQL 18+).
+  On a throwaway Cluster (Kubernetes 1.36, CloudNativePG 1.29) a `pg_search`
+  library built for trixie and a newer 18.x stopped an `18.1` (bullseye)
+  instance at start with an undefined symbol and loaded on
+  `18.6-system-trixie`: pick the operand to match the extension, and check
+  `pg_database.datcollate` before moving between Debian releases.
+
 ## [0.98.0]
 
 ### Fixed
