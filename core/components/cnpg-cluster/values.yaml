@@ -124,6 +124,17 @@ postgres:
   # the list restarts every instance (it is a postmaster setting).
   sharedPreloadLibraries: []
 
+  # parameters: extra keys for spec.postgresql.parameters, rendered after
+  # max_slot_wal_keep_size (which keeps its own key under `wal`). Values are
+  # strings, as CloudNativePG expects. Postmaster settings (max_connections,
+  # shared_buffers, ...) restart every instance when they change; CloudNativePG
+  # also refuses some keys it manages itself, so check its list of fixed
+  # parameters before adding one. Raising max_connections costs memory per
+  # backend: size postgres.resources with it.
+  parameters: {}
+  # parameters:
+  #   max_connections: "300"
+
   # extensions: spec.postgresql.extensions, extension images mounted with
   # Kubernetes ImageVolume (PostgreSQL 18+, CloudNativePG 1.27+, Kubernetes
   # with the ImageVolume feature on). The image's own build has to match the
