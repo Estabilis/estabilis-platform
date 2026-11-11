@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.100.0]
+
+### Added
+- `cnpg-cluster`: `postgres.parameters`, a map rendered into
+  `spec.postgresql.parameters` after `max_slot_wal_keep_size` on aws, azure and
+  digitalocean (values are quoted, as CloudNativePG expects). Empty by default:
+  `helm template core/components/cnpg-cluster` is byte-identical per provider,
+  with and without a backup bucket, and `helm template bootstrap/platform-root`
+  is byte-identical on the three providers. Postmaster settings such as
+  `max_connections` restart every instance when they change.
+
 ## [0.99.0]
 
 ### Added
