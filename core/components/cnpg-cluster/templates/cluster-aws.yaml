@@ -31,6 +31,9 @@ spec:
   postgresql:
     parameters:
       max_slot_wal_keep_size: {{ .Values.postgres.wal.maxSlotKeepSize | quote }}
+      {{- range $k, $v := .Values.postgres.parameters }}
+      {{ $k }}: {{ $v | quote }}
+      {{- end }}
     {{- with .Values.postgres.sharedPreloadLibraries }}
     shared_preload_libraries:
       {{- toYaml . | nindent 6 }}
