@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.101.0]
+
+### Fixed
+- `grafana-stack`: alloy's `discovery.relabel "cnpg_instances"` keeps only
+  pods with `cnpg.io/podRole=instance`. Pods of a CloudNativePG `Pooler`
+  (PgBouncer) also carry `cnpg.io/cluster`, but serve metrics on 9127; they
+  were scraped on 9187 in `job="cnpg-cluster"` with `up == 0`, and
+  `CnpgPostgresqlDown` fired for as long as a Pooler existed.
+  `helm template bootstrap/platform-root` is byte-identical (aws 2570,
+  azure 2677, digitalocean 2422 lines).
+
 ## [0.100.0]
 
 ### Added
