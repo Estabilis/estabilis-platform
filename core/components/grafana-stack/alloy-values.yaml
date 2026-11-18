@@ -716,6 +716,15 @@ alloy:
           regex         = ".+"
         }
 
+        // Pooler (PgBouncer) pods carry cnpg.io/cluster too, but serve
+        // metrics on 9127, not 9187. Without this, every Pooler shows up as
+        // up == 0 in job cnpg-cluster and fires CnpgPostgresqlDown.
+        rule {
+          source_labels = ["__meta_kubernetes_pod_label_cnpg_io_podRole"]
+          action        = "keep"
+          regex         = "instance"
+        }
+
         rule {
           source_labels = ["__meta_kubernetes_pod_ip"]
           target_label  = "__address__"
